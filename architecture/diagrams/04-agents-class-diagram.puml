@@ -1,0 +1,225 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 10
+skinparam packageStyle rectangle
+skinparam nodesep 40
+skinparam ranksep 30
+
+title **DoW Architecture Workbench — Agent Layer**\nAll agents extend K9-AIF BaseAgent — use llm_invoke, publish_event
+
+' ── ABB ───────────────────────────────────────────────────
+
+package "K9-AIF Framework (ABB)" #E8F5E9 {
+
+    abstract class BaseAgent <<ABB>> {
+        +config: dict
+        +monitor
+        +message_bus
+        +governance
+        +logger
+        --
+        {abstract} +execute(payload: dict): dict
+        +publish_event(event: dict)
+        +enforce_governance()
+    }
+
+    class "llm_invoke(config, req)" as llm <<ABB Utility>> {
+        → ModelRouterFactory
+        → K9ModelRouter.route()
+        → LLMFactory.get()
+        → OllamaLLM.invoke()
+    }
+
+    abstract class BaseRetriever <<ABB>> {
+        {abstract} +retrieve(query, top_k): list
+        {abstract} +index(chunks): list
+    }
+}
+
+' ── SBB: Infrastructure Agents ────────────────────────────
+
+package "DoW Infrastructure Agents" #FFF3E0 {
+
+    class DocumentNormalizationAgent <<SBB>> {
+        +layer = "DoW DocNormalization"
+        --
+        +execute(payload): dict
+        -_extract_from_file(path): str
+        -_extract_docx(path): str
+        -_extract_pdf(path): str
+    }
+
+    class ValidationAgent <<SBB>> {
+        +layer = "DoW Validation"
+        --
+        +execute(payload): dict
+        .. checks min length, structure ..
+    }
+
+    class GovernanceReviewAgent <<SBB>> {
+        +layer = "DoW Governance"
+        --
+        +execute(payload): dict
+        .. LLM checks evidence grounding ..
+        .. returns pass / warn / block ..
+    }
+
+    class VerificationAgent <<SBB>> {
+        +layer = "DoW Verification"
+        --
+        +execute(payload): dict
+        .. cross-view consistency ..
+    }
+
+    class SummarizerAgent <<SBB>> {
+        +layer = "DoW Summarizer"
+        --
+        +execute(payload): dict
+        .. compiles stage report ..
+    }
+}
+
+' ── SBB: DoDAF Domain Agents ─────────────────────────────
+
+package "DoW DoDAF Domain Agents" #E3F2FD {
+
+    class StakeholderExtractorAgent <<SBB>> {
+        +layer = "DoW StakeholderExtractor"
+        --
+        +execute(payload): dict
+        .. DoDAF AV-1 stakeholder register ..
+    }
+
+    class PainPointExtractorAgent <<SBB>> {
+        +layer = "DoW PainPointExtractor"
+        --
+        +execute(payload): dict
+        .. OV-1 problem framing ..
+    }
+
+    class ObjectiveExtractorAgent <<SBB>> {
+        +layer = "DoW ObjectiveExtractor"
+        --
+        +execute(payload): dict
+    }
+
+    class MissionAssessmentAgent <<SBB>> {
+        +layer = "DoW MissionAssessment"
+        --
+        +execute(payload): dict
+    }
+
+    class F2PIntentAgent <<SBB>> {
+        +layer = "DoW F2PIntent"
+        --
+        +execute(payload): dict
+        .. DoDAF Step 1 F2P statement ..
+    }
+
+    class ProjectScopeAgent <<SBB>> {
+        +layer = "DoW ProjectScope"
+        --
+        +execute(payload): dict
+    }
+
+    class CapabilityExtractorAgent <<SBB>> {
+        +layer = "DoW CapabilityExtractor"
+        --
+        +execute(payload): dict
+        .. DoDAF CV-2/CV-3 register ..
+        .. CAP-001 ID format ..
+    }
+
+    class DM2ExtractorAgent <<SBB>> {
+        +layer = "DoW DM2Extractor"
+        --
+        +execute(payload): dict
+        .. DM2 entities: CAP, ACT, ..
+        .. PERF, NODE, INFO, FLOW ..
+    }
+
+    class DataCorrelationAgent <<SBB>> {
+        +layer = "DoW DataCorrelation"
+        --
+        +execute(payload): dict
+        .. OV-2, OV-5, CV-2, SV-1 seeds ..
+    }
+
+    class ArchitectureAnalyzerAgent <<SBB>> {
+        +layer = "DoW ArchAnalyzer"
+        --
+        +execute(payload): dict
+    }
+
+    class ReportWriterAgent <<SBB>> {
+        +layer = "DoW ReportWriter"
+        --
+        +execute(payload): dict
+        .. assembles, does not analyze ..
+    }
+}
+
+' ── SBB: Retriever ───────────────────────────────────────
+
+package "DoW Retriever" #E8F5E9 {
+
+    class DowRetriever <<SBB>> {
+        -_vector_store
+        -_catalog_adapter
+        --
+        +retrieve(query, top_k): list
+        +index(chunks): list
+    }
+
+    DowRetriever --|> BaseRetriever
+}
+
+' ── Inheritance ──────────────────────────────────────────
+
+DocumentNormalizationAgent --|> BaseAgent
+ValidationAgent --|> BaseAgent
+GovernanceReviewAgent --|> BaseAgent
+VerificationAgent --|> BaseAgent
+SummarizerAgent --|> BaseAgent
+
+StakeholderExtractorAgent --|> BaseAgent
+PainPointExtractorAgent --|> BaseAgent
+ObjectiveExtractorAgent --|> BaseAgent
+MissionAssessmentAgent --|> BaseAgent
+F2PIntentAgent --|> BaseAgent
+ProjectScopeAgent --|> BaseAgent
+CapabilityExtractorAgent --|> BaseAgent
+DM2ExtractorAgent --|> BaseAgent
+DataCorrelationAgent --|> BaseAgent
+ArchitectureAnalyzerAgent --|> BaseAgent
+ReportWriterAgent --|> BaseAgent
+
+' ── Usage ────────────────────────────────────────────────
+
+StakeholderExtractorAgent ..> llm : llm_invoke
+CapabilityExtractorAgent ..> llm : llm_invoke
+DM2ExtractorAgent ..> llm : llm_invoke
+CapabilityExtractorAgent ..> DowRetriever : governed context
+DM2ExtractorAgent ..> DowRetriever : governed context
+
+note bottom of CapabilityExtractorAgent
+    **DoDAF 2.0 expert prompts:**
+    • CAP-001 ID format
+    • CV-2/CV-3 semantics
+    • Strict evidence grounding
+    • Banlist: AI, ML, cloud, etc.
+    • "NOT PROVIDED IN SOURCE"
+end note
+
+note bottom of DocumentNormalizationAgent
+    **No LLM needed:**
+    Pure extraction agent.
+    .md/.txt → passthrough
+    .pdf → pypdf
+    .docx → python-docx
+    Binary → Docling OCR (optional)
+end note
+
+@enduml

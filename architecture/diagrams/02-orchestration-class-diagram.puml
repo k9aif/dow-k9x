@@ -1,0 +1,143 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 11
+skinparam packageStyle rectangle
+skinparam nodesep 60
+skinparam ranksep 40
+
+title **DoW Architecture Workbench — Orchestration Layer**\nSBB extends K9-AIF BaseOrchestrator
+
+' ── ABB ───────────────────────────────────────────────────
+
+package "K9-AIF Framework (ABB)" #E8F5E9 {
+
+    abstract class BaseOrchestrator <<ABB>> {
+        +config: dict
+        +monitor
+        +enable_zero_trust: bool
+        +zero_trust_guard
+        #_session_manager
+        --
+        {abstract} +execute_flow(payload: dict): dict
+        +apply_zero_trust(payload, ctx): dict
+        #_bootstrap_session(config)
+    }
+
+    class AgentRegistry <<ABB>> {
+        -_registry: dict
+        --
+        +register(name: str, factory: callable)
+        +create(name: str): BaseAgent
+        +get(name: str): class
+        +exists(name: str): bool
+        +list(): list
+    }
+
+    class SquadLoader <<ABB>> {
+        -agent_registry: AgentRegistry
+        --
+        +load(yaml_path): dict[str, BaseSquad]
+        +load_one(yaml_path, squad_id): BaseSquad
+    }
+
+    class BaseSquad <<ABB>> {
+        +squad_id: str
+        +agents: list
+        +flow: list
+        +monitor
+        --
+        +execute(payload: dict): dict
+    }
+
+    class AgentLoader <<Utility>> {
+        -yaml_dir: Path
+        -_by_class: dict
+        --
+        +merge_with_global(name, config): dict
+        +get_agent_yaml(name): dict
+        +list_classes(): list
+    }
+
+    SquadLoader ..> AgentRegistry : uses
+    SquadLoader ..> BaseSquad : creates
+    AgentLoader ..> AgentRegistry : feeds config to
+}
+
+' ── SBB ───────────────────────────────────────────────────
+
+package "DoW Workbench (SBB)" #E3F2FD {
+
+    class PrincipalOrchestrator <<SBB>> {
+        -_router: DowDocumentRouter
+        -_normalizer: DocumentNormalizationAgent
+        -_dodaf_orch: DodafOrchestrator
+        --
+        +execute_flow(payload: dict): dict
+        +process_upload(filename, content): dict
+        +resume_after_hil_gate_1(job_id): dict
+        +resume_after_hil_gate_2(job_id): dict
+        -_save_cascade_state(job_id, state)
+    }
+
+    class DodafOrchestrator <<SBB>> {
+        -_squads: dict[str, BaseSquad]
+        --
+        +execute_flow(payload: dict): dict
+        -_load_squad(yaml_path): BaseSquad
+        -_register_agents(agent_registry, agent_loader)
+    }
+
+    class JcidsOrchestrator <<SBB>> #LightYellow {
+        --
+        +execute_flow(payload: dict): dict
+        -_load_squad(yaml_path): BaseSquad
+        .. Phase 2 ..
+    }
+
+    class SeOrchestrator <<SBB>> #LightYellow {
+        --
+        +execute_flow(payload: dict): dict
+        -_load_squad(yaml_path): BaseSquad
+        .. Phase 3 ..
+    }
+
+    note bottom of PrincipalOrchestrator
+        **Cascade flow:**
+        DoDAF → HIL Gate #1 → JCIDS → HIL Gate #2 → SE
+
+        Uses DowDocumentRouter for
+        deterministic document classification.
+        Manages HIL gates between pipelines.
+    end note
+
+    note bottom of DodafOrchestrator
+        **_load_squad() pattern (from EOC):**
+        1. AgentLoader reads agents/yaml/
+        2. AgentRegistry.register(name, factory)
+        3. SquadLoader.load_one(yaml, squad_id)
+        4. squad.execute(payload)
+
+        Stages 1→2→3→4→5→6 sequential.
+    end note
+}
+
+' ── Inheritance ───────────────────────────────────────────
+
+PrincipalOrchestrator --|> BaseOrchestrator
+DodafOrchestrator --|> BaseOrchestrator
+JcidsOrchestrator --|> BaseOrchestrator
+SeOrchestrator --|> BaseOrchestrator
+
+' ── Composition ──────────────────────────────────────────
+
+PrincipalOrchestrator *-- DodafOrchestrator
+PrincipalOrchestrator *-[hidden]- JcidsOrchestrator
+PrincipalOrchestrator *-[hidden]- SeOrchestrator
+DodafOrchestrator ..> AgentRegistry : registers agents
+DodafOrchestrator ..> SquadLoader : loads squads
+DodafOrchestrator ..> AgentLoader : merges configs
+DodafOrchestrator ..> BaseSquad : executes
+
+@enduml

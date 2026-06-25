@@ -1,0 +1,111 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 11
+skinparam packageStyle rectangle
+skinparam nodesep 60
+skinparam ranksep 40
+
+title **DoW Architecture Workbench — Routing Layer**\nSBB extends K9-AIF BaseRouter
+
+' ── ABB ───────────────────────────────────────────────────
+
+package "K9-AIF Framework (ABB)" #E8F5E9 {
+
+    abstract class BaseRouter <<ABB>> {
+        +config: dict
+        +monitor
+        +message_bus
+        +object_store
+        +governance
+        --
+        {abstract} +route(payload: dict): dict
+        +store_document(bucket, key, data): str
+        +normalize(payload): dict
+        +register_orchestrator(intent, orch)
+        +apply_zero_trust(payload, ctx): dict
+        #_bootstrap_object_store(config)
+        #_bootstrap_session(config)
+    }
+
+    class ObjectStorageFactory <<ABB>> {
+        {static} +create(config): BaseObjectStorage
+    }
+
+    abstract class BaseObjectStorage <<ABB>> {
+        {abstract} +upload(bucket, key, data): str
+        {abstract} +download(bucket, key): bytes
+        {abstract} +get_uri(bucket, key): str
+    }
+
+    class S3ObjectStorageAdapter <<OOB>> {
+        -_client
+        --
+        +upload(bucket, key, data): str
+        +download(bucket, key): bytes
+        +get_uri(bucket, key): str
+    }
+
+    S3ObjectStorageAdapter --|> BaseObjectStorage
+    ObjectStorageFactory ..> BaseObjectStorage : creates
+    BaseRouter *-- BaseObjectStorage : object_store
+}
+
+' ── SBB ───────────────────────────────────────────────────
+
+package "DoW Workbench (SBB)" #E3F2FD {
+
+    class DowDocumentRouter <<SBB>> {
+        -_routing_rules: dict
+        --
+        +route(payload: dict): dict
+        +route_document(doc: DocumentInput): RoutingDecision
+        -_deterministic_route(job_id, text): RoutingDecision
+        -_default_decision(job_id): RoutingDecision
+        -_store_document_if_present(payload): dict
+    }
+
+    class RoutingDecision <<Domain Model>> {
+        +job_id: str
+        +classification: Literal["BD","DODAF","JCIDS","SE","UNKNOWN"]
+        +document_type: str
+        +route_to: str
+        +dodaf_eligible: bool
+        +jcids_eligible: bool
+        +se_eligible: bool
+        +recommended_stages: list
+        +confidence: float
+        +rationale: str
+        +matched_rules: list
+    }
+
+    class DocumentInput <<Domain Model>> {
+        +job_id: str
+        +filename: str
+        +content_type: str
+        +document_uri: str
+        +raw_text: str
+        +markdown: str
+        +metadata: dict
+    }
+
+    note bottom of DowDocumentRouter
+        **Deterministic routing:**
+        User selects document type in UI.
+        Router maps selection → pipeline.
+        No LLM classification needed.
+
+        Stores uploaded document in S3
+        before publishing event to topic.
+    end note
+}
+
+' ── Inheritance ───────────────────────────────────────────
+
+DowDocumentRouter --|> BaseRouter
+DowDocumentRouter ..> RoutingDecision : returns
+DowDocumentRouter ..> DocumentInput : accepts
+DowDocumentRouter ..> ObjectStorageFactory : stores documents
+
+@enduml

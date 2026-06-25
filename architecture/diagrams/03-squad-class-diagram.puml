@@ -1,0 +1,155 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 11
+skinparam packageStyle rectangle
+skinparam nodesep 50
+skinparam ranksep 35
+
+title **DoW Architecture Workbench — Squad Layer**\nSquads are YAML-driven — SquadLoader builds BaseSquad from config
+
+' ── ABB ───────────────────────────────────────────────────
+
+package "K9-AIF Framework (ABB)" #E8F5E9 {
+
+    class BaseSquad <<ABB>> {
+        +squad_id: str
+        +agents: list[BaseAgent]
+        +flow: list[dict]
+        +description: str
+        +monitor
+        --
+        +execute(payload: dict): dict
+        +run(payload): dict
+        -_eval_when(condition, context): bool
+    }
+
+    class SquadLoader <<ABB>> {
+        +load_one(yaml_path, squad_id): BaseSquad
+    }
+
+    note bottom of BaseSquad
+        **Context enrichment:**
+        Each agent's result is stored under
+        its ``result_key`` and passed to the
+        next agent. Context grows progressively.
+
+        **Conditional steps:**
+        ``when:`` field skips steps based
+        on context values.
+    end note
+}
+
+' ── SBB: Squad YAML Definitions ──────────────────────────
+
+package "DoW Squad YAML Definitions" #E3F2FD {
+
+    class "Stage0RoutingSquad\n(stage0_routing_squad.yaml)" as s0 <<YAML>> {
+        agents: [ValidationAgent,
+            RoutingClassifierAgent,
+            GovernanceAgent]
+        flow: validation → classification → governance
+    }
+
+    class "Stage1FitForPurposeSquad\n(stage1_f2p_squad.yaml)" as s1 <<YAML>> {
+        agents: [ValidationAgent,
+            StakeholderExtractorAgent,
+            PainPointExtractorAgent,
+            ObjectiveExtractorAgent,
+            MissionAssessmentAgent,
+            F2PIntentAgent,
+            SummarizerAgent,
+            GovernanceAgent]
+        flow: validate → stakeholders → pain_points
+            → objectives → mission → f2p → summary → governance
+    }
+
+    class "Stage2ScopeIcdSquad\n(stage2_scope_icd_squad.yaml)" as s2 <<YAML>> {
+        agents: [ProjectScopeAgent,
+            ConstraintAgent,
+            OperationalExtractorAgent,
+            CapabilityExtractorAgent,
+            RiskExtractorAgent,
+            VocabularyAgent,
+            ArchitectureAnalyzerAgent,
+            RequirementAgent,
+            SummarizerAgent,
+            GovernanceAgent]
+        flow: scope → constraints → ops → caps
+            → risks → vocab → analysis → reqs
+            → summary → governance
+    }
+
+    class "Stage3DataRequirementsSquad\n(stage3_data_reqs_squad.yaml)" as s3 <<YAML>> {
+        agents: [DataRequirementsAgent,
+            CapabilityExtractorAgent,
+            DM2ExtractorAgent,
+            SystemServiceExtractorAgent,
+            SystemViewAgent,
+            SummarizerAgent,
+            GovernanceAgent]
+    }
+
+    class "Stage4CorrelationSquad\n(stage4_correlation_squad.yaml)" as s4 <<YAML>> {
+        agents: [OperationalExtractorAgent,
+            CapabilityExtractorAgent,
+            SystemServiceExtractorAgent,
+            SystemViewAgent,
+            ServicesViewAgent,
+            DM2ExtractorAgent,
+            DataCorrelationAgent,
+            SummarizerAgent,
+            GovernanceAgent]
+    }
+
+    class "Stage5AnalysisSquad\n(stage5_analysis_squad.yaml)" as s5 <<YAML>> {
+        agents: [ValidationAgent,
+            VerificationAgent,
+            ArchitectureAnalyzerAgent,
+            CapabilityAnalyzerAgent,
+            OperationalAnalyzerAgent,
+            RiskExtractorAgent,
+            ActionItemAgent,
+            RequirementAgent,
+            SummarizerAgent,
+            GovernanceAgent]
+    }
+
+    class "Stage6PresentationSquad\n(stage6_presentation_squad.yaml)" as s6 <<YAML>> {
+        agents: [VerificationAgent,
+            PresentationAgent,
+            SummarizerAgent,
+            GovernanceAgent,
+            ReportWriterAgent]
+    }
+}
+
+' ── Relationships ────────────────────────────────────────
+
+SquadLoader ..> s0 : reads YAML
+SquadLoader ..> s1 : reads YAML
+SquadLoader ..> s2 : reads YAML
+SquadLoader ..> s3 : reads YAML
+SquadLoader ..> s4 : reads YAML
+SquadLoader ..> s5 : reads YAML
+SquadLoader ..> s6 : reads YAML
+
+SquadLoader ..> BaseSquad : creates instance
+
+note bottom of s6
+    **Stage 6 rule:**
+    Does NOT generate new analysis.
+    Compiles and presents validated
+    prior-stage outputs only.
+end note
+
+note bottom of s1
+    **Stage 1 (F2P Gate):**
+    Determines which downstream
+    stages (2-6) are required.
+    Not all documents need
+    full 6-stage treatment.
+end note
+
+@enduml

@@ -1,0 +1,236 @@
+@startuml
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 11
+skinparam sequenceArrowThickness 1.5
+skinparam participantPadding 12
+skinparam sequenceGroupBodyBackgroundColor #F5F5F5
+
+title **DoW Architecture Workbench — End-to-End Sequence**\nDoDAF 2.0 Pipeline (Phase 1) — Deterministic Routing
+
+actor "User" as user
+participant "DoW UI\n(FastAPI)" as ui #LightBlue
+participant "Object Store\n(S3/MinIO)" as s3 #LightGreen
+participant "DowDocument\nRouter" as router #Orange
+participant "Principal\nOrchestrator" as principal #Gold
+participant "Dodaf\nOrchestrator" as dodaf #Coral
+participant "SquadLoader\n+ AgentRegistry" as loader #LightGray
+participant "BaseSquad\n(from YAML)" as squad #LightGray
+participant "Stage Agents\n(BaseAgent)" as agents #SkyBlue
+participant "K9ModelRouter\n+ LLMFactory" as llm #Plum
+participant "DowRetriever" as retriever #PaleGreen
+
+' ============================================================
+' 1. Document Upload
+' ============================================================
+
+group #E3F2FD Upload & Normalization
+
+    user -> ui : Upload document\n+ select document type\n(DoDAF / JCIDS / SE / Business)
+    activate ui
+
+    ui -> ui : Generate job_id\n(JOB-YYYYMMDD-XXXXXX)
+
+    ui -> s3 : store_document(\n  bucket="dow-uploads",\n  key="{job_id}/{filename}",\n  data=file_bytes)
+    s3 --> ui : document_uri\n"s3://dow-uploads/{job_id}/..."
+
+    ui -> ui : DocumentNormalizationAgent\n.execute(payload)
+    note right
+        If .md/.txt → passthrough
+        If .pdf/.docx → extract text
+        If binary → Docling OCR (optional)
+    end note
+
+    ui --> ui : normalized_markdown
+
+end
+
+' ============================================================
+' 2. Deterministic Routing
+' ============================================================
+
+group #FFF3E0 Deterministic Routing
+
+    ui -> router : route({\n  job_id, filename,\n  markdown, document_type\n})
+    activate router
+
+    note right of router
+        **Deterministic**: User already
+        selected document type in UI.
+        No LLM classification needed.
+        Maps directly to pipeline:
+        • DoDAF → dodaf_pipeline
+        • JCIDS → jcids_pipeline (Phase 2)
+        • SE → se_pipeline (Phase 3)
+        • Business → business_pipeline
+    end note
+
+    router --> ui : RoutingDecision {\n  classification: "DODAF",\n  route_to: "dodaf_pipeline",\n  confidence: 1.0\n}
+
+    deactivate router
+
+end
+
+' ============================================================
+' 3. Pipeline Execution
+' ============================================================
+
+ui -> principal : execute_flow({\n  job_id, normalized_markdown,\n  routing_decision\n})
+activate principal
+
+principal -> dodaf : execute_flow(payload)
+activate dodaf
+
+' ============================================================
+' 4. Stage 1 — Fit-for-Purpose (F2P Gate)
+' ============================================================
+
+group #E8F5E9 Stage 1: Identify Intended Use (F2P Gate)
+
+    dodaf -> loader : AgentRegistry.register(\n  "ValidationAgent", ...)\nAgentRegistry.register(\n  "StakeholderExtractorAgent", ...)\n...(all Stage 1 agents)
+
+    dodaf -> loader : SquadLoader.load_one(\n  "squads/yaml/stage1_f2p.yaml",\n  "Stage1FitForPurposeSquad")
+
+    loader --> dodaf : BaseSquad\n(with flow from YAML)
+
+    dodaf -> squad : squad.execute(payload)
+    activate squad
+
+    loop for each agent in flow
+        squad -> agents : agent.execute({\n  source_markdown,\n  prior_outputs, ...})
+        activate agents
+
+        agents -> llm : llm_invoke(config,\n  InferenceRequest(\n    prompt=grounding_rules + task,\n    task_type="reasoning"))
+        llm --> agents : InferenceResponse
+
+        agents -> agents : publish_event({\n  "type": "AgentCompleted",\n  "agent": agent_name})
+
+        agents --> squad : result dict\n(enriches shared context)
+        deactivate agents
+    end
+
+    squad --> dodaf : stage1_result
+    deactivate squad
+
+    dodaf -> s3 : save stage1_fit_for_purpose.md
+
+end
+
+' ============================================================
+' 5. Stage 2 — Scope / ICD Framing
+' ============================================================
+
+group #E3F2FD Stage 2: Define Architecture Scope (ICD Framing)
+
+    dodaf -> loader : SquadLoader.load_one(\n  "stage2_scope_icd.yaml",\n  "Stage2ScopeIcdSquad")
+    loader --> dodaf : BaseSquad
+
+    dodaf -> squad : squad.execute({\n  source_markdown,\n  stage1_output, ...})
+    activate squad
+
+    loop for each agent in flow
+        squad -> agents : agent.execute(payload)
+        activate agents
+
+        agents -> retriever : retrieve(\n  query, viewpoint="CV",\n  entities=[...])
+        retriever --> agents : context_bundle\n(governed, with citations)
+
+        agents -> llm : llm_invoke(config, req)
+        llm --> agents : response
+
+        agents --> squad : result dict
+        deactivate agents
+    end
+
+    squad --> dodaf : stage2_result
+    deactivate squad
+
+    dodaf -> s3 : save stage2_scope_icd.md\nsave icd_seed.md\nsave av2_vocabulary_seed.md
+
+end
+
+' ============================================================
+' 6. Stages 3-5 (same pattern)
+' ============================================================
+
+group #FFF3E0 Stages 3-5: Data → Correlation → Analysis
+
+    note over dodaf, agents
+        **Same pattern repeats for each stage:**
+        1. SquadLoader.load_one(stage_yaml, squad_id)
+        2. squad.execute(payload + prior_stage_outputs)
+        3. Each agent: llm_invoke + retriever + publish_event
+        4. Context enrichment flows through the squad
+        5. Results persisted to S3
+
+        **Stage 3:** Extract operational data → DM2 entities
+        **Stage 4:** Correlate → SV/SvcV views → graph persistence
+        **Stage 5:** Analyze → PV/StdV → KPP/KSA seeds
+    end note
+
+end
+
+' ============================================================
+' 7. Stage 6 — Present Results
+' ============================================================
+
+group #E8F5E9 Stage 6: Present Results (Compile Only)
+
+    dodaf -> loader : SquadLoader.load_one(\n  "stage6_presentation.yaml",\n  "Stage6PresentationSquad")
+    loader --> dodaf : BaseSquad
+
+    dodaf -> squad : squad.execute({\n  all_prior_stage_outputs})
+    activate squad
+
+    note right of squad
+        Stage 6 does NOT
+        generate new analysis.
+        It compiles and presents
+        validated prior-stage outputs.
+    end note
+
+    squad --> dodaf : stage6_result\n(ICD.md + F2P_Summary.md)
+    deactivate squad
+
+    dodaf -> s3 : save final reports:\n  initial_icd.md\n  f2p_summary.md\n  artifact_index.json\n  governance_signoff.md
+
+end
+
+dodaf --> principal : JobResult {\n  status: "completed",\n  artifacts: [...]\n}
+deactivate dodaf
+
+' ============================================================
+' 8. HIL Gate
+' ============================================================
+
+group #FFEBEE HIL Gate #1 — Human Reviews Initial ICD
+
+    principal --> ui : JobResult\n(status: "awaiting_hil_review")
+    ui --> user : Show Initial ICD + F2P\nfor human review
+
+    note over user, ui
+        **Human-in-the-Loop:**
+        • Reviews Initial ICD + F2P Summary
+        • Approves → triggers JCIDS pipeline (Phase 2)
+        • Requests changes → re-run with feedback
+        • Rejects → job closed
+    end note
+
+    user -> ui : Approve ICD
+    ui -> principal : resume_after_hil_gate_1(job_id)
+
+    note right of principal
+        Phase 2: JCIDS pipeline
+        consumes approved ICD
+        → produces Formal ICD + CDD
+        Phase 3: SE pipeline
+        consumes formal ICD + KPPs
+        → produces SRD, SPS, TEMP
+    end note
+
+end
+
+deactivate principal
+deactivate ui
+
+@enduml
