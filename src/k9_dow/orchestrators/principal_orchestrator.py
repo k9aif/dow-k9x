@@ -1,11 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-
-"""
-PrincipalOrchestrator — top-level orchestrator that receives a routed
-job event and delegates to the correct pipeline orchestrator.
-
-Phase 1: only DoDAF pipeline is implemented.
-"""
+# DoW Architecture Workbench — PrincipalOrchestrator (SBB)
+#
+# Cascade: DoDAF → HIL Gate #1 → JCIDS (Phase 2) → HIL Gate #2 → SE (Phase 3)
 
 from __future__ import annotations
 
@@ -14,11 +10,6 @@ from typing import Any, Dict, Optional
 
 from k9_aif_abb.k9_core.orchestration.base_orchestrator import BaseOrchestrator
 
-from k9_dow.contracts.events import DowEvent
-from k9_dow.contracts.payloads import DocumentInput, RoutingDecision
-from k9_dow.contracts.stage_results import JobResult
-from k9_dow.messaging.event_publisher import EventPublisher
-from k9_dow.persistence.file_repository import FileRepository
 from k9_dow.orchestrators.dodaf_orchestrator import DodafOrchestrator
 from k9_dow.routers.dow_document_router import DowDocumentRouter
 from k9_dow.agents.src.document_normalization_agent import DocumentNormalizationAgent
@@ -29,150 +20,76 @@ log = logging.getLogger(__name__)
 
 class PrincipalOrchestrator(BaseOrchestrator):
     """
-    Top-level orchestrator for the DoW Architecture Workbench.
+    Top-level cascade orchestrator for the DoW Architecture Workbench.
 
-    Responsibilities:
-      1. Receive uploaded document
-      2. Normalize to markdown
-      3. Route to correct pipeline
-      4. Execute pipeline orchestrator
-      5. Return job result
+    Document → Normalize → Route → DoDAF → [HIL] → JCIDS → [HIL] → SE
     """
 
     layer = "DoW PrincipalOrchestrator SBB"
 
-    def __init__(
-        self,
-        config: Optional[Dict[str, Any]] = None,
-        monitor=None,
-        event_publisher: Optional[EventPublisher] = None,
-        file_repo: Optional[FileRepository] = None,
-    ):
-        super().__init__(config=config or {}, monitor=monitor)
-        self.event_publisher = event_publisher
-        self.file_repo = file_repo or FileRepository()
+    def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs) -> None:
+        super().__init__(config=config or {}, **kwargs)
 
-        self._router = DowDocumentRouter(
-            config=self.config,
-            event_publisher=self.event_publisher,
-        )
-
-        self._normalizer = DocumentNormalizationAgent(
-            config=self.config,
-            event_publisher=self.event_publisher,
-        )
-
-        self._pipelines = {
-            "dodaf_pipeline": DodafOrchestrator(
-                config=self.config,
-                event_publisher=self.event_publisher,
-                file_repo=self.file_repo,
-            ),
-        }
+        self._router = DowDocumentRouter(config=self.config)
+        self._normalizer = DocumentNormalizationAgent(config=self.config)
+        self._dodaf = DodafOrchestrator(config=self.config)
 
     def execute_flow(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         job_id = payload.get("job_id") or generate_job_id()
         filename = payload.get("filename", "unknown")
         text = payload.get("text") or payload.get("markdown") or ""
-        raw_path = payload.get("raw_path")
 
         log.info("[PrincipalOrchestrator] Job %s started — file=%s", job_id, filename)
-        self._emit("DocumentUploaded", job_id, message=f"Document uploaded: {filename}")
 
-        # ── 1. Normalize ──────────────────────────────────────────────
-        norm_payload = {
-            "job_id": job_id,
-            "stage_id": "stage0_normalization",
-            "agent_name": "DocumentNormalizationAgent",
+        # 1. Normalize
+        norm_result = self._normalizer.execute({
             "source_markdown": text,
-            "metadata": {"raw_path": raw_path} if raw_path else {},
-        }
-        norm_result = self._normalizer.execute(norm_payload)
-        normalized_md = norm_result.get("markdown", text)
+            "metadata": payload.get("metadata", {}),
+        })
+        normalized_md = norm_result.get("output") or norm_result.get("markdown") or text
 
         if not normalized_md or not normalized_md.strip():
-            log.error("[PrincipalOrchestrator] Normalization produced empty text")
-            return JobResult(
-                job_id=job_id,
-                route="unknown",
-                classification="UNKNOWN",
-                status="failed",
-            ).model_dump()
+            return {"job_id": job_id, "status": "failed", "error": "Empty document after normalization"}
 
-        self._emit("DocumentNormalized", job_id)
-
-        if self.file_repo:
-            self.file_repo.save_markdown(job_id, "normalized_input.md", normalized_md)
-
-        # ── 2. Route ──────────────────────────────────────────────────
-        doc_input = DocumentInput(
-            job_id=job_id,
-            filename=filename,
-            content_type="text/markdown",
-            markdown=normalized_md,
-        )
-        routing_raw = self._router.route(doc_input.model_dump())
-        routing = RoutingDecision(**routing_raw)
-
-        if self.file_repo:
-            self.file_repo.save_json(job_id, "routing_manifest.json", routing.model_dump())
-
-        # ── 3. Execute pipeline ───────────────────────────────────────
-        pipeline = self._pipelines.get(routing.route_to)
-        if pipeline is None:
-            log.warning(
-                "[PrincipalOrchestrator] No pipeline for route=%s — Phase 1 supports dodaf only",
-                routing.route_to,
-            )
-            return JobResult(
-                job_id=job_id,
-                route=routing.route_to,
-                classification=routing.classification,
-                status="failed",
-                artifact_index={"routing_manifest": "routing_manifest.json"},
-            ).model_dump()
-
-        pipeline_payload = {
-            "job_id": job_id,
-            "route": routing.route_to,
-            "normalized_markdown": normalized_md,
-            "routing_decision": routing.model_dump(),
-        }
-
-        result = pipeline.execute_flow(pipeline_payload)
-
-        log.info(
-            "[PrincipalOrchestrator] Job %s completed — route=%s status=%s",
-            job_id, routing.route_to, result.get("status", "unknown"),
-        )
-        return result
-
-    def process_upload(
-        self,
-        filename: str,
-        content: bytes | str,
-        raw_path: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """Convenience method for API upload handler."""
-        job_id = generate_job_id()
-
-        if self.file_repo and isinstance(content, bytes):
-            self.file_repo.save_input(job_id, filename, content)
-
-        text = content.decode("utf-8", errors="ignore") if isinstance(content, bytes) else content
-
-        return self.execute_flow({
+        # 2. Route (deterministic)
+        routing = self._router.route({
             "job_id": job_id,
             "filename": filename,
-            "text": text,
-            "raw_path": raw_path,
+            "markdown": normalized_md,
+            "document_type": payload.get("document_type", ""),
         })
 
-    def _emit(self, event_type: str, job_id: str, message: str = "") -> None:
-        if not self.event_publisher:
-            return
-        self.event_publisher.publish(DowEvent(
-            event_type=event_type,
-            job_id=job_id,
-            message=message or event_type,
-        ))
+        route_to = routing.get("route_to", "unknown_pipeline")
+
+        # 3. Execute DoDAF pipeline (Phase 1)
+        if route_to == "dodaf_pipeline":
+            result = self._dodaf.execute_flow({
+                "job_id": job_id,
+                "normalized_markdown": normalized_md,
+                "routing_decision": routing,
+            })
+            result["routing"] = routing
+            return result
+
+        # Other pipelines — Phase 2/3
+        return {
+            "job_id": job_id,
+            "status": "unsupported_pipeline",
+            "route_to": route_to,
+            "routing": routing,
+            "message": f"Pipeline '{route_to}' not yet implemented. Phase 1 supports DoDAF only.",
+        }
+
+    def process_upload(self, filename: str, content: bytes | str) -> Dict[str, Any]:
+        """Convenience for API upload handler."""
+        job_id = generate_job_id()
+        text = content.decode("utf-8", errors="ignore") if isinstance(content, bytes) else content
+        return self.execute_flow({"job_id": job_id, "filename": filename, "text": text})
+
+    def resume_after_hil_gate_1(self, job_id: str) -> Dict[str, Any]:
+        """Phase 2 — not yet implemented."""
+        return {"job_id": job_id, "status": "awaiting_jcids_implementation"}
+
+    def resume_after_hil_gate_2(self, job_id: str) -> Dict[str, Any]:
+        """Phase 3 — not yet implemented."""
+        return {"job_id": job_id, "status": "awaiting_se_implementation"}

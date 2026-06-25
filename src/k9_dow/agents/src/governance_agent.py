@@ -1,20 +1,31 @@
 # SPDX-License-Identifier: Apache-2.0
-
-from __future__ import annotations
+# DoW Architecture Workbench — GovernanceAgent (SBB)
 
 import json
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-from k9_dow.agents.src.base_dow_agent import BaseDowAgent
-from k9_dow.contracts.artifacts import DowAgentResult, GovernanceFinding
-from k9_dow.contracts.payloads import DowAgentPayload
-from k9_dow.utils.markdown_utils import extract_first_json
+from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
+from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
+from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
 
 log = logging.getLogger(__name__)
 
+GOVERNANCE_RULES = """\
+G1. Use only information explicitly present in the source document or prior approved stage outputs.
+G2. If a requested element is not supported, output NOT PROVIDED IN SOURCE.
+G3. Do not invent stakeholders, capabilities, systems, services, interfaces, constraints, risks, requirements, KPPs, KSAs, KURs, or timelines.
+G4. Include evidence snippets where possible.
+G5. Maintain neutral DoD/government-review-ready tone.
+G6. Do not mention internal implementation frameworks in generated domain reports.
+G7. Mark uncertainty explicitly.
+G8. Preserve traceability from source text to derived stage output.
+G9. Separate extracted facts from analysis.
+G10. Send outputs through governance validation before persistence.
+"""
 
-class GovernanceAgent(BaseDowAgent):
+
+class GovernanceAgent(BaseAgent):
     """
     Reviews stage outputs against governance rules.
 
@@ -23,46 +34,47 @@ class GovernanceAgent(BaseDowAgent):
     """
 
     layer = "DoW Governance SBB"
-    agent_name = "GovernanceAgent"
 
-    def run_agent(self, payload: DowAgentPayload) -> DowAgentResult:
-        prior_text = (
-            "\n\n".join(payload.prior_outputs.values())
-            if payload.prior_outputs
-            else ""
-        )
+    def __init__(self, config: Optional[Dict[str, Any]] = None, monitor=None, **kwargs):
+        super().__init__(config or {}, monitor=monitor, **kwargs)
+
+    def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        prior = payload.get("prior_outputs") or {}
+        prior_text = "\n\n".join(prior.values()) if prior else ""
 
         if not prior_text.strip():
-            return DowAgentResult(
-                job_id=payload.job_id,
-                agent_name=self.agent_name,
-                stage_id=payload.stage_id,
-                status="completed",
-                markdown="## Governance Review\n\nNo prior outputs to review.\n\n**Status:** pass",
-                json_data={
-                    "status": "pass",
-                    "findings": [],
-                    "summary": "No content to review",
-                },
-            )
+            self.publish_event({"type": "AgentCompleted", "agent": "GovernanceAgent"})
+            return {
+                "agent": "GovernanceAgent",
+                "output": "## Governance Review\n\nNo prior outputs to review.\n\n**Status:** pass",
+            }
 
-        prompt = self.build_prompt(
-            role="DoD Architecture Governance Reviewer",
-            task=(
-                "Review the following stage outputs against these governance rules:\n\n"
-                f"{self._governance_rules}\n\n"
-                "Return JSON:\n"
-                '{"status": "pass|warn|block", "findings": [{"severity": "info|warning|error|blocker", '
-                '"rule_id": "G1-G10", "message": "...", "evidence": "..."}], "summary": "..."}'
-            ),
-            source_text=prior_text[:6000],
+        prompt = (
+            f"Role: {self.config.get('role', 'DoD Architecture Governance Reviewer')}\n"
+            f"Goal: {self.config.get('goal', 'Review stage outputs against governance rules')}\n\n"
+            "## Task\n"
+            "Review the following stage outputs against these governance rules:\n\n"
+            f"{GOVERNANCE_RULES}\n\n"
+            "Return JSON:\n"
+            '{"status": "pass|warn|block", "findings": [{"severity": "info|warning|error|blocker", '
+            '"rule_id": "G1-G10", "message": "...", "evidence": "..."}], "summary": "..."}\n\n'
+            f"## Stage Outputs\n{prior_text[:6000]}\n"
         )
 
         try:
-            raw = self.invoke_llm(prompt, task_type="reasoning")
-            json_str = extract_first_json(raw)
-            if json_str:
-                data = json.loads(json_str)
+            req = InferenceRequest(
+                prompt=prompt,
+                task_type=self.config.get("model", "reasoning"),
+                metadata={"agent": "GovernanceAgent"},
+            )
+            resp = llm_invoke(self.config, req)
+            raw = resp.output.strip()
+
+            # Try to extract JSON from response
+            json_start = raw.find("{")
+            json_end = raw.rfind("}") + 1
+            if json_start >= 0 and json_end > json_start:
+                data = json.loads(raw[json_start:json_end])
             else:
                 data = {
                     "status": "pass",
@@ -84,11 +96,5 @@ class GovernanceAgent(BaseDowAgent):
             for f in data["findings"]:
                 md += f"- **[{f.get('severity', 'info')}] {f.get('rule_id', '')}:** {f.get('message', '')}\n"
 
-        return DowAgentResult(
-            job_id=payload.job_id,
-            agent_name=self.agent_name,
-            stage_id=payload.stage_id,
-            status="completed",
-            markdown=md,
-            json_data=data,
-        )
+        self.publish_event({"type": "AgentCompleted", "agent": "GovernanceAgent"})
+        return {"agent": "GovernanceAgent", "output": md}

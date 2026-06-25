@@ -15,7 +15,6 @@ from k9_dow.contracts.stage_results import (
     StageResult,
     JobResult,
 )
-from k9_dow.contracts.events import DowEvent
 
 __all__ = [
     "DocumentInput",
@@ -27,5 +26,4 @@ __all__ = [
     "GovernanceResult",
     "StageResult",
     "JobResult",
-    "DowEvent",
 ]

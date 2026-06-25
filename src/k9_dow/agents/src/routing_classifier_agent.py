@@ -1,20 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
-
-from __future__ import annotations
+# DoW Architecture Workbench — RoutingClassifierAgent (SBB)
 
 import json
 import logging
 from typing import Any, Dict, Optional
 
-from k9_dow.agents.src.base_dow_agent import BaseDowAgent
-from k9_dow.contracts.artifacts import DowAgentResult
-from k9_dow.contracts.payloads import DowAgentPayload
-from k9_dow.utils.markdown_utils import extract_first_json
+from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
+from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
+from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
 
 log = logging.getLogger(__name__)
 
 
-class RoutingClassifierAgent(BaseDowAgent):
+class RoutingClassifierAgent(BaseAgent):
     """
     LLM-based document classifier used when deterministic routing rules
     are inconclusive.
@@ -23,47 +21,55 @@ class RoutingClassifierAgent(BaseDowAgent):
     """
 
     layer = "DoW RoutingClassifier SBB"
-    agent_name = "RoutingClassifierAgent"
 
-    def run_agent(self, payload: DowAgentPayload) -> DowAgentResult:
-        text_preview = payload.source_markdown[:3000] if payload.source_markdown else ""
+    def __init__(self, config: Optional[Dict[str, Any]] = None, monitor=None, **kwargs):
+        super().__init__(config or {}, monitor=monitor, **kwargs)
+
+    def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        source = payload.get("source_markdown") or ""
+        text_preview = source[:3000]
 
         if not text_preview.strip():
-            return DowAgentResult(
-                job_id=payload.job_id,
-                agent_name=self.agent_name,
-                stage_id=payload.stage_id,
-                status="completed",
-                json_data={
-                    "classification": "UNKNOWN",
-                    "document_type": "unknown",
-                    "confidence": 0.0,
-                    "rationale": "Empty document",
-                },
-            )
+            self.publish_event({"type": "AgentCompleted", "agent": "RoutingClassifierAgent"})
+            return {
+                "agent": "RoutingClassifierAgent",
+                "output": "Empty document — classified as UNKNOWN.",
+                "classification": "UNKNOWN",
+                "document_type": "unknown",
+                "confidence": 0.0,
+                "rationale": "Empty document",
+            }
 
-        prompt = self.build_prompt(
-            role="Document Classification Specialist",
-            task=(
-                "Classify this document into exactly one category:\n"
-                "- BD: business development, call reports, meeting notes, engagement\n"
-                "- DODAF: architecture, mission, capability, operational, system, DoDAF\n"
-                "- JCIDS: requirements, ICD, CDD, KPP, capability gap, JCIDS\n"
-                "- SE: systems engineering, functional analysis, verification, specification\n"
-                "- UNKNOWN: does not fit any category\n\n"
-                "Return JSON only:\n"
-                '{"classification": "...", "document_type": "...", "confidence": 0.0-1.0, '
-                '"rationale": "...", "dodaf_eligible": true/false, "jcids_eligible": true/false, '
-                '"se_eligible": true/false}'
-            ),
-            source_text=text_preview,
+        prompt = (
+            f"Role: {self.config.get('role', 'Document Classification Specialist')}\n"
+            f"Goal: {self.config.get('goal', 'Classify documents into architecture pipeline categories')}\n\n"
+            "## Task\n"
+            "Classify this document into exactly one category:\n"
+            "- BD: business development, call reports, meeting notes, engagement\n"
+            "- DODAF: architecture, mission, capability, operational, system, DoDAF\n"
+            "- JCIDS: requirements, ICD, CDD, KPP, capability gap, JCIDS\n"
+            "- SE: systems engineering, functional analysis, verification, specification\n"
+            "- UNKNOWN: does not fit any category\n\n"
+            "Return JSON only:\n"
+            '{"classification": "...", "document_type": "...", "confidence": 0.0-1.0, '
+            '"rationale": "...", "dodaf_eligible": true/false, "jcids_eligible": true/false, '
+            '"se_eligible": true/false}\n\n'
+            f"## Source Document\n{text_preview}\n"
         )
 
         try:
-            raw = self.invoke_llm(prompt, task_type="reasoning")
-            json_str = extract_first_json(raw)
-            if json_str:
-                data = json.loads(json_str)
+            req = InferenceRequest(
+                prompt=prompt,
+                task_type=self.config.get("model", "reasoning"),
+                metadata={"agent": "RoutingClassifierAgent"},
+            )
+            resp = llm_invoke(self.config, req)
+            raw = resp.output.strip()
+
+            json_start = raw.find("{")
+            json_end = raw.rfind("}") + 1
+            if json_start >= 0 and json_end > json_start:
+                data = json.loads(raw[json_start:json_end])
             else:
                 data = {
                     "classification": "UNKNOWN",
@@ -80,10 +86,10 @@ class RoutingClassifierAgent(BaseDowAgent):
                 "rationale": f"Classification failed: {exc}",
             }
 
-        return DowAgentResult(
-            job_id=payload.job_id,
-            agent_name=self.agent_name,
-            stage_id=payload.stage_id,
-            status="completed",
-            json_data=data,
-        )
+        self.publish_event({"type": "AgentCompleted", "agent": "RoutingClassifierAgent"})
+        return {
+            "agent": "RoutingClassifierAgent",
+            "output": f"Classification: {data.get('classification', 'UNKNOWN')} "
+                      f"(confidence: {data.get('confidence', 0.0)})",
+            **data,
+        }

@@ -1,76 +1,73 @@
 # SPDX-License-Identifier: Apache-2.0
-
-from __future__ import annotations
+# DoW Architecture Workbench — DocumentNormalizationAgent (SBB)
+#
+# Pure extraction agent — no LLM invocation.
+# Converts uploaded documents (MD, TXT, PDF, DOCX, XLSX, CSV) into
+# normalized Markdown text with metadata.
 
 import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from k9_dow.agents.src.base_dow_agent import BaseDowAgent
-from k9_dow.contracts.artifacts import DowAgentResult
-from k9_dow.contracts.payloads import DowAgentPayload
+from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
 
 log = logging.getLogger(__name__)
 
 
-class DocumentNormalizationAgent(BaseDowAgent):
-    """
-    Pure extraction agent — no LLM invocation.
-
-    Converts uploaded documents (MD, TXT, PDF, DOCX, XLSX, CSV) into
-    normalized Markdown text with metadata.
-    """
-
+class DocumentNormalizationAgent(BaseAgent):
     layer = "DoW DocumentNormalization SBB"
-    agent_name = "DocumentNormalizationAgent"
 
-    def run_agent(self, payload: DowAgentPayload) -> DowAgentResult:
+    def __init__(self, config: Optional[Dict[str, Any]] = None, monitor=None, **kwargs):
+        super().__init__(config or {}, monitor=monitor, **kwargs)
+
+    def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         warnings: list[str] = []
         markdown = ""
         metadata: Dict[str, Any] = {}
 
-        if payload.source_markdown:
-            markdown = payload.source_markdown
+        source_markdown = payload.get("source_markdown") or ""
+        raw_path = (payload.get("metadata") or {}).get("raw_path")
+
+        if source_markdown:
+            markdown = source_markdown
             metadata["conversion_method"] = "passthrough"
-        elif payload.metadata.get("raw_path"):
-            raw_path = Path(payload.metadata["raw_path"])
-            markdown, meta_warnings = self._extract_from_file(raw_path)
+        elif raw_path:
+            path = Path(raw_path)
+            markdown, meta_warnings = self._extract_from_file(path)
             warnings.extend(meta_warnings)
-            metadata["conversion_method"] = f"file_extraction:{raw_path.suffix}"
-            metadata["file_size"] = raw_path.stat().st_size if raw_path.exists() else 0
+            metadata["conversion_method"] = f"file_extraction:{path.suffix}"
+            metadata["file_size"] = path.stat().st_size if path.exists() else 0
         else:
-            return DowAgentResult(
-                job_id=payload.job_id,
-                agent_name=self.agent_name,
-                stage_id=payload.stage_id,
-                status="failed",
-                errors=["No source_markdown or raw_path provided"],
-            )
+            self.publish_event({"type": "AgentCompleted", "agent": "DocumentNormalizationAgent", "status": "failed"})
+            return {
+                "agent": "DocumentNormalizationAgent",
+                "output": "No source_markdown or raw_path provided",
+                "status": "failed",
+                "errors": ["No source_markdown or raw_path provided"],
+            }
 
         if not markdown or not markdown.strip():
-            return DowAgentResult(
-                job_id=payload.job_id,
-                agent_name=self.agent_name,
-                stage_id=payload.stage_id,
-                status="failed",
-                errors=["Document produced empty text after normalization"],
-                warnings=warnings,
-            )
+            self.publish_event({"type": "AgentCompleted", "agent": "DocumentNormalizationAgent", "status": "failed"})
+            return {
+                "agent": "DocumentNormalizationAgent",
+                "output": "Document produced empty text after normalization",
+                "status": "failed",
+                "errors": ["Document produced empty text after normalization"],
+                "warnings": warnings,
+            }
 
         metadata["char_count"] = len(markdown)
         metadata["line_count"] = markdown.count("\n") + 1
 
-        return DowAgentResult(
-            job_id=payload.job_id,
-            agent_name=self.agent_name,
-            stage_id=payload.stage_id,
-            status="completed",
-            markdown=markdown,
-            json_data=metadata,
-            warnings=warnings,
-        )
+        self.publish_event({"type": "AgentCompleted", "agent": "DocumentNormalizationAgent", "status": "completed"})
+        return {
+            "agent": "DocumentNormalizationAgent",
+            "output": markdown,
+            "metadata": metadata,
+            "warnings": warnings,
+        }
 
-    # ── File extraction dispatch ─────────────────────────────────────────
+    # -- File extraction dispatch -----------------------------------------
 
     def _extract_from_file(self, path: Path) -> tuple[str, list[str]]:
         warnings: list[str] = []
@@ -97,7 +94,7 @@ class DocumentNormalizationAgent(BaseDowAgent):
         except Exception as exc:
             return "", warnings + [f"Raw decode failed: {exc}"]
 
-    # ── Format-specific extractors ───────────────────────────────────────
+    # -- Format-specific extractors ---------------------------------------
 
     def _extract_docx(self, path: Path, warnings: list[str]) -> tuple[str, list[str]]:
         try:

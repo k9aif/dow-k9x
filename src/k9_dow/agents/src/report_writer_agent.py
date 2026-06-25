@@ -1,58 +1,54 @@
 # SPDX-License-Identifier: Apache-2.0
+# DoW Architecture Workbench — ReportWriterAgent (SBB)
+#
+# Assembly agent — does NOT invoke the LLM.
+# Organizes prior outputs into a structured document.
 
-from __future__ import annotations
-from k9_dow.agents.src.base_dow_agent import BaseDowAgent
-from k9_dow.contracts.artifacts import DowAgentResult
-from k9_dow.contracts.payloads import DowAgentPayload
+from typing import Any, Dict, Optional
+
+from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
 
 
-class ReportWriterAgent(BaseDowAgent):
-    """
-    Compiles final architecture reports from prior agent outputs.
-
-    This is an assembly agent — it does NOT invoke the LLM.
-    It organizes prior outputs into a structured document.
-    """
-
+class ReportWriterAgent(BaseAgent):
     layer = "DoW ReportWriter SBB"
-    agent_name = "ReportWriterAgent"
 
-    def run_agent(self, payload: DowAgentPayload) -> DowAgentResult:
-        if not payload.prior_outputs:
-            return DowAgentResult(
-                job_id=payload.job_id,
-                agent_name=self.agent_name,
-                stage_id=payload.stage_id,
-                status="completed",
-                markdown="## Architecture Report\n\nNo prior outputs to compile.\n",
-            )
+    def __init__(self, config: Optional[Dict[str, Any]] = None, monitor=None, **kwargs):
+        super().__init__(config or {}, monitor=monitor, **kwargs)
+
+    def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        prior = payload.get("prior_outputs") or {}
+        job_id = payload.get("job_id", "unknown")
+        stage_id = payload.get("stage_id", "unknown")
+
+        if not prior:
+            self.publish_event({"type": "AgentCompleted", "agent": "ReportWriterAgent"})
+            return {
+                "agent": "ReportWriterAgent",
+                "output": "## Architecture Report\n\nNo prior outputs to compile.\n",
+            }
 
         sections = ["# Architecture Report\n"]
-        sections.append(f"**Job:** {payload.job_id}  ")
-        sections.append(f"**Stage:** {payload.stage_id}\n")
+        sections.append(f"**Job:** {job_id}  ")
+        sections.append(f"**Stage:** {stage_id}\n")
         sections.append("---\n")
 
         # Table of contents
         sections.append("## Table of Contents\n")
-        for idx, agent_name in enumerate(payload.prior_outputs.keys(), 1):
+        for idx, agent_name in enumerate(prior.keys(), 1):
             anchor = agent_name.lower().replace(" ", "-")
             sections.append(f"{idx}. [{agent_name}](#{anchor})")
         sections.append("")
 
         # Agent output sections
-        for agent_name, output_text in payload.prior_outputs.items():
+        for agent_name, output_text in prior.items():
             sections.append(f"## {agent_name}\n")
             sections.append(output_text)
             sections.append("\n---\n")
 
         report = "\n".join(sections)
-        artifact_paths = [f"{payload.job_id}/{payload.stage_id}/architecture_report.md"]
 
-        return DowAgentResult(
-            job_id=payload.job_id,
-            agent_name=self.agent_name,
-            stage_id=payload.stage_id,
-            status="completed",
-            markdown=report,
-            json_data={"artifact_paths": artifact_paths},
-        )
+        self.publish_event({"type": "AgentCompleted", "agent": "ReportWriterAgent"})
+        return {
+            "agent": "ReportWriterAgent",
+            "output": report,
+        }
