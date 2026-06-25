@@ -4,10 +4,16 @@
 # Maps incoming document types to:
 #   - pipeline routing
 #   - which DoDAF stages to execute
+#   - which DoDAF views can be produced (evidence permitting)
 #   - expected output artifacts
+#   - ICD sections that can be populated
 #
-# The F2P Gate (Stage 1) reads this catalog to generate
-# the routing manifest that controls downstream execution.
+# The F2P Gate (Stage 1) reads this catalog to generate the routing
+# manifest that controls downstream execution.
+#
+# Views are "achievable" — they only appear in the output if the
+# source document contains sufficient evidence. Any view without
+# evidence is marked "NOT PROVIDED IN SOURCE" in the output.
 
 document_types:
 
@@ -18,6 +24,35 @@ document_types:
     description: "Full architecture descriptions with mission context, capabilities, operational and system data."
     pipeline: dodaf_pipeline
     stages: [1, 2, 3, 4, 5, 6]
+    achievable_views:
+      - AV-1     # Overview & Summary
+      - AV-2     # Integrated Dictionary
+      - CV-1     # Capability Vision
+      - CV-2     # Capability Taxonomy
+      - CV-6     # Capability to Activities Mapping
+      - OV-1     # High-Level Operational Concept
+      - OV-2     # Operational Resource Flow
+      - OV-5a    # Activity Decomposition Tree
+      - OV-5b    # Operational Activity Model
+      - SV-1     # Systems Interface Description
+      - SV-4     # Systems Functionality
+      - SvcV-1   # Services Context
+      - SvcV-4   # Services Functionality
+      - PV-1     # Performance Parameters
+      - StdV-1   # Standards Profile
+      - StdV-2   # Standards Forecast
+    icd_sections:
+      - "Section 1: Purpose & Scope"
+      - "Section 2: Mission Need"
+      - "Section 3: Capability Gap"
+      - "Section 4: Operational Context"
+      - "Section 5: System/Service Views"
+      - "Section 6: Performance Requirements"
+      - "Section 7: Constraints & Risks"
+      - "Section 8: Traceability"
+      - "Appendix A: AV-2 Vocabulary"
+      - "Appendix B: DM2 Entity Register"
+      - "Appendix C: Embedded Diagrams"
     expected_outputs:
       - stage1_fit_for_purpose.md
       - stage2_scope_icd.md
@@ -43,6 +78,15 @@ document_types:
     description: "Concept of Operations, mission threads, operational concepts. Typically lacks system-level detail."
     pipeline: dodaf_pipeline
     stages: [1, 2, 3]
+    achievable_views:
+      - AV-1     # Overview (initial)
+      - CV-1     # Capability Vision (partial)
+      - OV-1     # Operational Concept
+      - OV-5b    # Activity Model (if activities described)
+    icd_sections:
+      - "Section 1: Purpose & Scope"
+      - "Section 2: Mission Need"
+      - "Section 4: Operational Context (partial)"
     expected_outputs:
       - stage1_fit_for_purpose.md
       - f2p_summary.md
@@ -56,6 +100,19 @@ document_types:
     description: "Capability gap assessments, mission need statements, capability-focused documents."
     pipeline: dodaf_pipeline
     stages: [1, 2, 3, 5]
+    achievable_views:
+      - AV-1     # Overview
+      - CV-1     # Capability Vision
+      - CV-2     # Capability Taxonomy
+      - CV-4     # Capability Dependencies
+      - CV-6     # Capability to Activities (if activities stated)
+      - OV-1     # Operational Concept (if context provided)
+    icd_sections:
+      - "Section 1: Purpose & Scope"
+      - "Section 2: Mission Need"
+      - "Section 3: Capability Gap"
+      - "Section 6: Performance Requirements (if KPPs stated)"
+      - "Section 7: Constraints & Risks"
     expected_outputs:
       - stage1_fit_for_purpose.md
       - f2p_summary.md
@@ -72,6 +129,22 @@ document_types:
     description: "System overviews, service descriptions, interface documents. Architecture scope is assumed."
     pipeline: dodaf_pipeline
     stages: [1, 3, 4, 5, 6]
+    achievable_views:
+      - AV-1     # Overview
+      - SV-1     # Systems Interface Description
+      - SV-2     # Systems Resource Flow
+      - SV-4     # Systems Functionality
+      - SvcV-1   # Services Context
+      - SvcV-2   # Services Resource Flow
+      - SvcV-4   # Services Functionality
+      - OV-2     # Resource Flow (if operational data present)
+      - StdV-1   # Standards Profile (if standards referenced)
+    icd_sections:
+      - "Section 5: System/Service Views"
+      - "Section 6: Performance Requirements"
+      - "Section 8: Traceability"
+      - "Appendix B: DM2 Entity Register"
+      - "Appendix C: Embedded Diagrams"
     expected_outputs:
       - stage1_fit_for_purpose.md
       - stage3_data_requirements.md
@@ -88,6 +161,28 @@ document_types:
     description: "Existing ICD drafts, requirements documents, capability development documents for validation and enrichment."
     pipeline: dodaf_pipeline
     stages: [1, 2, 3, 4, 5, 6]
+    achievable_views:
+      - AV-1     # Overview
+      - AV-2     # Integrated Dictionary
+      - CV-1     # Capability Vision
+      - CV-2     # Capability Taxonomy
+      - CV-6     # Capability to Activities
+      - OV-1     # Operational Concept
+      - OV-2     # Resource Flow
+      - OV-5b    # Activity Model
+      - SV-1     # Systems Interface (if system data exists)
+      - PV-1     # Performance (if KPPs exist)
+      - StdV-1   # Standards (if referenced)
+    icd_sections:
+      - "Section 1: Purpose & Scope"
+      - "Section 2: Mission Need"
+      - "Section 3: Capability Gap"
+      - "Section 4: Operational Context"
+      - "Section 5: System/Service Views (if data exists)"
+      - "Section 6: Performance Requirements (if KPPs exist)"
+      - "Section 7: Constraints & Risks"
+      - "Section 8: Traceability"
+      - "Appendix A: AV-2 Vocabulary"
     expected_outputs:
       - stage1_fit_for_purpose.md
       - stage2_scope_icd.md
@@ -108,6 +203,11 @@ document_types:
     description: "MIL-STD references, compliance assessments, policy/standards documents."
     pipeline: dodaf_pipeline
     stages: [1, 5]
+    achievable_views:
+      - StdV-1   # Standards Profile
+      - StdV-2   # Standards Forecast
+    icd_sections:
+      - "Section 6: Performance Requirements (standards only)"
     expected_outputs:
       - stage1_fit_for_purpose.md
       - stage5_architecture_analysis.md
@@ -119,6 +219,19 @@ document_types:
     description: "OV-1, OV-2, OV-5 descriptions, operational activity models, resource flow documents."
     pipeline: dodaf_pipeline
     stages: [1, 2, 3, 4]
+    achievable_views:
+      - AV-1     # Overview
+      - OV-1     # Operational Concept
+      - OV-2     # Resource Flow
+      - OV-3     # Resource Flow Matrix
+      - OV-4     # Organizational Relationships
+      - OV-5a    # Activity Decomposition
+      - OV-5b    # Activity Model
+      - CV-6     # Capability to Activities (derived)
+    icd_sections:
+      - "Section 2: Mission Need"
+      - "Section 4: Operational Context"
+      - "Appendix B: DM2 Entity Register"
     expected_outputs:
       - stage1_fit_for_purpose.md
       - stage2_scope_icd.md
@@ -135,6 +248,8 @@ document_types:
     description: "Business development call reports, meeting summaries, engagement notes."
     pipeline: business_pipeline
     stages: [1]
+    achievable_views: []
+    icd_sections: []
     expected_outputs:
       - business_summary.md
       - stakeholder_register.md
@@ -149,6 +264,8 @@ document_types:
     description: "Industry day reports, capture notes, RFI/RFP analysis, contracting intelligence."
     pipeline: business_pipeline
     stages: [1]
+    achievable_views: []
+    icd_sections: []
     expected_outputs:
       - business_summary.md
       - contracting_intelligence.md
@@ -164,6 +281,8 @@ document_types:
     description: "Document type not listed above. Will be summarized and flagged for manual review."
     pipeline: unknown_pipeline
     stages: [1]
+    achievable_views: []
+    icd_sections: []
     expected_outputs:
       - stage1_fit_for_purpose.md
     produces_icd: false
