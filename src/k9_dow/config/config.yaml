@@ -1,0 +1,74 @@
+# K9-AIF Standard Config — DoW Architecture Workbench
+
+inference:
+  llm_factory:
+    backend: ollama
+    provider: ollama
+    base_url: "${OLLAMA_HOST:-http://localhost:11434}"
+    models:
+      general:
+        model: "granite3-dense:2b"
+        temperature: 0.3
+        max_tokens: 4096
+      reasoning:
+        model: "granite3-dense:2b"
+        temperature: 0.2
+        max_tokens: 4096
+
+  router:
+    type: k9_model_router
+    default_model: general
+    persistence:
+      enabled: true
+      provider: sqlite
+
+  model_catalog:
+    default_model: general
+    models:
+      general:
+        provider: ollama
+        llm_ref: general
+        capabilities: [general, chat, summarization]
+        latency_tier: realtime
+        cost_tier: minimal
+      reasoning:
+        provider: ollama
+        llm_ref: reasoning
+        capabilities: [reasoning, analysis, extraction]
+        latency_tier: interactive
+        cost_tier: standard
+
+governance:
+  enabled: false
+
+monitoring:
+  console: true
+  log_level: INFO
+
+logging:
+  level: DEBUG
+
+messaging:
+  bootstrap_servers: "${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}"
+  topics:
+    router_in: "dow.router.in"
+    orchestrator_in: "dow.orchestrator.in"
+    jcids_in: "dow.jcids.in"
+    se_in: "dow.se.in"
+    console_out: "dow.console.out"
+    results: "dow.results"
+
+object_storage:
+  provider: s3
+  s3:
+    provider: "minio"
+    endpoint_url: "${S3_ENDPOINT_URL:-http://localhost:9000}"
+    access_key: "${S3_ACCESS_KEY}"
+    secret_key: "${S3_SECRET_KEY}"
+    region: "us-east-1"
+    secure: false
+  buckets:
+    uploads: "dow-uploads"
+    stage_outputs: "dow-stage-outputs"
+    reports: "dow-reports"
+    docling_out: "dow-docling-out"
