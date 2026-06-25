@@ -48,6 +48,9 @@ def _get_producer():
 
 
 _STATIC_DIR = Path(__file__).parent / "static"
+_job_store: dict = {}
+
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
 @app.get("/")
@@ -104,7 +107,6 @@ async def upload_document(
         producer.flush()
         log.info("[API] Published to %s — job=%s", router_topic, job_id)
     else:
-        # Local mode fallback — run in-process
         log.info("[API] No Kafka — running pipeline in-process")
         from k9_dow.orchestrators.principal_orchestrator import PrincipalOrchestrator
         orch = PrincipalOrchestrator(config=_config)
@@ -114,6 +116,7 @@ async def upload_document(
             "text": text,
             "document_type": document_type,
         })
+        _job_store[job_id] = result
         return JSONResponse(content=result)
 
     return JSONResponse(content={
@@ -128,9 +131,22 @@ async def upload_document(
 
 @app.get("/jobs/{job_id}")
 async def get_job(job_id: str):
-    return {"job_id": job_id, "message": "Job status lookup — requires persistence layer"}
+    if job_id in _job_store:
+        return _job_store[job_id]
+    return {"job_id": job_id, "status": "not_found"}
 
 
 @app.get("/jobs/{job_id}/events")
 async def get_events(job_id: str):
     return {"job_id": job_id, "message": "Event stream — SSE endpoint coming soon"}
+
+
+@app.get("/jobs/{job_id}/outputs/{stage}")
+async def get_stage_output(job_id: str, stage: int):
+    result = _job_store.get(job_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Job not found")
+    for sr in result.get("stage_results", []):
+        if sr.get("stage") == stage:
+            return sr
+    raise HTTPException(status_code=404, detail=f"Stage {stage} not found")

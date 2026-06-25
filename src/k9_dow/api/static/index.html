@@ -6,110 +6,248 @@
 <title>DoW Architecture Workbench</title>
 <style>
   :root {
-    --bg: #0f172a; --bg2: #1e293b; --bg3: #0f172a; --border: #334155;
+    --bg: #0f172a; --bg2: #1e293b; --bg3: #0f172a; --bg-hover: #253347;
+    --border: #334155; --border-active: #3b82f6;
     --text: #e2e8f0; --text2: #94a3b8; --text3: #64748b; --text-bright: #f8fafc;
-    --accent: #3b82f6; --accent-hover: #2563eb;
-    --green: #22c55e; --green-bg: #14532d; --red: #ef4444; --red-bg: #450a0a;
-    --yellow: #f59e0b; --purple: #8b5cf6; --blue-bg: #1e3a5f;
-    --console-bg: #0f172a; --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --accent: #3b82f6; --accent-hover: #2563eb; --accent-dim: rgba(59,130,246,0.15);
+    --green: #22c55e; --green-bg: rgba(34,197,94,0.12); --green-border: rgba(34,197,94,0.3);
+    --red: #ef4444; --red-bg: rgba(239,68,68,0.12); --red-border: rgba(239,68,68,0.3);
+    --yellow: #f59e0b; --yellow-bg: rgba(245,158,11,0.12);
+    --purple: #a78bfa; --purple-bg: rgba(167,139,250,0.12);
+    --teal: #14b8a6;
+    --console-bg: #0c1222;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --pane-left: 270px; --pane-right: 400px;
   }
   [data-theme="light"] {
-    --bg: #f8fafc; --bg2: #ffffff; --bg3: #f1f5f9; --border: #e2e8f0;
+    --bg: #f1f5f9; --bg2: #ffffff; --bg3: #f8fafc; --bg-hover: #e2e8f0;
+    --border: #e2e8f0; --border-active: #3b82f6;
     --text: #1e293b; --text2: #64748b; --text3: #94a3b8; --text-bright: #0f172a;
-    --green-bg: #dcfce7; --red-bg: #fef2f2; --blue-bg: #dbeafe;
+    --accent-dim: rgba(59,130,246,0.1);
+    --green-bg: rgba(34,197,94,0.08); --green-border: rgba(34,197,94,0.25);
+    --red-bg: rgba(239,68,68,0.08); --red-border: rgba(239,68,68,0.25);
+    --yellow-bg: rgba(245,158,11,0.08);
+    --purple-bg: rgba(167,139,250,0.08);
     --console-bg: #f1f5f9;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background 0.3s, color 0.3s; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; transition: background 0.3s, color 0.3s; display: flex; flex-direction: column; }
 
-  /* Header */
-  .header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; gap: 14px; }
-  .header h1 { font-size: 18px; font-weight: 600; color: var(--text-bright); }
-  .header .badge { background: var(--accent); color: white; font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 600; letter-spacing: 0.5px; }
-  .header .sub { color: var(--text2); font-size: 12px; }
+  /* ─── Header ─── */
+  .header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .header h1 { font-size: 16px; font-weight: 700; color: var(--text-bright); letter-spacing: -0.3px; }
+  .header .badge { background: var(--accent); color: white; font-size: 9px; padding: 2px 7px; border-radius: 3px; font-weight: 700; letter-spacing: 0.6px; }
+  .header .sub { color: var(--text3); font-size: 11px; }
   .header .spacer { flex: 1; }
-
-  /* Theme toggle */
-  .theme-toggle { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 16px; color: var(--text); transition: all 0.2s; }
+  .header .status-pill { display: none; align-items: center; gap: 6px; background: var(--bg3); border: 1px solid var(--border); border-radius: 16px; padding: 4px 12px 4px 8px; font-size: 11px; }
+  .header .status-pill.active { display: inline-flex; }
+  .header .status-pill .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .header .status-pill .dot.running { background: var(--accent); animation: pulse 1s infinite; }
+  .header .status-pill .dot.completed { background: var(--green); }
+  .header .status-pill .dot.failed { background: var(--red); }
+  .header .status-pill .dot.uploading { background: var(--yellow); animation: pulse 1s infinite; }
+  .header .elapsed { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-left: 4px; }
+  .theme-toggle { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: 14px; color: var(--text); }
   .theme-toggle:hover { border-color: var(--accent); }
-
-  .main { max-width: 1000px; margin: 0 auto; padding: 28px 24px; }
-
-  /* Upload card */
-  .upload-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 24px 28px; margin-bottom: 20px; }
-  .upload-card h2 { font-size: 15px; color: var(--text-bright); margin-bottom: 14px; font-weight: 600; }
-  .upload-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
-  .form-group { display: flex; flex-direction: column; gap: 5px; }
-  .form-group label { font-size: 11px; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-  .form-group input[type="file"],
-  .form-group select { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 13px; }
-  .form-group select { min-width: 240px; }
-  .btn { background: var(--accent); color: white; border: none; border-radius: 6px; padding: 9px 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .btn:hover { background: var(--accent-hover); }
-  .btn:disabled { background: var(--text3); cursor: not-allowed; }
-
-  /* Status */
-  .status-bar { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 18px; margin-bottom: 20px; display: none; align-items: center; gap: 10px; font-size: 13px; }
-  .status-bar.active { display: flex; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-  .dot.uploading { background: var(--yellow); animation: pulse 1s infinite; }
-  .dot.routing { background: var(--purple); animation: pulse 1s infinite; }
-  .dot.running { background: var(--accent); animation: pulse 1s infinite; }
-  .dot.completed { background: var(--green); }
-  .dot.failed { background: var(--red); }
-  .status-bar .job { color: var(--text3); margin-left: auto; font-family: var(--mono); font-size: 11px; }
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
 
-  /* Pipeline */
-  .pipeline { display: none; }
-  .pipeline.active { display: block; }
+  /* ─── Three-Pane Layout ─── */
+  .workspace { display: flex; flex: 1; overflow: hidden; }
 
-  /* Stage track */
-  .stage-track { display: flex; gap: 6px; margin-bottom: 20px; }
-  .stage-chip { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; flex: 1; text-align: center; font-size: 11px; transition: all 0.3s; }
-  .stage-chip.active { border-color: var(--accent); background: var(--blue-bg); }
-  .stage-chip.completed { border-color: var(--green); background: var(--green-bg); }
-  .stage-chip.failed { border-color: var(--red); background: var(--red-bg); }
-  .stage-chip .num { font-size: 16px; font-weight: 700; display: block; color: var(--text-bright); }
-  .stage-chip .name { color: var(--text2); font-size: 9px; margin-top: 2px; display: block; text-transform: uppercase; letter-spacing: 0.3px; }
+  /* ─── Left Pane ─── */
+  .pane-left { width: var(--pane-left); background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+  .pane-section { padding: 16px; border-bottom: 1px solid var(--border); }
+  .pane-section:last-child { border-bottom: none; flex: 1; }
+  .section-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text3); margin-bottom: 10px; }
+
+  /* Pipeline selector */
+  .pipeline-list { display: flex; flex-direction: column; gap: 4px; }
+  .pipeline-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; }
+  .pipeline-item:hover { background: var(--bg-hover); }
+  .pipeline-item.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .pipeline-item.disabled { opacity: 0.4; cursor: default; }
+  .pipeline-item .pip-dot { width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--text3); flex-shrink: 0; }
+  .pipeline-item.active .pip-dot { background: var(--accent); border-color: var(--accent); }
+  .pipeline-item .pip-phase { font-size: 9px; color: var(--text3); margin-left: auto; }
+
+  /* Upload */
+  .upload-zone { border: 1.5px dashed var(--border); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+  .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: var(--accent-dim); }
+  .upload-zone .uz-icon { font-size: 24px; margin-bottom: 6px; }
+  .upload-zone .uz-text { font-size: 11px; color: var(--text2); }
+  .upload-zone .uz-file { font-size: 11px; color: var(--green); font-weight: 600; margin-top: 6px; display: none; }
+  .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .doc-type-row { margin-top: 10px; }
+  .doc-type-row select { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; color: var(--text); font-size: 11px; }
+  .btn-analyze { width: 100%; margin-top: 10px; background: var(--accent); color: white; border: none; border-radius: 6px; padding: 9px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+  .btn-analyze:hover { background: var(--accent-hover); }
+  .btn-analyze:disabled { background: var(--text3); cursor: not-allowed; }
+
+  /* Stage list */
+  .stage-list { display: flex; flex-direction: column; gap: 2px; }
+  .stage-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; }
+  .stage-item:hover { background: var(--bg-hover); }
+  .stage-item.selected { background: var(--accent-dim); border-color: var(--border-active); }
+  .stage-item .st-num { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; border: 1.5px solid var(--border); color: var(--text3); flex-shrink: 0; transition: all 0.2s; }
+  .stage-item.active .st-num { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); animation: pulse 1.5s infinite; }
+  .stage-item.completed .st-num { border-color: var(--green); color: white; background: var(--green); }
+  .stage-item.completed .st-num::after { content: '\2713'; }
+  .stage-item.failed .st-num { border-color: var(--red); color: white; background: var(--red); }
+  .stage-item.failed .st-num::after { content: '\2717'; }
+  .stage-item .st-name { flex: 1; color: var(--text2); }
+  .stage-item.active .st-name, .stage-item.selected .st-name { color: var(--text-bright); }
+  .stage-item.completed .st-name { color: var(--green); }
+  .stage-item .st-views { font-size: 9px; color: var(--text3); font-family: var(--mono); }
+
+  /* ─── Center Pane ─── */
+  .pane-center { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+  /* Center: agent flow */
+  .agent-flow-area { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .center-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text3); gap: 8px; }
+  .center-empty .ce-icon { font-size: 40px; opacity: 0.3; }
+  .center-empty .ce-text { font-size: 13px; }
+
+  /* Stage header in center */
+  .stage-header { margin-bottom: 16px; }
+  .stage-header .sh-title { font-size: 15px; font-weight: 700; color: var(--text-bright); }
+  .stage-header .sh-desc { font-size: 11px; color: var(--text2); margin-top: 4px; }
+  .stage-header .sh-views { font-size: 10px; color: var(--accent); font-family: var(--mono); margin-top: 4px; }
+
+  /* Agent cards */
+  .agent-card { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 4px; border-radius: 8px; border: 1px solid transparent; transition: all 0.2s; }
+  .agent-card .ac-indicator { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; border: 1.5px solid var(--border); color: var(--text3); transition: all 0.2s; }
+  .agent-card.pending .ac-indicator { border-color: var(--border); color: var(--text3); }
+  .agent-card.running .ac-indicator { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .agent-card.running .ac-indicator::after { content: ''; width: 8px; height: 8px; border: 2px solid var(--accent); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .agent-card.completed .ac-indicator { border-color: var(--green); color: white; background: var(--green); font-size: 12px; }
+  .agent-card.failed .ac-indicator { border-color: var(--red); color: white; background: var(--red); font-size: 12px; }
+  .agent-card .ac-info { flex: 1; min-width: 0; }
+  .agent-card .ac-name { font-size: 12px; font-weight: 500; color: var(--text); }
+  .agent-card .ac-key { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+  .agent-card.running { border-color: var(--accent); background: var(--accent-dim); }
+  .agent-card.completed { background: var(--green-bg); }
+  .agent-card.failed { background: var(--red-bg); border-color: var(--red-border); }
+  .agent-card .ac-time { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+  .agent-card .ac-view-btn { background: none; border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 10px; color: var(--text2); cursor: pointer; display: none; }
+  .agent-card.completed .ac-view-btn { display: inline-block; }
+  .agent-card .ac-view-btn:hover { border-color: var(--accent); color: var(--accent); }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   /* Console */
-  .console { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-  .console-hdr { background: var(--console-bg); padding: 8px 14px; font-size: 11px; color: var(--text3); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
-  .console-body { padding: 12px 14px; max-height: 420px; overflow-y: auto; font-family: var(--mono); font-size: 12px; line-height: 1.9; }
+  .console-area { border-top: 1px solid var(--border); flex-shrink: 0; }
+  .console-hdr { background: var(--bg2); padding: 6px 14px; font-size: 10px; color: var(--text3); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; cursor: pointer; user-select: none; }
+  .console-hdr:hover { color: var(--text2); }
+  .console-body { background: var(--console-bg); max-height: 200px; overflow-y: auto; font-family: var(--mono); font-size: 11px; line-height: 1.8; padding: 8px 12px; transition: max-height 0.2s; }
+  .console-body.collapsed { max-height: 0; padding: 0 12px; }
   .log { display: flex; gap: 6px; }
-  .log .t { color: var(--text3); min-width: 75px; font-size: 11px; }
-  .log .i { min-width: 18px; text-align: center; }
+  .log .t { color: var(--text3); min-width: 70px; font-size: 10px; }
   .log .m { color: var(--text); }
   .log .m.stage { color: #60a5fa; font-weight: 600; }
-  .log .m.agent { color: #a78bfa; }
+  .log .m.agent { color: var(--purple); }
   .log .m.ok { color: #4ade80; }
   .log .m.warn { color: #fbbf24; }
   .log .m.err { color: #f87171; }
+
+  /* ─── Right Pane ─── */
+  .pane-right { width: var(--pane-right); background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+  .pane-right .doc-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; }
+  .pane-right .doc-tab { padding: 9px 14px; font-size: 11px; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; }
+  .pane-right .doc-tab:hover { color: var(--text); background: var(--bg-hover); }
+  .pane-right .doc-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .doc-viewer { flex: 1; overflow-y: auto; padding: 20px; }
+  .doc-viewer .dv-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text3); gap: 8px; }
+  .doc-viewer .dv-empty .dv-icon { font-size: 32px; opacity: 0.3; }
+  .doc-viewer .dv-empty .dv-text { font-size: 12px; text-align: center; line-height: 1.6; }
+
+  /* Rendered output content */
+  .doc-content { font-size: 12px; line-height: 1.7; color: var(--text); }
+  .doc-content h1, .doc-content h2, .doc-content h3 { color: var(--text-bright); margin: 16px 0 8px; }
+  .doc-content h1 { font-size: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .doc-content h2 { font-size: 14px; }
+  .doc-content h3 { font-size: 13px; }
+  .doc-content p { margin: 6px 0; }
+  .doc-content ul, .doc-content ol { margin: 6px 0 6px 20px; }
+  .doc-content li { margin: 3px 0; }
+  .doc-content strong { color: var(--text-bright); }
+  .doc-content code { background: var(--bg3); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; font-family: var(--mono); font-size: 11px; }
+  .doc-content pre { background: var(--console-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; margin: 8px 0; }
+  .doc-content pre code { background: none; border: none; padding: 0; }
+  .doc-content table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 11px; }
+  .doc-content table th, .doc-content table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+  .doc-content table th { background: var(--bg3); font-weight: 600; color: var(--text-bright); }
+  .doc-content blockquote { border-left: 3px solid var(--accent); padding-left: 12px; margin: 8px 0; color: var(--text2); }
+  .doc-content hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+  /* Agent output header in doc viewer */
+  .doc-agent-header { font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .doc-agent-header .dah-key { font-family: var(--mono); font-weight: 400; color: var(--text3); }
+
+  /* Resize handles (cosmetic dividers) */
+  .resize-handle { width: 1px; cursor: col-resize; background: transparent; position: relative; }
+  .resize-handle:hover { background: var(--accent); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
 </style>
 </head>
 <body>
 
+<!-- ─── Header ─── -->
 <div class="header">
   <h1>DoW Architecture Workbench</h1>
   <span class="badge">K9-AIF</span>
-  <span class="sub">DoDAF 2.0 Pipeline</span>
+  <span class="sub">Defense Architecture Analysis</span>
   <span class="spacer"></span>
-  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode" id="themeBtn">🌙</button>
+  <div class="status-pill" id="statusPill">
+    <span class="dot" id="statusDot"></span>
+    <span id="statusText">Ready</span>
+    <span class="elapsed" id="elapsed"></span>
+  </div>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" id="themeBtn">&#9789;</button>
 </div>
 
-<div class="main">
+<!-- ─── Three-Pane Workspace ─── -->
+<div class="workspace">
 
-  <div class="upload-card">
-    <h2>Upload Document for Analysis</h2>
-    <div class="upload-form">
-      <div class="form-group">
-        <label>Document</label>
-        <input type="file" id="fileInput" accept=".md,.txt,.pdf,.docx,.csv,.xlsx">
+  <!-- LEFT PANE -->
+  <div class="pane-left">
+    <!-- Pipelines -->
+    <div class="pane-section">
+      <div class="section-label">Pipeline</div>
+      <div class="pipeline-list">
+        <div class="pipeline-item active" data-pipeline="dodaf">
+          <span class="pip-dot"></span>
+          DoDAF 2.0
+          <span class="pip-phase">Phase 1</span>
+        </div>
+        <div class="pipeline-item disabled" data-pipeline="jcids" title="Phase 2 — coming soon">
+          <span class="pip-dot"></span>
+          JCIDS
+          <span class="pip-phase">Phase 2</span>
+        </div>
+        <div class="pipeline-item disabled" data-pipeline="se" title="Phase 3 — coming soon">
+          <span class="pip-dot"></span>
+          Systems Engineering
+          <span class="pip-phase">Phase 3</span>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Document Type</label>
+    </div>
+
+    <!-- Upload -->
+    <div class="pane-section">
+      <div class="section-label">Document Upload</div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".md,.txt,.pdf,.docx,.csv,.xlsx">
+        <div class="uz-icon">&#128196;</div>
+        <div class="uz-text">Drop file or click to browse</div>
+        <div class="uz-file" id="fileName"></div>
+      </div>
+      <div class="doc-type-row">
         <select id="docType">
           <option value="architecture_document">Architecture / Mission Document</option>
           <option value="conops">CONOPS / Mission Thread</option>
@@ -123,104 +261,482 @@
           <option value="other">Other</option>
         </select>
       </div>
-      <button class="btn" id="btnUpload" onclick="uploadDocument()">Upload &amp; Analyze</button>
+      <button class="btn-analyze" id="btnAnalyze" onclick="uploadDocument()">Analyze Document</button>
+    </div>
+
+    <!-- Stages -->
+    <div class="pane-section">
+      <div class="section-label">DoDAF Stages</div>
+      <div class="stage-list" id="stageList"></div>
     </div>
   </div>
 
-  <div class="status-bar" id="statusBar">
-    <div class="dot" id="statusDot"></div>
-    <span id="statusText"></span>
-    <span class="job" id="statusJob"></span>
+  <!-- CENTER PANE -->
+  <div class="pane-center">
+    <div class="agent-flow-area" id="agentFlowArea">
+      <div class="center-empty" id="centerEmpty">
+        <div class="ce-icon">&#9881;</div>
+        <div class="ce-text">Upload a document to begin DoDAF analysis</div>
+      </div>
+    </div>
+    <div class="console-area" id="consoleArea" style="display: none;">
+      <div class="console-hdr" onclick="toggleConsole()">
+        <span>Console</span>
+        <span id="consoleToggle">&#9660;</span>
+      </div>
+      <div class="console-body" id="consoleBody"></div>
+    </div>
   </div>
 
-  <div class="pipeline" id="pipelineView">
-    <div class="stage-track" id="stageTrack"></div>
-    <div class="console">
-      <div class="console-hdr"><span>Pipeline Console</span><span id="elapsed">0s</span></div>
-      <div class="console-body" id="consoleBody"></div>
+  <!-- RIGHT PANE -->
+  <div class="pane-right">
+    <div class="doc-tabs" id="docTabs"></div>
+    <div class="doc-viewer" id="docViewer">
+      <div class="dv-empty">
+        <div class="dv-icon">&#128203;</div>
+        <div class="dv-text">Output documents will appear here<br>as stages complete</div>
+      </div>
     </div>
   </div>
 
 </div>
 
 <script>
+// ─── Theme ───
 function toggleTheme() {
   const html = document.documentElement;
   const btn = document.getElementById('themeBtn');
   if (html.dataset.theme === 'dark') {
-    html.dataset.theme = 'light';
-    btn.textContent = '☀️';
-    localStorage.setItem('theme', 'light');
+    html.dataset.theme = 'light'; btn.innerHTML = '&#9788;'; localStorage.setItem('theme', 'light');
   } else {
-    html.dataset.theme = 'dark';
-    btn.textContent = '🌙';
-    localStorage.setItem('theme', 'dark');
+    html.dataset.theme = 'dark'; btn.innerHTML = '&#9789;'; localStorage.setItem('theme', 'dark');
   }
 }
 (function() {
-  const saved = localStorage.getItem('theme');
-  if (saved === 'light') { document.documentElement.dataset.theme = 'light'; document.getElementById('themeBtn').textContent = '☀️'; }
+  const s = localStorage.getItem('theme');
+  if (s === 'light') { document.documentElement.dataset.theme = 'light'; document.getElementById('themeBtn').innerHTML = '&#9788;'; }
 })();
 
+// ─── Console toggle ───
+function toggleConsole() {
+  const body = document.getElementById('consoleBody');
+  const icon = document.getElementById('consoleToggle');
+  body.classList.toggle('collapsed');
+  icon.innerHTML = body.classList.contains('collapsed') ? '&#9650;' : '&#9660;';
+}
+
+// ─── Stage & Agent Data (from squad YAMLs) ───
 const STAGES = [
-  { num: 1, name: 'F2P Gate' }, { num: 2, name: 'Scope/ICD' },
-  { num: 3, name: 'Data Reqs' }, { num: 4, name: 'Correlation' },
-  { num: 5, name: 'Analysis' }, { num: 6, name: 'Presentation' },
+  {
+    num: 1, name: 'Intended Use', fullName: 'Determine Intended Use of Architecture',
+    desc: 'Stakeholder requirements, purpose, critical issues, target objectives, key tradeoffs, decision points, and probable analysis methods.',
+    views: ['AV-1'],
+    agents: [
+      { name: 'ValidationAgent', key: 'validation', label: 'Validation' },
+      { name: 'StakeholderExtractorAgent', key: 'stakeholders', label: 'Stakeholder Extraction' },
+      { name: 'PainPointExtractorAgent', key: 'pain_points', label: 'Pain Point Extraction' },
+      { name: 'ObjectiveExtractorAgent', key: 'objectives', label: 'Objective Extraction' },
+      { name: 'MissionAssessmentAgent', key: 'mission_context', label: 'Mission Assessment' },
+      { name: 'F2PIntentAgent', key: 'f2p_intent', label: 'F2P Intent Synthesis' },
+      { name: 'SummarizerAgent', key: 'stage_summary', label: 'Stage Summary' },
+      { name: 'GovernanceAgent', key: 'governance', label: 'Governance Review' },
+    ]
+  },
+  {
+    num: 2, name: 'Scope', fullName: 'Determine Scope of Architecture',
+    desc: 'Geographical, operational, and functional bounds; technological bounds; time frame(s); architecture resource and schedule constraints.',
+    views: ['CV-1', 'OV-1', 'OV-5'],
+    agents: [
+      { name: 'ProjectScopeAgent', key: 'scope', label: 'Project Scope' },
+      { name: 'ConstraintAgent', key: 'constraints', label: 'Constraints' },
+      { name: 'OperationalExtractorAgent', key: 'operations', label: 'Operational Extraction' },
+      { name: 'CapabilityExtractorAgent', key: 'capabilities', label: 'Capability Extraction' },
+      { name: 'RiskExtractorAgent', key: 'risks', label: 'Risk Extraction' },
+      { name: 'VocabularyAgent', key: 'vocabulary', label: 'AV-2 Dictionary' },
+      { name: 'ArchitectureAnalyzerAgent', key: 'architecture_analysis', label: 'Architecture Analysis' },
+      { name: 'RequirementAgent', key: 'icd_draft', label: 'ICD Draft Requirements' },
+      { name: 'SummarizerAgent', key: 'stage_summary', label: 'Stage Summary' },
+      { name: 'GovernanceAgent', key: 'governance', label: 'Governance Review' },
+    ]
+  },
+  {
+    num: 3, name: 'Data Required', fullName: 'Determine Data Required to Support Architecture Development',
+    desc: 'Required architectural characteristics, architectural data entities, levels of detail, units of measure, and associated models.',
+    views: ['CV-2', 'CV-3', 'CV-6'],
+    agents: [
+      { name: 'DataRequirementsAgent', key: 'data_requirements', label: 'Data Requirements' },
+      { name: 'CapabilityExtractorAgent', key: 'capability_data', label: 'Capability Data' },
+      { name: 'DM2ExtractorAgent', key: 'dm2_data', label: 'DM2 Extraction' },
+      { name: 'SystemServiceExtractorAgent', key: 'system_service_data', label: 'System/Service Data' },
+      { name: 'SystemViewAgent', key: 'system_views', label: 'System Views' },
+      { name: 'SummarizerAgent', key: 'stage_summary', label: 'Stage Summary' },
+      { name: 'GovernanceAgent', key: 'governance', label: 'Governance Review' },
+    ]
+  },
+  {
+    num: 4, name: 'Collect & Store', fullName: 'Collect, Organize, Correlate, and Store Architectural Data',
+    desc: 'Automated repositories, activity models, data models, dynamic models, organizational models, and metadata registration.',
+    views: ['OV-2', 'OV-6', 'SV-1', 'SvcV-1', 'TV-1'],
+    agents: [
+      { name: 'OperationalExtractorAgent', key: 'operational_data', label: 'Operational Data' },
+      { name: 'CapabilityExtractorAgent', key: 'capability_data', label: 'Capability Data' },
+      { name: 'SystemServiceExtractorAgent', key: 'system_service_data', label: 'System/Service Data' },
+      { name: 'SystemViewAgent', key: 'system_views', label: 'System Views' },
+      { name: 'ServicesViewAgent', key: 'service_views', label: 'Services Views' },
+      { name: 'DM2ExtractorAgent', key: 'dm2_bundle', label: 'DM2 Bundle' },
+      { name: 'DataCorrelationAgent', key: 'correlation', label: 'Data Correlation' },
+      { name: 'ReportWriterAgent', key: 'persistence', label: 'Report Assembly' },
+      { name: 'SummarizerAgent', key: 'stage_summary', label: 'Stage Summary' },
+      { name: 'GovernanceAgent', key: 'governance', label: 'Governance Review' },
+    ]
+  },
+  {
+    num: 5, name: 'Analyses', fullName: 'Conduct Analyses in Support of Architecture Objectives',
+    desc: 'Shortfall analyses, capacity analyses, interoperability assessments, business process analysis, and test architecture completeness, accuracy, and sufficiency.',
+    views: ['SV-5', 'OV-7', 'TV-1'],
+    agents: [
+      { name: 'ValidationAgent', key: 'revalidation', label: 'Re-validation' },
+      { name: 'CapabilityAnalyzerAgent', key: 'capability_analysis', label: 'Capability Analysis' },
+      { name: 'OperationalAnalyzerAgent', key: 'operational_analysis', label: 'Operational Analysis' },
+      { name: 'ArchitectureAnalyzerAgent', key: 'objective_alignment', label: 'Objective Alignment' },
+      { name: 'RiskExtractorAgent', key: 'risk_review', label: 'Risk Review' },
+      { name: 'VerificationAgent', key: 'consistency_check', label: 'Consistency Check' },
+      { name: 'ActionItemAgent', key: 'action_items', label: 'Action Items' },
+      { name: 'RequirementAgent', key: 'requirements', label: 'Requirements' },
+      { name: 'SummarizerAgent', key: 'stage_summary', label: 'Stage Summary' },
+      { name: 'GovernanceAgent', key: 'governance', label: 'Governance Review' },
+    ]
+  },
+  {
+    num: 6, name: 'Results', fullName: 'Document Results in Accordance with Decision-Maker Needs',
+    desc: 'Architecture presentations and views, reusable architecture data, and analysis reports.',
+    views: ['AV-1', 'AV-2', 'CV-6'],
+    agents: [
+      { name: 'VerificationAgent', key: 'final_validation', label: 'Final Validation' },
+      { name: 'PresentationAgent', key: 'presentation', label: 'Presentation Compile' },
+      { name: 'SummarizerAgent', key: 'executive_summary', label: 'Executive Summary' },
+      { name: 'GovernanceAgent', key: 'governance_signoff', label: 'Governance Sign-off' },
+      { name: 'ReportWriterAgent', key: 'final_reports', label: 'Final Reports' },
+    ]
+  },
 ];
 
 let t0 = null, timer = null;
+let jobResults = {};
+let selectedStage = null;
+let selectedDocTab = null;
 
-function setStatus(state, text, jobId) {
-  const bar = document.getElementById('statusBar');
-  bar.classList.add('active');
-  document.getElementById('statusDot').className = 'dot ' + state;
-  document.getElementById('statusText').textContent = text;
-  document.getElementById('statusJob').textContent = jobId || '';
+// ─── Initialize stage list ───
+function initStageList() {
+  const list = document.getElementById('stageList');
+  list.innerHTML = '';
+  STAGES.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'stage-item';
+    el.id = `stage-item-${s.num}`;
+    el.onclick = () => selectStage(s.num);
+    el.innerHTML = `
+      <span class="st-num">${s.num}</span>
+      <span class="st-name">${s.name}</span>
+      <span class="st-views">${s.views.join(' ')}</span>
+    `;
+    list.appendChild(el);
+  });
 }
 
-function addLog(icon, msg, cls) {
+// ─── Select a stage to view in center pane ───
+function selectStage(num) {
+  selectedStage = num;
+  document.querySelectorAll('.stage-item').forEach(el => el.classList.remove('selected'));
+  const el = document.getElementById(`stage-item-${num}`);
+  if (el) el.classList.add('selected');
+  renderAgentFlow(num);
+}
+
+// ─── Set stage status ───
+function setStageStatus(num, status) {
+  const el = document.getElementById(`stage-item-${num}`);
+  if (!el) return;
+  el.classList.remove('active', 'completed', 'failed');
+  if (status) el.classList.add(status);
+  const numEl = el.querySelector('.st-num');
+  if (status === 'completed') numEl.textContent = '';
+  else if (status === 'failed') numEl.textContent = '';
+  else numEl.textContent = num;
+}
+
+// ─── Render agent flow for a stage ───
+function renderAgentFlow(num) {
+  const area = document.getElementById('agentFlowArea');
+  const stage = STAGES.find(s => s.num === num);
+  if (!stage) return;
+
+  const stageResult = jobResults[`stage_${num}`];
+  let html = `
+    <div class="stage-header">
+      <div class="sh-title">Stage ${stage.num} &mdash; ${stage.fullName}</div>
+      <div class="sh-desc">${stage.desc}</div>
+      <div class="sh-views">DoDAF Views: ${stage.views.join(', ')}</div>
+    </div>
+  `;
+
+  stage.agents.forEach((agent, i) => {
+    let status = 'pending';
+    let timeStr = '';
+    if (stageResult) {
+      if (stageResult.agentStatus && stageResult.agentStatus[agent.key]) {
+        status = stageResult.agentStatus[agent.key];
+      } else if (stageResult.result && agent.key in stageResult.result) {
+        status = 'completed';
+      }
+    }
+
+    const indicatorContent = status === 'completed' ? '&#10003;' : status === 'failed' ? '&#10007;' : status === 'running' ? '' : (i + 1);
+
+    html += `
+      <div class="agent-card ${status}" id="agent-${num}-${agent.key}">
+        <div class="ac-indicator">${indicatorContent}</div>
+        <div class="ac-info">
+          <div class="ac-name">${agent.label}</div>
+          <div class="ac-key">${agent.name} &rarr; ${agent.key}</div>
+        </div>
+        <span class="ac-time">${timeStr}</span>
+        <button class="ac-view-btn" onclick="viewAgentOutput(${num}, '${agent.key}')">View</button>
+      </div>
+    `;
+  });
+
+  area.innerHTML = html;
+}
+
+// ─── View agent output in right pane ───
+function viewAgentOutput(stageNum, key) {
+  const stageResult = jobResults[`stage_${stageNum}`];
+  if (!stageResult || !stageResult.result || !(key in stageResult.result)) return;
+
+  selectedDocTab = `${stageNum}_${key}`;
+  updateDocTabs();
+
+  const output = stageResult.result[key];
+  renderDocument(key, output, stageNum);
+}
+
+// ─── Update doc tabs ───
+function updateDocTabs() {
+  const tabs = document.getElementById('docTabs');
+  tabs.innerHTML = '';
+
+  for (const [stageKey, data] of Object.entries(jobResults)) {
+    if (!data.result) continue;
+    const stageNum = parseInt(stageKey.replace('stage_', ''));
+    const stage = STAGES.find(s => s.num === stageNum);
+    if (!stage) continue;
+
+    const tab = document.createElement('div');
+    tab.className = 'doc-tab' + (selectedDocTab && selectedDocTab.startsWith(`${stageNum}_`) ? ' active' : '');
+    tab.textContent = `S${stageNum}`;
+    tab.title = stage.fullName;
+    tab.onclick = () => {
+      selectedDocTab = `${stageNum}_summary`;
+      updateDocTabs();
+      renderStageOverview(stageNum);
+    };
+    tabs.appendChild(tab);
+  }
+}
+
+// ─── Render stage overview in doc viewer ───
+function renderStageOverview(stageNum) {
+  const stageResult = jobResults[`stage_${stageNum}`];
+  if (!stageResult || !stageResult.result) return;
+  const stage = STAGES.find(s => s.num === stageNum);
+
+  const viewer = document.getElementById('docViewer');
+  let html = `<div class="doc-agent-header">Stage ${stageNum} &mdash; ${stage.fullName}</div>`;
+
+  for (const [key, value] of Object.entries(stageResult.result)) {
+    if (typeof value !== 'string' || value.length < 20) continue;
+    const agent = stage.agents.find(a => a.key === key);
+    const label = agent ? agent.label : key;
+
+    html += `
+      <div style="margin-bottom: 16px;">
+        <div style="font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+             onclick="viewAgentOutput(${stageNum}, '${key}')">
+          &#9654; ${label}
+          <span style="font-size: 10px; font-weight: 400; color: var(--text3); font-family: var(--mono);">${key}</span>
+        </div>
+        <div style="font-size: 11px; color: var(--text2); max-height: 60px; overflow: hidden; border-left: 2px solid var(--border); padding-left: 10px;">
+          ${escapeHtml(value.substring(0, 200))}${value.length > 200 ? '...' : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  viewer.innerHTML = `<div class="doc-content">${html}</div>`;
+}
+
+// ─── Render a document in the right pane ───
+function renderDocument(key, content, stageNum) {
+  const viewer = document.getElementById('docViewer');
+  const stage = STAGES.find(s => s.num === stageNum);
+  const agent = stage ? stage.agents.find(a => a.key === key) : null;
+  const label = agent ? agent.label : key;
+
+  let html = `<div class="doc-agent-header">
+    ${label}
+    <span class="dah-key">${key} &bull; Stage ${stageNum}</span>
+  </div>`;
+
+  if (typeof content === 'string') {
+    html += `<div class="doc-content">${renderMarkdown(content)}</div>`;
+  } else {
+    html += `<pre style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(JSON.stringify(content, null, 2))}</pre>`;
+  }
+
+  viewer.innerHTML = html;
+}
+
+// ─── Simple Markdown renderer ───
+function renderMarkdown(md) {
+  if (!md) return '';
+  let html = escapeHtml(md);
+
+  // Headers
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+  // Bold/italic
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+  // Code blocks
+  html = html.replace(/```[\s\S]*?```/g, match => {
+    const inner = match.slice(3, -3).replace(/^\w+\n/, '');
+    return `<pre><code>${inner}</code></pre>`;
+  });
+  html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+
+  // Blockquotes
+  html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+
+  // Horizontal rules
+  html = html.replace(/^---$/gm, '<hr>');
+
+  // Lists
+  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+  // Numbered lists
+  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+  // Tables (basic)
+  html = html.replace(/^\|(.+)\|$/gm, (match, content) => {
+    const cells = content.split('|').map(c => c.trim());
+    if (cells.every(c => /^[-:]+$/.test(c))) return '';
+    const tag = 'td';
+    return '<tr>' + cells.map(c => `<${tag}>${c}</${tag}>`).join('') + '</tr>';
+  });
+  html = html.replace(/(<tr>.*<\/tr>\n?)+/g, '<table>$&</table>');
+
+  // Paragraphs
+  html = html.replace(/\n\n/g, '</p><p>');
+  html = '<p>' + html + '</p>';
+  html = html.replace(/<p>\s*<(h[1-3]|ul|ol|pre|blockquote|table|hr)/g, '<$1');
+  html = html.replace(/<\/(h[1-3]|ul|ol|pre|blockquote|table)>\s*<\/p>/g, '</$1>');
+
+  return html;
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// ─── Status ───
+function setStatus(state, text) {
+  const pill = document.getElementById('statusPill');
+  pill.classList.add('active');
+  document.getElementById('statusDot').className = 'dot ' + state;
+  document.getElementById('statusText').textContent = text;
+}
+
+// ─── Logging ───
+function addLog(msg, cls) {
   const body = document.getElementById('consoleBody');
   const now = new Date().toLocaleTimeString('en-US', { hour12: false });
   const d = document.createElement('div');
   d.className = 'log';
-  d.innerHTML = `<span class="t">${now}</span><span class="i">${icon}</span><span class="m ${cls||''}">${msg}</span>`;
+  d.innerHTML = `<span class="t">${now}</span><span class="m ${cls||''}">${msg}</span>`;
   body.appendChild(d);
   body.scrollTop = body.scrollHeight;
 }
 
-function initStages() {
-  const track = document.getElementById('stageTrack');
-  track.innerHTML = '';
-  STAGES.forEach(s => {
-    const c = document.createElement('div');
-    c.className = 'stage-chip'; c.id = `stg${s.num}`;
-    c.innerHTML = `<span class="num">${s.num}</span><span class="name">${s.name}</span>`;
-    track.appendChild(c);
+// ─── Upload Zone ───
+(function() {
+  const zone = document.getElementById('uploadZone');
+  const fi = document.getElementById('fileInput');
+  const fn = document.getElementById('fileName');
+
+  fi.addEventListener('change', () => {
+    if (fi.files.length) {
+      fn.style.display = 'block';
+      fn.textContent = fi.files[0].name + ' (' + (fi.files[0].size / 1024).toFixed(1) + ' KB)';
+    }
   });
-}
 
-function setStageSt(n, st) { const c = document.getElementById(`stg${n}`); if (c) c.className = 'stage-chip ' + st; }
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      fi.files = e.dataTransfer.files;
+      fn.style.display = 'block';
+      fn.textContent = e.dataTransfer.files[0].name + ' (' + (e.dataTransfer.files[0].size / 1024).toFixed(1) + ' KB)';
+    }
+  });
+})();
 
+// ─── Upload & Run ───
 async function uploadDocument() {
   const fi = document.getElementById('fileInput');
   const dt = document.getElementById('docType').value;
-  const btn = document.getElementById('btnUpload');
-  if (!fi.files.length) { alert('Select a file'); return; }
+  const btn = document.getElementById('btnAnalyze');
+  if (!fi.files.length) { alert('Select a document file first.'); return; }
 
   btn.disabled = true; btn.textContent = 'Processing...';
+
   const file = fi.files[0];
   const fd = new FormData();
-  fd.append('file', file); fd.append('document_type', dt);
+  fd.append('file', file);
+  fd.append('document_type', dt);
 
-  document.getElementById('pipelineView').classList.add('active');
+  // Reset state
+  jobResults = {};
+  selectedStage = null;
+  selectedDocTab = null;
+  document.getElementById('docTabs').innerHTML = '';
+  document.getElementById('docViewer').innerHTML = '<div class="dv-empty"><div class="dv-icon">&#128203;</div><div class="dv-text">Processing... outputs appear as stages complete</div></div>';
+
+  initStageList();
+  document.getElementById('centerEmpty').style.display = 'none';
+  document.getElementById('consoleArea').style.display = 'block';
   document.getElementById('consoleBody').innerHTML = '';
-  initStages();
-  t0 = Date.now();
-  timer = setInterval(() => { document.getElementById('elapsed').textContent = ((Date.now()-t0)/1000|0)+'s'; }, 1000);
+  document.getElementById('consoleBody').classList.remove('collapsed');
 
-  setStatus('uploading', `Uploading ${file.name}...`);
-  addLog('📄', `Document uploaded: ${file.name} (${(file.size/1024).toFixed(1)} KB)`, 'ok');
-  addLog('⚙️', 'Converting and checking document...');
+  t0 = Date.now();
+  timer = setInterval(() => {
+    const secs = ((Date.now() - t0) / 1000) | 0;
+    const m = (secs / 60) | 0;
+    const s = secs % 60;
+    document.getElementById('elapsed').textContent = m > 0 ? `${m}m ${s}s` : `${s}s`;
+  }, 1000);
+
+  setStatus('uploading', 'Uploading...');
+  addLog(`Uploading: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'ok');
 
   try {
     const resp = await fetch('/jobs/upload', { method: 'POST', body: fd });
@@ -228,41 +744,107 @@ async function uploadDocument() {
     const jobId = data.job_id || '';
 
     if (data.status === 'submitted') {
-      setStatus('routing', 'Submitted to pipeline', jobId);
-      addLog('🔀', `Routing: ${dt}`, '');
-      addLog('📨', `Job ${jobId} submitted`, 'ok');
-      addLog('⏳', 'Pipeline running via Kafka...', 'warn');
-      clearInterval(timer); btn.disabled = false; btn.textContent = 'Upload & Analyze';
+      setStatus('running', 'Submitted to Kafka');
+      addLog(`Job ${jobId} submitted to pipeline via Kafka`, 'ok');
+      addLog('Monitor progress via Kafka consumer', 'warn');
+      clearInterval(timer);
+      btn.disabled = false; btn.textContent = 'Analyze Document';
       return;
     }
 
-    setStatus('running', 'Pipeline running...', jobId);
-    addLog('🔀', `Routed → ${data.routing?.route_to || 'dodaf_pipeline'} (${data.routing?.classification || ''})`, 'ok');
+    setStatus('running', 'Pipeline running...');
+    addLog(`Routed: ${data.routing?.route_to || 'dodaf_pipeline'} (${data.routing?.classification || dt})`, 'ok');
 
-    for (const sr of (data.stage_results || [])) {
-      setStageSt(sr.stage, 'active');
-      addLog('🟦', `Stage ${sr.stage} — ${sr.squad_id}`, 'stage');
+    // Process stage results with animated progression
+    const stageResults = data.stage_results || [];
 
-      if (sr.result) {
-        for (const k of Object.keys(sr.result).filter(k => k!=='squad_id' && typeof sr.result[k]==='string').slice(0, 6)) {
-          addLog('  🤖', k, 'agent');
+    for (let i = 0; i < stageResults.length; i++) {
+      const sr = stageResults[i];
+      const stageNum = sr.stage;
+      const stage = STAGES.find(s => s.num === stageNum);
+
+      // Mark stage active
+      setStageStatus(stageNum, 'active');
+      selectStage(stageNum);
+      addLog(`Stage ${stageNum} — ${stage ? stage.fullName : sr.squad_id}`, 'stage');
+
+      if (sr.result && stage) {
+        // Animate agents one by one
+        for (let j = 0; j < stage.agents.length; j++) {
+          const agent = stage.agents[j];
+          const agentEl = document.getElementById(`agent-${stageNum}-${agent.key}`);
+
+          if (agentEl) {
+            agentEl.className = 'agent-card running';
+            agentEl.querySelector('.ac-indicator').innerHTML = '';
+          }
+
+          // Small delay for visual effect
+          await sleep(120);
+
+          if (agent.key in sr.result) {
+            if (agentEl) {
+              agentEl.className = 'agent-card completed';
+              agentEl.querySelector('.ac-indicator').innerHTML = '&#10003;';
+            }
+            addLog(`  ${agent.label} → ${agent.key}`, 'agent');
+          } else {
+            if (agentEl) {
+              agentEl.className = 'agent-card completed';
+              agentEl.querySelector('.ac-indicator').innerHTML = '&#10003;';
+            }
+          }
         }
       }
 
-      if (sr.status === 'completed') { setStageSt(sr.stage, 'completed'); addLog('  ✅', `Stage ${sr.stage} completed`, 'ok'); }
-      else { setStageSt(sr.stage, 'failed'); addLog('  ❌', `Stage ${sr.stage} ${sr.status}: ${sr.error||''}`, 'err'); }
+      // Store results
+      jobResults[`stage_${stageNum}`] = sr;
+
+      if (sr.status === 'completed') {
+        setStageStatus(stageNum, 'completed');
+        addLog(`Stage ${stageNum} completed`, 'ok');
+        updateDocTabs();
+      } else {
+        setStageStatus(stageNum, 'failed');
+        addLog(`Stage ${stageNum} failed: ${sr.error || 'unknown'}`, 'err');
+      }
     }
 
     clearInterval(timer);
-    if (data.status === 'completed') { setStatus('completed', 'Pipeline completed', jobId); addLog('🎯', 'DoDAF pipeline completed', 'ok'); }
-    else { setStatus('failed', `Pipeline ${data.status}`, jobId); addLog('⚠️', `Finished: ${data.status}`, 'warn'); }
+
+    if (data.status === 'completed') {
+      setStatus('completed', 'Pipeline completed');
+      addLog('DoDAF pipeline completed successfully', 'ok');
+
+      // Auto-select last stage's output
+      if (stageResults.length > 0) {
+        const lastStage = stageResults[stageResults.length - 1].stage;
+        selectedDocTab = `${lastStage}_summary`;
+        updateDocTabs();
+        renderStageOverview(lastStage);
+      }
+    } else if (data.status === 'needs_human_review') {
+      setStatus('running', 'Awaiting HIL review');
+      addLog('Pipeline paused — Human-in-the-Loop review required', 'warn');
+    } else {
+      setStatus('failed', `Pipeline ${data.status}`);
+      addLog(`Pipeline finished: ${data.status}`, 'warn');
+    }
 
   } catch (err) {
     clearInterval(timer);
-    setStatus('failed', 'Error'); addLog('❌', err.message, 'err');
+    setStatus('failed', 'Error');
+    addLog(`Error: ${err.message}`, 'err');
   }
-  btn.disabled = false; btn.textContent = 'Upload & Analyze';
+
+  btn.disabled = false;
+  btn.textContent = 'Analyze Document';
 }
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─── Init ───
+initStageList();
 </script>
 </body>
 </html>
