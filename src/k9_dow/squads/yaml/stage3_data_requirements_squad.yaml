@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: Apache-2.0
+# Stage 3 — Required Data Identification Squad
+
+squads:
+  Stage3DataRequirementsSquad:
+    description: "Identify required architecture data, DM2 concepts, capability data, operational data."
+    agents:
+      - DataRequirementsAgent
+      - CapabilityExtractorAgent
+      - DM2ExtractorAgent
+      - SystemServiceExtractorAgent
+      - SystemViewAgent
+      - SummarizerAgent
+      - GovernanceAgent
+    flow:
+      - agent: DataRequirementsAgent
+        result_key: data_requirements
+      - agent: CapabilityExtractorAgent
+        result_key: capability_data
+      - agent: DM2ExtractorAgent
+        result_key: dm2_data
+      - agent: SystemServiceExtractorAgent
+        result_key: system_service_data
+      - agent: SystemViewAgent
+        result_key: system_views
+      - agent: SummarizerAgent
+        result_key: stage_summary
+      - agent: GovernanceAgent
+        result_key: governance

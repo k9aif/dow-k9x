@@ -1,0 +1,99 @@
+Inputs - Elicitation Notes
+ These notes reflect multiple stakeholder interviews and field observations, written in a natural, narrative format that a requirements analyst would use to document and analyze input for functional and technical requirements.
+
+Predictive Maintenance System for Aircraft (PMS-A)
+Requirements Elicitation Notes 
+Session Dates: August 3–7, 2025
+Location: Joint Base Andrews, Virtual Interviews, and Field Hangar Observations
+Analyst: [Redacted]
+System Context: 
+PMS-A is a sensor-driven analytics platform designed to predict component failures in military aircraft. The system will ingest onboard telemetry and historical maintenance data to forecast maintenance needs, reduce unplanned downtime, and improve fleet readiness. It must integrate with existing maintenance systems and operate in both connected and disconnected environments.
+
+1. Stakeholder Overview
+Name: Capt. Maria Reyes
+Role: Aircraft Maintenance Officer
+Organization: Air Mobility Command
+Name: Mr. Sean Douglas
+Role: Logistics Command Lead
+Organization: USAF Sustainment Center
+Name: Dr. Emily Zhao
+Role: Data Scientist
+Organization: MIT Lincoln Lab
+Name: Mr. Carlos Vega
+Role: Avionics Engineer
+Organization: Boeing Defense
+Name: Lt. Col. Brian Foster
+Role: Flight Operations Planner
+Organization: PACAF
+
+2. Session Summary & Observations
+Session 1: Maintenance Operations & Field Challenges
+Capt. Reyes described the current maintenance workflow as reactive and inefficient. Aircraft often return from missions with undetected issues that escalate into critical failures. She emphasized the need for predictive alerts that identify potential failures before they occur—especially in subsystems like hydraulics, avionics, and engines.
+She also highlighted the burden of manual data entry and the lack of integration between onboard systems and ground-based maintenance platforms. Technicians rely on handwritten logs and delayed uploads, which introduce errors and slow down diagnostics.
+“We’re always playing catch-up. If we could see problems coming, we’d save time, money, and lives.”
+
+Session 2: Logistics & System Integration
+Mr. Douglas focused on the logistical implications of predictive maintenance. He wants PMS-A to integrate seamlessly with G081 and CAMS, the Air Force’s existing maintenance management systems. Duplicate data entry is a major pain point—technicians should not have to re-enter telemetry data manually.
+He also stressed the importance of fleet-wide visibility. Commanders need dashboards that show aircraft health across squadrons, with filters for location, mission type, and subsystem status. He suggested role-based views: technicians see granular data, while planners see trends and readiness metrics.
+“Maintenance isn’t just about fixing planes—it’s about planning missions. We need strategic visibility.”
+
+Session 3: Data Science & Model Design
+Dr. Zhao discussed the technical challenges of building predictive models. She noted that data quality varies significantly across aircraft types. Older platforms have sparse telemetry, while newer ones generate high-resolution sensor data. PMS-A must normalize and clean this data before analysis.
+She proposed a hybrid modeling approach: supervised learning for known failure patterns, and unsupervised anomaly detection for rare or emerging issues. Model accuracy must exceed 90% for critical alerts, with confidence scores and explanations provided to users.
+She also flagged the need for continuous learning. Models should retrain periodically using new maintenance outcomes, with human validation to prevent drift.
+“The model is only as good as the data—and the data is messy. We need smart preprocessing and feedback loops.”
+
+Session 4: Engineering & Avionics Constraints
+Mr. Vega described the avionics architecture of current aircraft. PMS-A must ingest data from MIL-STD-1553 and ARINC 429 buses, which carry telemetry from subsystems. He emphasized that data parsing must be robust—some messages are proprietary or vendor-specific.
+He also discussed hardware constraints. Some aircraft lack onboard storage or processing capacity. PMS-A must operate as a lightweight agent, offloading analytics to ground stations or cloud environments when possible.
+He requested offline sync capability for remote bases, where connectivity is limited. Data should be cached locally and uploaded when bandwidth permits.
+“We can’t assume every aircraft is a flying data center. The system has to be lean and flexible.”
+
+Session 5: Flight Operations & Planning Needs
+Lt. Col. Foster provided a mission planning perspective. He wants PMS-A to support predictive scheduling—if an aircraft is likely to need maintenance in 72 hours, planners should be notified to adjust missions accordingly.
+He also requested visualization tools that show aircraft health over time. Trend lines, heat maps, and subsystem wear indicators would help planners make informed decisions.
+Mobile access is essential. Field personnel often use tablets or rugged laptops. The UI must be responsive, intuitive, and usable in low-light or outdoor conditions.
+“We don’t just need data—we need decisions. The system should help us plan smarter, not just fix faster.”
+
+3. Emerging Themes & Requirements
+Functional Requirements (Preliminary)
+* Predictive alerts for critical subsystems (hydraulics, avionics, engines)
+* Integration with G081 and CAMS maintenance systems
+* Visualization of aircraft health trends over time
+* Role-based dashboards for technicians, planners, and commanders
+* Mobile access with offline sync capability
+* Confidence scores and explanations for model predictions
+* Predictive scheduling support for flight operations
+Technical Requirements (Preliminary)
+* Data ingestion from MIL-STD-1553 and ARINC 429 buses
+* Hybrid ML models (supervised + unsupervised)
+* Model accuracy ≥ 90% for critical alerts
+* Cloud-hosted analytics platform with IL5 compliance
+* Lightweight agent architecture for onboard deployment
+* RBAC with CAC/PIV authentication
+* Responsive UI for tablets and rugged laptops
+* Secure data caching and deferred upload for disconnected environments
+
+4. Risks & Constraints
+* Data Quality: Inconsistent telemetry across aircraft types may affect model accuracy.
+* Bandwidth Limitations: Remote bases may not support real-time uploads. Offline sync is essential.
+* Integration Complexity: Legacy systems may require custom connectors or middleware.
+* Model Drift: Predictive models must be retrained regularly to remain accurate.
+* Hardware Constraints: Older aircraft may lack processing power for onboard analytics.
+
+5. Analyst Observations & Recommendations
+* Stakeholders are unified in their desire for proactive maintenance. Predictive alerts are seen as a game-changer for readiness.
+* Integration is critical. PMS-A must work with existing systems and avoid duplicating workflows.
+* Usability matters. The system must be intuitive, responsive, and tailored to different user roles.
+* Data science must be grounded in operational realities. Models must be explainable, accurate, and adaptable.
+* Deployment must be flexible. PMS-A should support both cloud and edge environments, with fallback options for disconnected operations.
+
+6. Next Steps
+* Draft initial requirements specification document
+* Develop stakeholder personas and use cases
+* Begin traceability matrix mapping stakeholder needs to system capabilities
+* Coordinate with avionics engineers for data parsing protocols
+* Engage data science team to define model architecture and retraining cadence
+* Prototype dashboard UI and gather feedback from field technicians
+
+

@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "k9-dow"
+version = "0.1.0"
+description = "K9-AIF DoW Architecture Workbench — DoDAF, JCIDS, SE, and Business document analysis"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+authors = [
+    { name = "Ravi Natarajan", email = "ravi.natarajan@ibm.com" }
+]
+
+dependencies = [
+    "k9-aif[s3]>=1.4.0",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "python-multipart>=0.0.9",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+kafka = ["aiokafka>=0.10", "kafka-python>=2.0"]
+postgres = ["psycopg2-binary>=2.9", "sqlalchemy>=2.0"]
+neo4j = ["neo4j>=5.14"]
+docx = ["python-docx>=1.0"]
+pdf = ["pypdf>=4.0"]
+vectordb = ["chromadb>=1.0", "sentence-transformers>=2.0"]
+all = [
+    "aiokafka>=0.10",
+    "kafka-python>=2.0",
+    "psycopg2-binary>=2.9",
+    "sqlalchemy>=2.0",
+    "neo4j>=5.14",
+    "python-docx>=1.0",
+    "pypdf>=4.0",
+    "chromadb>=1.0",
+    "sentence-transformers>=2.0",
+]
+
+[project.scripts]
+k9-dow = "k9_dow.main:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

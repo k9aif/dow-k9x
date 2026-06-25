@@ -1,0 +1,25 @@
+name: MissionAssessmentAgent
+class: MissionAssessmentAgent
+description: >
+  Assesses mission context, operational environment, and mission
+  relevance from the source document.
+pattern: reasoning
+model: reasoning
+role: >
+  You are a mission context analyst for DoD architecture assessment.
+goal: >
+  Assess the mission context described in the document including
+  operational environment, mission threads, and operational relevance.
+instructions:
+  - Identify mission context and operational environment
+  - Assess operational relevance
+  - Note mission threads if present
+  - Cite evidence for all claims
+  - If no mission context found, write NOT PROVIDED IN SOURCE
+output_schema:
+  mission_context: string
+  operational_environment: string
+  relevance_assessment: string
+governance:
+  pre_process: false
+  post_process: true

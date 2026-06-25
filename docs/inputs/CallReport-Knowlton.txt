@@ -1,0 +1,206 @@
+Call Report - MSC N611 Knowlton
+
+The following information contains meeting notes taken from a meeting between the client, Tom Knowlton, and the IBM Team, Brian Fitzpatrick, Tony Davis, Andrew Edmondson, Mark Bowmer, Vishnu Parasuraman, Karla Marquis 
+
+Results/Findings:
+•	Tom Knowlton administers and runs the MSC IBS.  He will be a key player for awarding the contract.
+•	He gave us 90 min for a 30 min phone call
+•	A lot of MSC IBS consists of very specialized applications which are scaled and used ashore and afloat but connectivity is a challenge
+•	IBS is hosted in the AWS Cloud
+•	Tom runs a nuts and bolts shop.  Gather requirements from customers.  Gather security and ATOs.  Then roll up to the cloud on the shore side then the ships.  Maintenance and patching and software lifecycle.
+•	RFP will not be released this spring.  More than likely 18 months for an award – 2Q26.
+•	Was best for the command for continuity for the HR solution implementation.
+•	MSC recruitment and retention is a challenge.  Reference the news.
+•	MyMSC is the replacement HR program.
+•	Cloud unscheduled outages is 90% based on F5.
+•	Brian told him we are doing NOSS.  Tom said MSC gets invited to the mtgs but they are being told MSC integration by FY30.
+•	They might conduct another industry day.
+•	Tom prepped an office call for me with his boss, MSC N6, Mr. Justin Skinner.  
+•	Wants to meet again to discuss ERP+
+
+
+Summary: 
+
+Tom has N1 background
+
+Cleans up our info on IBS.
+
+All cloud-based AWS GovCloud now.
+Very operational.
+
+They have 11 main business systems and odds and ends about 19 total.  Some are just paperwork for N codes because they are IT related.
+
+Some are defense business systems which carry significant requirements. 
+
+In the process of updating and modernizing the HR suite.  Was Oracle based.  Need to track mariner sea service records. They customized oracle based heavily.
+
+Things they have to do similar to the Navy.  They need to track licenses, federal regulations, bargaining units.
+
+
+They have lot of requirements for HR but cannot do all in one place.  MSC went off on their own to do a use case and a business analysis.  Compared 20 different commercial HR software suites.
+
+Built a mariner one-stop-shop capability.  Will go live in 2025 with new HR suite.  By the time the RFP is awarded, they will be live.
+
+RFP will not be released this spring.  More than likely 18 months for an award.
+Was best for the command for continuity for the HR solution implementation.
+MSC recruitment and retention is a challenge.  Reference the news.
+MyMSC is the replacement HR program.
+
+MSC is using the American Bureau of Shipping (ABS) Wave Sight system for their back-end HR system.  ABS is a Maximo partner worldwide.  They need help with maintenance management.  We need to leverage our Maximo bone fides in the POV.
+https://www.abs-group.com/Solutions/Software-Solutions/IBM-Maximo/
+
+ ABS Group
+IBM Maximo
+ABS Consulting is a global Enterprise Asset Management implementation services provider for IBM Maximo and a fully authorized IBM Gold Business partner.
+
+https://www.abswavesight.com/en?gad_source=1&gbraid=0AAAAA-n39qWS2FHk-SvB5HjB_ANHg6-_y
+
+
+Andy asks if there is anything slipping.
+
+Tom - IBS is a maintenance and sustainment contract.  Any project that we do is an add on.  We do use Navy ERP.  Not doing much with that.  Our HR solution is a COTS product but we work with the vendor.
+
+The rest of our stuff is really home grown and customized.  We do a lot of software development for mercurial maintenance.  Shore and afloat application.  
+
+Shipboard piece of the logistics application.
+
+We have Navy customers which use our software.  DDG's . NOAA.  
+
+Tom runs a nuts and bolts shop.  Gather requirements from customers.  Gather security and ATOs.  Then roll up to the cloud on the shore side then the ships.  Maintenance and patching and software lifecycle.
+
+
+Andy asks if mission owners are responsible for their own DevSecOps pipeline.
+
+Tom says they do it.  CDIDC pipeline is not mature yet.  Not complete.  Some breaks.
+
+They were testing out the USAF cloud 1 environment but their security oversight had vulnerabilities.  Did not go forward.  They need to clean that up.
+
+MSC works under two Ech II commanders: Fleet Forces and TRANSCOM.  They have a Navy working capital fund.  
+
+ERP does not meet all of the requirements to do that in ERP so they run their own solution.
+
+Tom was one of the seven named cloud brokers but they Navy fumbled the model.
+
+NAVAIR did it their way.  DC2HS did it their way.  NAVSUP.  None of them are remotely close.
+
+The rates went up 20% this year.  25% last year.  Can charge a lot because you cannot get a cloud provider.
+
+
+For budgeting, we treat every ship like its own entity.
+
+ERP does not meet our requirements for daily fuel rates.  Daily manning rates.  They laid it out to the ERP team but the team said they cannot meet the requirements.
+
+They have a Navy working capital fund and a TRANSCOM working capital fund.
+
+Andy thinks IBM can dig into the financial operations side of Cloud.
+
+Tom asks how if IBM is happy with DC2HS.
+Andy, they have the smallest lift on the services.
+
+Cloud unscheduled outages is 90% based on F5.
+
+Karla asks where they want to go?  Stuff to automate?
+
+Tom - we are improving automation.  Some things we are trying to automate:
+Notifications
+System health before outages
+The big challenge is the Navy POR which takes long to stand up but then do not stand up. SPS.  EPS.  On the hook to migrate to EPS.
+
+NOBLE NOSS NOME MRNO, the problem MSC runs into is we are unique, but we have operational capability in our applications.  They Navy says they are not worried about it.  You want us to migrate into NOSS.
+
+Brian told him we are doing NOSS.  They are at the mtgs but they are being told MSC integration by FY30.
+
+Karla asks Tom what he knows about IBM.  No much.
+
+Tom asks if we are looking to be prime contractor to develop software and deploy or sub.
+
+Karla answers.
+
+Tom thinks someone else as a prime would be in a better position for us.   
+Industry Day.
+
+Tom is the IBS POC.  Welcome to see if Justin wants to meet with you.
+Tom will help set that up.
+
+
+Contract start in July 26.  
+George Wiggins is the contracting officer to get the timeline.
+
+Tom gave me these contracting POC’s:
+
+
+George Wiggins:
+george.w.wiggins2.civ@us.navy.mil
+ 
+Monica Acosta:
+monica.b.acosta.civ@us.navy.mil
+ 
+Monica is our current Contracting Officer for IBS and should be able to answer any questions you have….George is the Supervisor of that Branch.
+
+
+
+RFP in the next six months.
+
+Tom wants to get on a call about ERP+
+
+
+Funding business systems by the month.
+
+Might be another industry day.
+
+
+POST CALL TEAM mtg.
+
+
+We need to understand the custom apps and state of being.
+
+
+
+We got 90 min of an 30 min phone call.
+
+Transcribed Summary:
+
+Work Environment Changes: The discussion highlights the shift in work dynamics due to COVID-19, emphasizing the challenges of recruiting and retaining employees in a remote work environment. There is concern about the long-term implications of a distributed workforce on leadership and management skills.
+
+
+Data Management and Ownership: The importance of data ownership and management within military organizations, particularly the Navy and Army, is stressed. The need for a dedicated organization to handle data warehousing and rights is highlighted as a way to improve user experience and attract new recruits.
+
+
+Challenges in Software Development and Maintenance: The conversation touches on the complexities of software development for military applications, including the integration of custom and COTS (Commercial Off-The-Shelf) products. There are discussions about the limitations of existing ERP systems and the need for tailored solutions.
+
+
+Cloud Services and Security: The transition to cloud services is discussed, including the challenges faced in establishing a mature DevSecOps pipeline. The importance of security measures and the need for continuous authorization processes are emphasized.
+
+
+Budgeting and Financial Management: The unique budgeting processes within military contracts, particularly regarding the Navy Working Capital Fund, are outlined. The conversation reveals the intricacies of managing finances and resources across different military branches.
+
+
+Future Opportunities and Collaboration: There is a focus on the potential for collaboration with IBM and the need for innovative solutions to address the unique challenges faced by the military. The importance of building relationships and understanding the specific needs of the Navy is emphasized.
+
+
+Concerns About Future Workforce Skills: There is apprehension about the future workforce's ability to engage in face-to-face interactions and decision-making processes, which could impact leadership and management capabilities in the long run.
+
+
+Conclusions:
+
+- Adaptation to Remote Work: Organizations must adapt to the changing landscape of remote work while ensuring that essential skills for in-person collaboration and leadership are not lost.
+
+- Data Management is Crucial: Effective data management and ownership are critical for operational success, particularly in military contexts where data integrity and accessibility are paramount.
+
+- Need for Tailored Solutions: There is a clear need for customized software solutions that meet the specific requirements of military operations, as existing systems may not adequately address these needs.
+
+- Security and Cloud Transition: As organizations transition to cloud services, a strong emphasis on security and continuous improvement of DevSecOps practices is essential to mitigate risks.
+
+- Financial Management Complexity: The complexities of budgeting and financial management within military contracts necessitate innovative approaches to ensure effective resource allocation.
+
+- Collaboration Opportunities: There are significant opportunities for collaboration between military organizations and technology firms like IBM to develop innovative solutions that address current challenges.
+
+- Future Workforce Development: Attention must be paid to developing the skills of the future workforce to ensure they can effectively engage in critical decision-making processes and face-to-face interactions. 
+
+Overall, the conversation underscores the importance of adapting to new work environments, enhancing data management practices, and fostering collaboration to meet the evolving needs of military operations.
+
+
+Due out:
+•	Engage – Set an ERP+ call with Tom Knowlton for second week of Feb 25
+•	Engage – Contact the contracting team.
+•	Engage – 

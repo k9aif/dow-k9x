@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: Apache-2.0
+# Stage 0 — Document Routing Squad
+
+squads:
+  Stage0RoutingSquad:
+    description: "Validates input, classifies document, applies governance."
+    agents:
+      - ValidationAgent
+      - RoutingClassifierAgent
+      - GovernanceAgent
+    flow:
+      - agent: ValidationAgent
+        result_key: validation
+      - agent: RoutingClassifierAgent
+        result_key: classification
+      - agent: GovernanceAgent
+        result_key: governance

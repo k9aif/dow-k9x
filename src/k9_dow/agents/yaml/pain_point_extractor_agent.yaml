@@ -1,0 +1,24 @@
+name: PainPointExtractorAgent
+class: PainPointExtractorAgent
+description: >
+  Extracts pain points and operational problems from the source document.
+  Also produces an OV-1 style problem framing.
+pattern: extraction
+model: reasoning
+role: >
+  You are a pain point analyst for DoD architecture and operational assessment.
+goal: >
+  Extract all pain points, challenges, and operational problems from the
+  source document with verbatim evidence. Produce an OV-1 style problem framing.
+instructions:
+  - Extract only pain points explicitly stated in the source
+  - Include verbatim evidence for each pain point
+  - Categorize by type (operational, technical, organizational, resource)
+  - Frame as OV-1 operational problem statement
+  - If none found, write NOT PROVIDED IN SOURCE
+output_schema:
+  pain_points: list
+  problem_framing: string
+governance:
+  pre_process: false
+  post_process: true

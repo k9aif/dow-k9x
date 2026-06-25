@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: Apache-2.0
+# Stage 1 — Fit-for-Purpose / Intended Use Squad
+
+squads:
+  Stage1FitForPurposeSquad:
+    description: >
+      Determines whether the source document is valid, operationally relevant,
+      and appropriate for architecture analysis. Extracts stakeholders, pain points,
+      objectives, mission context, and produces a Fit-for-Purpose intent statement.
+    agents:
+      - ValidationAgent
+      - StakeholderExtractorAgent
+      - PainPointExtractorAgent
+      - ObjectiveExtractorAgent
+      - MissionAssessmentAgent
+      - F2PIntentAgent
+      - SummarizerAgent
+      - GovernanceAgent
+    flow:
+      - agent: ValidationAgent
+        result_key: validation
+      - agent: StakeholderExtractorAgent
+        result_key: stakeholders
+      - agent: PainPointExtractorAgent
+        result_key: pain_points
+      - agent: ObjectiveExtractorAgent
+        result_key: objectives
+      - agent: MissionAssessmentAgent
+        result_key: mission_context
+      - agent: F2PIntentAgent
+        result_key: f2p_intent
+      - agent: SummarizerAgent
+        result_key: stage_summary
+      - agent: GovernanceAgent
+        result_key: governance

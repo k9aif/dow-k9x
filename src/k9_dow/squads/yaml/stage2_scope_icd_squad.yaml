@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+# Stage 2 — Scope / ICD Needs Analysis Squad
+
+squads:
+  Stage2ScopeIcdSquad:
+    description: "Define architecture scope, boundaries, mission needs, capability gaps, early ICD content."
+    agents:
+      - ProjectScopeAgent
+      - ConstraintAgent
+      - OperationalExtractorAgent
+      - CapabilityExtractorAgent
+      - RiskExtractorAgent
+      - VocabularyAgent
+      - ArchitectureAnalyzerAgent
+      - RequirementAgent
+      - SummarizerAgent
+      - GovernanceAgent
+    flow:
+      - agent: ProjectScopeAgent
+        result_key: scope
+      - agent: ConstraintAgent
+        result_key: constraints
+      - agent: OperationalExtractorAgent
+        result_key: operations
+      - agent: CapabilityExtractorAgent
+        result_key: capabilities
+      - agent: RiskExtractorAgent
+        result_key: risks
+      - agent: VocabularyAgent
+        result_key: vocabulary
+      - agent: ArchitectureAnalyzerAgent
+        result_key: architecture_analysis
+      - agent: RequirementAgent
+        result_key: icd_draft
+      - agent: SummarizerAgent
+        result_key: stage_summary
+      - agent: GovernanceAgent
+        result_key: governance

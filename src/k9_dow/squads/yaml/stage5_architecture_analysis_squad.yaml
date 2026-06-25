@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+# Stage 5 — Architecture Analysis Squad
+
+squads:
+  Stage5ArchitectureAnalysisSquad:
+    description: "Analyze architecture against objectives, gaps, risks, consistency."
+    agents:
+      - ValidationAgent
+      - VerificationAgent
+      - ArchitectureAnalyzerAgent
+      - CapabilityAnalyzerAgent
+      - OperationalAnalyzerAgent
+      - RiskExtractorAgent
+      - ActionItemAgent
+      - RequirementAgent
+      - SummarizerAgent
+      - GovernanceAgent
+    flow:
+      - agent: ValidationAgent
+        result_key: revalidation
+      - agent: CapabilityAnalyzerAgent
+        result_key: capability_analysis
+      - agent: OperationalAnalyzerAgent
+        result_key: operational_analysis
+      - agent: ArchitectureAnalyzerAgent
+        result_key: objective_alignment
+      - agent: RiskExtractorAgent
+        result_key: risk_review
+      - agent: VerificationAgent
+        result_key: consistency_check
+      - agent: ActionItemAgent
+        result_key: action_items
+      - agent: RequirementAgent
+        result_key: requirements
+      - agent: SummarizerAgent
+        result_key: stage_summary
+      - agent: GovernanceAgent
+        result_key: governance
