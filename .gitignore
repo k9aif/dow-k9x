@@ -10,3 +10,15 @@ build/
 output_reports/
 *.db
 .pytest_cache/
+object_store/
+
+# Word/Office temp lock files
+~$*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Credentials — never commit
+watsonx-apikey.json
