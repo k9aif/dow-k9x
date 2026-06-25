@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from k9_dow.config.settings import settings
 from k9_dow.utils.ids import generate_job_id
@@ -43,6 +45,14 @@ def _get_producer():
         except Exception as exc:
             log.warning("[API] Kafka not available: %s — running in local mode", exc)
     return _kafka_producer
+
+
+_STATIC_DIR = Path(__file__).parent / "static"
+
+
+@app.get("/")
+async def index():
+    return FileResponse(_STATIC_DIR / "index.html")
 
 
 @app.get("/health")

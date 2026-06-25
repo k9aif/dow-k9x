@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DoW Architecture Workbench</title>
+<style>
+  :root {
+    --bg: #0f172a; --bg2: #1e293b; --bg3: #0f172a; --border: #334155;
+    --text: #e2e8f0; --text2: #94a3b8; --text3: #64748b; --text-bright: #f8fafc;
+    --accent: #3b82f6; --accent-hover: #2563eb;
+    --green: #22c55e; --green-bg: #14532d; --red: #ef4444; --red-bg: #450a0a;
+    --yellow: #f59e0b; --purple: #8b5cf6; --blue-bg: #1e3a5f;
+    --console-bg: #0f172a; --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  [data-theme="light"] {
+    --bg: #f8fafc; --bg2: #ffffff; --bg3: #f1f5f9; --border: #e2e8f0;
+    --text: #1e293b; --text2: #64748b; --text3: #94a3b8; --text-bright: #0f172a;
+    --green-bg: #dcfce7; --red-bg: #fef2f2; --blue-bg: #dbeafe;
+    --console-bg: #f1f5f9;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background 0.3s, color 0.3s; }
+
+  /* Header */
+  .header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; gap: 14px; }
+  .header h1 { font-size: 18px; font-weight: 600; color: var(--text-bright); }
+  .header .badge { background: var(--accent); color: white; font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 600; letter-spacing: 0.5px; }
+  .header .sub { color: var(--text2); font-size: 12px; }
+  .header .spacer { flex: 1; }
+
+  /* Theme toggle */
+  .theme-toggle { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 16px; color: var(--text); transition: all 0.2s; }
+  .theme-toggle:hover { border-color: var(--accent); }
+
+  .main { max-width: 1000px; margin: 0 auto; padding: 28px 24px; }
+
+  /* Upload card */
+  .upload-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 24px 28px; margin-bottom: 20px; }
+  .upload-card h2 { font-size: 15px; color: var(--text-bright); margin-bottom: 14px; font-weight: 600; }
+  .upload-form { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label { font-size: 11px; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group input[type="file"],
+  .form-group select { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 13px; }
+  .form-group select { min-width: 240px; }
+  .btn { background: var(--accent); color: white; border: none; border-radius: 6px; padding: 9px 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn:hover { background: var(--accent-hover); }
+  .btn:disabled { background: var(--text3); cursor: not-allowed; }
+
+  /* Status */
+  .status-bar { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 18px; margin-bottom: 20px; display: none; align-items: center; gap: 10px; font-size: 13px; }
+  .status-bar.active { display: flex; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .dot.uploading { background: var(--yellow); animation: pulse 1s infinite; }
+  .dot.routing { background: var(--purple); animation: pulse 1s infinite; }
+  .dot.running { background: var(--accent); animation: pulse 1s infinite; }
+  .dot.completed { background: var(--green); }
+  .dot.failed { background: var(--red); }
+  .status-bar .job { color: var(--text3); margin-left: auto; font-family: var(--mono); font-size: 11px; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+  /* Pipeline */
+  .pipeline { display: none; }
+  .pipeline.active { display: block; }
+
+  /* Stage track */
+  .stage-track { display: flex; gap: 6px; margin-bottom: 20px; }
+  .stage-chip { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; flex: 1; text-align: center; font-size: 11px; transition: all 0.3s; }
+  .stage-chip.active { border-color: var(--accent); background: var(--blue-bg); }
+  .stage-chip.completed { border-color: var(--green); background: var(--green-bg); }
+  .stage-chip.failed { border-color: var(--red); background: var(--red-bg); }
+  .stage-chip .num { font-size: 16px; font-weight: 700; display: block; color: var(--text-bright); }
+  .stage-chip .name { color: var(--text2); font-size: 9px; margin-top: 2px; display: block; text-transform: uppercase; letter-spacing: 0.3px; }
+
+  /* Console */
+  .console { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .console-hdr { background: var(--console-bg); padding: 8px 14px; font-size: 11px; color: var(--text3); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+  .console-body { padding: 12px 14px; max-height: 420px; overflow-y: auto; font-family: var(--mono); font-size: 12px; line-height: 1.9; }
+  .log { display: flex; gap: 6px; }
+  .log .t { color: var(--text3); min-width: 75px; font-size: 11px; }
+  .log .i { min-width: 18px; text-align: center; }
+  .log .m { color: var(--text); }
+  .log .m.stage { color: #60a5fa; font-weight: 600; }
+  .log .m.agent { color: #a78bfa; }
+  .log .m.ok { color: #4ade80; }
+  .log .m.warn { color: #fbbf24; }
+  .log .m.err { color: #f87171; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>DoW Architecture Workbench</h1>
+  <span class="badge">K9-AIF</span>
+  <span class="sub">DoDAF 2.0 Pipeline</span>
+  <span class="spacer"></span>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode" id="themeBtn">🌙</button>
+</div>
+
+<div class="main">
+
+  <div class="upload-card">
+    <h2>Upload Document for Analysis</h2>
+    <div class="upload-form">
+      <div class="form-group">
+        <label>Document</label>
+        <input type="file" id="fileInput" accept=".md,.txt,.pdf,.docx,.csv,.xlsx">
+      </div>
+      <div class="form-group">
+        <label>Document Type</label>
+        <select id="docType">
+          <option value="architecture_document">Architecture / Mission Document</option>
+          <option value="conops">CONOPS / Mission Thread</option>
+          <option value="capability_gap">Capability Needs / Gap Analysis</option>
+          <option value="system_description">System / Service Description</option>
+          <option value="requirements_icd_draft">Requirements / ICD Draft</option>
+          <option value="operational_views">Operational Views (OV)</option>
+          <option value="standards_compliance">Standards / Compliance</option>
+          <option value="call_report">Call Report / Meeting Notes</option>
+          <option value="engagement_summary">Engagement / Capture Summary</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <button class="btn" id="btnUpload" onclick="uploadDocument()">Upload &amp; Analyze</button>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar">
+    <div class="dot" id="statusDot"></div>
+    <span id="statusText"></span>
+    <span class="job" id="statusJob"></span>
+  </div>
+
+  <div class="pipeline" id="pipelineView">
+    <div class="stage-track" id="stageTrack"></div>
+    <div class="console">
+      <div class="console-hdr"><span>Pipeline Console</span><span id="elapsed">0s</span></div>
+      <div class="console-body" id="consoleBody"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const btn = document.getElementById('themeBtn');
+  if (html.dataset.theme === 'dark') {
+    html.dataset.theme = 'light';
+    btn.textContent = '☀️';
+    localStorage.setItem('theme', 'light');
+  } else {
+    html.dataset.theme = 'dark';
+    btn.textContent = '🌙';
+    localStorage.setItem('theme', 'dark');
+  }
+}
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') { document.documentElement.dataset.theme = 'light'; document.getElementById('themeBtn').textContent = '☀️'; }
+})();
+
+const STAGES = [
+  { num: 1, name: 'F2P Gate' }, { num: 2, name: 'Scope/ICD' },
+  { num: 3, name: 'Data Reqs' }, { num: 4, name: 'Correlation' },
+  { num: 5, name: 'Analysis' }, { num: 6, name: 'Presentation' },
+];
+
+let t0 = null, timer = null;
+
+function setStatus(state, text, jobId) {
+  const bar = document.getElementById('statusBar');
+  bar.classList.add('active');
+  document.getElementById('statusDot').className = 'dot ' + state;
+  document.getElementById('statusText').textContent = text;
+  document.getElementById('statusJob').textContent = jobId || '';
+}
+
+function addLog(icon, msg, cls) {
+  const body = document.getElementById('consoleBody');
+  const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const d = document.createElement('div');
+  d.className = 'log';
+  d.innerHTML = `<span class="t">${now}</span><span class="i">${icon}</span><span class="m ${cls||''}">${msg}</span>`;
+  body.appendChild(d);
+  body.scrollTop = body.scrollHeight;
+}
+
+function initStages() {
+  const track = document.getElementById('stageTrack');
+  track.innerHTML = '';
+  STAGES.forEach(s => {
+    const c = document.createElement('div');
+    c.className = 'stage-chip'; c.id = `stg${s.num}`;
+    c.innerHTML = `<span class="num">${s.num}</span><span class="name">${s.name}</span>`;
+    track.appendChild(c);
+  });
+}
+
+function setStageSt(n, st) { const c = document.getElementById(`stg${n}`); if (c) c.className = 'stage-chip ' + st; }
+
+async function uploadDocument() {
+  const fi = document.getElementById('fileInput');
+  const dt = document.getElementById('docType').value;
+  const btn = document.getElementById('btnUpload');
+  if (!fi.files.length) { alert('Select a file'); return; }
+
+  btn.disabled = true; btn.textContent = 'Processing...';
+  const file = fi.files[0];
+  const fd = new FormData();
+  fd.append('file', file); fd.append('document_type', dt);
+
+  document.getElementById('pipelineView').classList.add('active');
+  document.getElementById('consoleBody').innerHTML = '';
+  initStages();
+  t0 = Date.now();
+  timer = setInterval(() => { document.getElementById('elapsed').textContent = ((Date.now()-t0)/1000|0)+'s'; }, 1000);
+
+  setStatus('uploading', `Uploading ${file.name}...`);
+  addLog('📄', `Document uploaded: ${file.name} (${(file.size/1024).toFixed(1)} KB)`, 'ok');
+  addLog('⚙️', 'Converting and checking document...');
+
+  try {
+    const resp = await fetch('/jobs/upload', { method: 'POST', body: fd });
+    const data = await resp.json();
+    const jobId = data.job_id || '';
+
+    if (data.status === 'submitted') {
+      setStatus('routing', 'Submitted to pipeline', jobId);
+      addLog('🔀', `Routing: ${dt}`, '');
+      addLog('📨', `Job ${jobId} submitted`, 'ok');
+      addLog('⏳', 'Pipeline running via Kafka...', 'warn');
+      clearInterval(timer); btn.disabled = false; btn.textContent = 'Upload & Analyze';
+      return;
+    }
+
+    setStatus('running', 'Pipeline running...', jobId);
+    addLog('🔀', `Routed → ${data.routing?.route_to || 'dodaf_pipeline'} (${data.routing?.classification || ''})`, 'ok');
+
+    for (const sr of (data.stage_results || [])) {
+      setStageSt(sr.stage, 'active');
+      addLog('🟦', `Stage ${sr.stage} — ${sr.squad_id}`, 'stage');
+
+      if (sr.result) {
+        for (const k of Object.keys(sr.result).filter(k => k!=='squad_id' && typeof sr.result[k]==='string').slice(0, 6)) {
+          addLog('  🤖', k, 'agent');
+        }
+      }
+
+      if (sr.status === 'completed') { setStageSt(sr.stage, 'completed'); addLog('  ✅', `Stage ${sr.stage} completed`, 'ok'); }
+      else { setStageSt(sr.stage, 'failed'); addLog('  ❌', `Stage ${sr.stage} ${sr.status}: ${sr.error||''}`, 'err'); }
+    }
+
+    clearInterval(timer);
+    if (data.status === 'completed') { setStatus('completed', 'Pipeline completed', jobId); addLog('🎯', 'DoDAF pipeline completed', 'ok'); }
+    else { setStatus('failed', `Pipeline ${data.status}`, jobId); addLog('⚠️', `Finished: ${data.status}`, 'warn'); }
+
+  } catch (err) {
+    clearInterval(timer);
+    setStatus('failed', 'Error'); addLog('❌', err.message, 'err');
+  }
+  btn.disabled = false; btn.textContent = 'Upload & Analyze';
+}
+</script>
+</body>
+</html>
