@@ -154,16 +154,16 @@
         <option value="">-- Select a demo document --</option>
       </select>
       <div id="demoInfo" style="font-size:10px;color:var(--text2);margin-bottom:8px;display:none"></div>
-      <label>Or Upload Your Own</label>
-      <input type="file" id="fileInput" accept=".md,.txt,.pdf,.docx" onchange="clearDemo()">
       <label>Document Type</label>
-      <select id="docType">
+      <select id="docType" disabled>
         <option value="capability_gap">Capability Gap / Needs</option>
-        <option value="conops">CONOPS / Mission Thread</option>
-        <option value="architecture_document">Architecture Document</option>
-        <option value="icd_draft">ICD Draft</option>
       </select>
-      <button class="btn" id="btnUpload" onclick="upload()">Analyze</button>
+      <button class="btn" id="btnUpload" disabled style="opacity:0.4;cursor:not-allowed">Analyze (Demo Mode)</button>
+      <div style="font-size:9px;color:var(--text2);margin-top:6px;line-height:1.5">
+        Live pipeline is disabled in demo mode. A sample output from the F-22 Raptor capability gap analysis is pre-loaded.<br><br>
+        Explore the <span style="color:var(--accent)">Architecture</span> tab to learn about the framework.<br>
+        Visit <a href="https://k9x.ai" target="_blank" style="color:var(--accent)">k9x.ai</a> for more.
+      </div>
     </div>
 
     <div class="endpoints">
@@ -711,17 +711,72 @@ async function upload() {
 // ─── Init ─────────────────────────────────────────────
 connectSSE();
 
-// Load demo documents into dropdown
-fetch('/demos').then(r=>r.json()).then(d=>{
-  const sel = document.getElementById('demoSelect');
-  if (!d.demos || !d.demos.length) return;
-  d.demos.forEach(demo => {
-    const opt = document.createElement('option');
-    opt.value = demo.filename;
-    opt.textContent = demo.name;
-    sel.appendChild(opt);
+// Load sample result on page load (demo mode)
+fetch('/demos/sample-result').then(r=>r.json()).then(data=>{
+  if (!data || data.error) return;
+  state.jobId = data.job_id;
+  state.corrId = data.correlation_id;
+
+  // Populate right pane
+  const r = data.result || {};
+  let summary = `Job: ${data.job_id}\n`;
+  summary += `Orchestrator: ${data.orchestrator}\n`;
+  summary += `Status: ${r.status || '?'}\n`;
+  summary += `Gate: ${r.gate_id || 'N/A'}\n`;
+  summary += `Document: F-22 Maintenance Readiness Assessment Request\n\n`;
+  if (r.view_generation) summary += `── View Generation ──\n${Object.keys(r.view_generation).filter(k=>k!=='status'&&k!=='squad_id').map(k => '  ✓ ' + k).join('\n')}\n\n`;
+  if (r.gate_readiness) summary += `── Gate Readiness ──\n${Object.keys(r.gate_readiness).filter(k=>k!=='status'&&k!=='squad_id').map(k => '  ✓ ' + k).join('\n')}\n\n`;
+  if (r.review_package) summary += `── Review Package ──\n${Object.keys(r.review_package).filter(k=>k!=='status'&&k!=='squad_id').map(k => '  ✓ ' + k).join('\n')}\n\n`;
+  summary += `View generated docs in the "Generated Docs" tab.`;
+  document.getElementById('resultArea').textContent = summary;
+  document.getElementById('jobStatus').innerHTML = '<span class="job-badge complete">' + data.job_id + ' COMPLETE</span>';
+
+  // Light up pipeline dots
+  document.getElementById('dot-router').className = 'pipe-dot done';
+  document.getElementById('dot-jcids').className = 'pipe-dot done';
+
+  // Populate squads
+  document.getElementById('squadList').innerHTML =
+    '<div style="color:var(--green);margin:2px 0">✓ ViewGenerationSquad</div>' +
+    '<div style="color:var(--green);margin:2px 0">✓ GateReadinessSquad</div>' +
+    '<div style="color:var(--green);margin:2px 0">✓ PackageAssemblySquad</div>';
+
+  // Add sample events to live feed
+  const now = new Date().toLocaleTimeString();
+  state.events = [
+    {_ts: now, type: 'OrchestratorStarted', orchestrator: 'JcidsOrchestrator', filename: 'F22_Maintenance_Readiness_Assessment_Request.md', document_type: 'capability_gap'},
+    {_ts: now, type: 'SquadStarted', orchestrator: 'JcidsOrchestrator', squad: 'ViewGenerationSquad', agents: ['ModelExtractorAgent','ViewGeneratorAgent','ViewConsistencyCheckerAgent'], total: 3},
+    {_ts: now, type: 'loop_started', agent: 'DAS ViewGenerator'},
+    {_ts: now, type: 'hypothesis_generated', agent: 'DAS ViewGenerator', iteration: 1},
+    {_ts: now, type: 'observation_evaluated', agent: 'DAS ViewGenerator', iteration: 1, confidence: 0.65},
+    {_ts: now, type: 'loop_continued', agent: 'DAS ViewGenerator', iteration: 1},
+    {_ts: now, type: 'hypothesis_generated', agent: 'DAS ViewGenerator', iteration: 2},
+    {_ts: now, type: 'observation_evaluated', agent: 'DAS ViewGenerator', iteration: 2, confidence: 0.82},
+    {_ts: now, type: 'loop_finalized', agent: 'DAS ViewGenerator', iteration: 2, confidence: 0.82},
+    {_ts: now, type: 'SquadCompleted', orchestrator: 'JcidsOrchestrator', squad: 'ViewGenerationSquad', elapsed_s: 45.2},
+    {_ts: now, type: 'SquadStarted', orchestrator: 'JcidsOrchestrator', squad: 'GateReadinessSquad', agents: ['CriteriaLoaderAgent','EvidenceCollectorAgent','ReadinessScorerAgent','GapReporterAgent'], total: 4},
+    {_ts: now, type: 'LLMCall', agent: 'DAS EvidenceCollector', model: 'reasoning', latency_ms: 18200},
+    {_ts: now, type: 'LLMCall', agent: 'DAS ReadinessScorer', model: 'reasoning', latency_ms: 22100},
+    {_ts: now, type: 'LLMCall', agent: 'DAS GapReporter', model: 'reasoning', latency_ms: 28500},
+    {_ts: now, type: 'SquadCompleted', orchestrator: 'JcidsOrchestrator', squad: 'GateReadinessSquad', elapsed_s: 68.8},
+    {_ts: now, type: 'SquadStarted', orchestrator: 'JcidsOrchestrator', squad: 'PackageAssemblySquad', agents: ['ArtifactFetcherAgent','CompletenessCheckerAgent','PackageBuilderAgent'], total: 3},
+    {_ts: now, type: 'SquadCompleted', orchestrator: 'JcidsOrchestrator', squad: 'PackageAssemblySquad', elapsed_s: 42.1},
+    {_ts: now, type: 'OrchestratorCompleted', orchestrator: 'JcidsOrchestrator', elapsed_s: 156.1, gate: 'JROC-VALIDATION'},
+    {_ts: now, type: 'PipelineComplete', orchestrator: 'JcidsOrchestrator', status: 'awaiting_gate', gate: 'JROC-VALIDATION'},
+  ];
+  state.agentEvents = state.events.filter(e => {
+    const t = e.type||'';
+    return t.includes('Agent') || t.includes('Squad') || t.includes('Orchestrator') || t.includes('loop') || e.agent;
   });
-}).catch(()=>{});
+  state.llmEvents = state.events.filter(e => e.type === 'LLMCall');
+  document.getElementById('live-count').textContent = state.events.length;
+  document.getElementById('agent-count').textContent = state.agentEvents.length;
+  document.getElementById('llm-count').textContent = state.llmEvents.length;
+  renderLive();
+
+  // Fetch docs
+  fetchDocs(data.job_id);
+}).catch(err => console.error('Sample load failed:', err));
 
 function selectDemo() {
   const sel = document.getElementById('demoSelect');

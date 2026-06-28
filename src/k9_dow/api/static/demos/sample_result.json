@@ -1,0 +1,64 @@
+{
+  "event_type": "capability_gap",
+  "job_id": "JOB-20260628-DEMO01",
+  "correlation_id": "demo-sample",
+  "orchestrator": "JcidsOrchestrator",
+  "result": {
+    "job_id": "JOB-20260628-DEMO01",
+    "orchestrator": "jcids",
+    "status": "awaiting_gate",
+    "gate_id": "JROC-VALIDATION",
+    "view_generation": {
+      "status": "completed",
+      "squad_id": "ViewGenerationSquad",
+      "model_elements": {
+        "agent": "DAS ModelExtractor",
+        "output": "Based on the source document, the following entities were extracted:\n\n**Capability Needs:**\n\n| ID | Title | Description |\n|---|---|---|\n| CN-001 | Improved Maintenance Workflow | A more integrated, predictive, and digitally traceable approach to F-22 maintenance and mission readiness |\n| CN-002 | Subsystem Health Monitoring | Enhanced diagnostic accuracy for hydraulic system, electronic warfare suite, and weapons interface integrity |\n| CN-003 | Digital Traceability | Unified digital traceability across Maintenance_Event records to correlate subsystem failures to mission profiles |\n\n**Requirements:**\n\n| ID | Shall Text | Type | Verification |\n|---|---|---|---|\n| SR-001 | Identify capability gaps in the maintenance and diagnostics workflow | Capability Gap Identification | Analysis |\n| SR-002 | Recommended improvements to operational activities supporting aircraft readiness | Operational Improvement | Demonstration |\n| SR-003 | Assessment of existing system interfaces across radar, EW suite, VMS, PTMS, and SMS | System Interface Assessment | Inspection |\n| SR-004 | Suggested enhancements to data integration between MCS, System Health Monitoring service, and mission planning subsystems | Data Integration Enhancement | Test |\n| SR-005 | DOTMLPF-P analysis focusing on doctrine, training, personnel skills, and facility constraints relevant to F-22 support conditions | DOTMLPF-P Analysis | Analysis |\n| SR-006 | A synthesized architectural view (OV/SV/CV) to support decision-making for modernization programs | Architectural View Synthesis | Demonstration |\n\n**Technical Baseline Items:**\n\n| ID | Name | Subsystem |\n|---|---|---|\n| TBI-001 | Hydraulic System Monitoring | Hydraulic System |\n| TBI-002 | Subsystem Initialization | Electronic Warfare Suite |\n| TBI-003 | Data Transfer from MDF Loader | Onboard Avionics Package |\n| TBI-004 | Weapons Rail Verification | Stores Management System (SMS) |\n| TBI-005 | MIL-STD-1760 Compliance Check | Weapons Interface |"
+      },
+      "generated_views": {
+        "agent": "DAS ViewGenerator",
+        "output": "**OV-1: High-Level Operational Concept**\n\nCAP-001: F-22 Raptor Maintenance & Mission Readiness System\n\n**Operational Context:**\nThe 325th Maintenance Squadron operates the F-22 Raptor fleet under high-tempo training and mission scenarios. The current maintenance workflow is reactive, with inconsistent diagnostic accuracy and incomplete data traceability.\n\n**Operational Activities:**\n\n| ID | Activity | Description |\n|---|---|---|\n| ACT-001 | Pre-Flight Diagnostics | Maintenance crews perform subsystem checks including hydraulic readings, subsystem initialization, and MDF data transfer verification |\n| ACT-002 | Subsystem Health Monitoring | Continuous monitoring of radar, EW suite, VMS, PTMS, and SMS during operations |\n| ACT-003 | Weapons Load Validation | MIL-STD-1760 compliance checks and torque validation for AIM-120 training rounds |\n| ACT-004 | Maintenance Event Recording | Digital capture of maintenance activities with traceability to mission profiles |\n| ACT-005 | Mission Planning Integration | Data exchange between MCS, System Health Monitoring, and mission planning subsystems |\n\n**System Nodes:**\n\n| ID | Node | Function |\n|---|---|---|\n| NODE-001 | Maintenance Control System (MCS) | Central maintenance management and scheduling |\n| NODE-002 | System Health Monitoring Service | Real-time subsystem health data collection |\n| NODE-003 | Vehicle Management System (VMS) | Aircraft vehicle systems control |\n| NODE-004 | Power Thermal Management System (PTMS) | Power and thermal management |\n| NODE-005 | Stores Management System (SMS) | Weapons and stores management |\n| NODE-006 | Mission Data File Loader | Mission data programming and transfer |\n\n*Source citation: \"The 325th Maintenance Squadron requests an architectural assessment and recommendation package to improve the F-22 Raptor's maintenance workflow, subsystem health monitoring, and weapons load validation processes.\"*"
+      },
+      "consistency_report": {
+        "agent": "DAS ViewConsistencyChecker",
+        "output": "**Cross-View Consistency Analysis:**\n\n1. Entities in OV views appear in corresponding system descriptions:\n   - CAP-001 (F-22 Maintenance System) — Referenced in requirements SR-001 through SR-006. **CONSISTENT**\n   - ACT-001 through ACT-005 — All trace to identified capability needs. **CONSISTENT**\n\n2. Capabilities trace to operational activities:\n   - CN-001 (Improved Maintenance Workflow) → ACT-001, ACT-004. **CONSISTENT**\n   - CN-002 (Subsystem Health Monitoring) → ACT-002. **CONSISTENT**\n   - CN-003 (Digital Traceability) → ACT-004, ACT-005. **CONSISTENT**\n\n3. System interfaces across subsystems:\n   - MCS ↔ System Health Monitoring: Data exchange defined. **CONSISTENT**\n   - MCS ↔ Mission Planning: Integration gap identified. **WARNING** — SR-004 addresses this gap\n   - VMS ↔ PTMS: Interface not fully specified in source. **INFO** — requires further elicitation\n\n4. Standards compliance:\n   - MIL-STD-1760 referenced for weapons interface. **CONSISTENT**\n   - No other standards explicitly referenced in source document. **INFO** — TV-1 view requires additional standards identification\n\n**Overall Consistency Score: 85%**\n**Critical Issues: 0 | Warnings: 1 | Info: 2**"
+      }
+    },
+    "gate_readiness": {
+      "status": "completed",
+      "squad_id": "GateReadinessSquad",
+      "criteria": {
+        "agent": "DAS CriteriaLoader",
+        "output": "Loaded 5 entry criteria for gate JROC-VALIDATION:\n\n1. Capability need statement complete\n2. Requirements traceability coverage >= 90%\n3. DoDAF views generated and consistency-checked\n4. No critical invariant violations\n5. Evidence package assembled"
+      },
+      "evidence": {
+        "agent": "DAS EvidenceCollector",
+        "output": "**Evidence Summary for JROC-VALIDATION:**\n\n| Criterion | Evidence | Status |\n|---|---|---|\n| Capability need statement | CN-001, CN-002, CN-003 identified from source document | Available |\n| Requirements traceability | SR-001 through SR-006 traced to capability needs | Available |\n| DoDAF views generated | OV-1 generated with 5 operational activities, 6 system nodes | Available |\n| Cross-view consistency | 85% consistency score, 0 critical issues | Available |\n| Evidence package | Technical baseline items TBI-001 through TBI-005 documented | Available |\n\n**Missing Evidence:**\n- SV-1 (System Interface Description) — NOT PROVIDED IN SOURCE\n- CV-1 (Capability Vision) — NOT PROVIDED IN SOURCE\n- TV-1 (Standards Profile) — Only MIL-STD-1760 referenced"
+      },
+      "readiness_score": {
+        "agent": "DAS ReadinessScorer",
+        "output": "**Gate Readiness Assessment — JROC-VALIDATION:**\n\n| Criterion | Score | Rationale |\n|---|---|---|\n| Capability need statement complete | MET | Three capability needs identified with clear descriptions |\n| Requirements traceability >= 90% | PARTIALLY_MET | 6 requirements trace to capability needs, but SV/CV views not yet generated |\n| DoDAF views generated | PARTIALLY_MET | OV-1 generated; SV-1, CV-1, TV-1 pending |\n| No critical invariant violations | MET | Cross-view consistency check passed with 0 critical issues |\n| Evidence package assembled | PARTIALLY_MET | Technical baseline documented; formal package pending assembly |\n\n**Overall Readiness Score: 65/100**\n\n**Blockers:**\n- SV-1, CV-1, TV-1 views not yet generated\n- Formal evidence package not assembled\n\n**Recommendation:** Address remaining view generation before proceeding to JROC validation gate."
+      },
+      "gap_report": {
+        "agent": "DAS GapReporter",
+        "output": "**Gap Analysis for JROC-VALIDATION:**\n\n| Gap ID | Description | Impact | Remediation | Effort |\n|---|---|---|---|---|\n| GAP-001 | SV-1 System Interface Description not generated | Blocker | Generate SV-1 from system nodes and interface requirements | Medium (2-3 days) |\n| GAP-002 | CV-1 Capability Vision not generated | Blocker | Generate CV-1 from capability needs and operational activities | Medium (2-3 days) |\n| GAP-003 | TV-1 Standards Profile incomplete | Risk-acceptance | Identify applicable standards beyond MIL-STD-1760 | Low (1-2 days) |\n| GAP-004 | DOTMLPF-P analysis not completed | Risk-acceptance | Conduct analysis focusing on doctrine, training, and personnel constraints | Medium (3-5 days) |\n| GAP-005 | Data integration assessment incomplete | Risk-acceptance | Detailed assessment of MCS-SHM-Mission Planning data flows | Medium (2-4 days) |\n\n**Summary:** 2 blockers require resolution before gate review. 3 items can proceed with risk-acceptance."
+      }
+    },
+    "review_package": {
+      "status": "completed",
+      "squad_id": "PackageAssemblySquad",
+      "artifact_manifest": {
+        "agent": "DAS ArtifactFetcher",
+        "output": "**Artifact Manifest for JROC-VALIDATION:**\n\n| Artifact | Type | Status | Location |\n|---|---|---|---|\n| Source Document | F-22 Maintenance Readiness Assessment Request | Available | Uploaded |\n| Model Elements | Capabilities, Requirements, Technical Baseline | Generated | Pipeline output |\n| OV-1 Operational View | DoDAF Architecture View | Generated | Pipeline output |\n| Cross-View Consistency Report | Quality Assessment | Generated | Pipeline output |\n| Gate Readiness Score | Assessment (65/100) | Generated | Pipeline output |\n| Gap Analysis | 5 gaps identified, 2 blockers | Generated | Pipeline output |\n| SV-1 System Interface Description | DoDAF Architecture View | NOT GENERATED | Pending |\n| CV-1 Capability Vision | DoDAF Architecture View | NOT GENERATED | Pending |"
+      },
+      "completeness_check": {
+        "agent": "DAS CompletenessChecker",
+        "output": "**Completeness Assessment:**\n\n**Generated Artifacts: 6/8 (75%)**\n\n- Source document analysis: Complete\n- Model element extraction: Complete (3 capability needs, 6 requirements, 5 technical baseline items)\n- OV-1 view generation: Complete (5 activities, 6 nodes)\n- Cross-view consistency: Complete (85% score)\n- Gate readiness scoring: Complete (65/100)\n- Gap analysis: Complete (5 gaps, 2 blockers)\n\n**Missing Artifacts:**\n- SV-1 System Interface Description — Required for gate review\n- CV-1 Capability Vision — Required for gate review\n\n**Recommendation:** Package is 75% complete. Resolve 2 blocker gaps before submitting for JROC validation."
+      },
+      "review_package": {
+        "agent": "DAS PackageBuilder",
+        "output": "**JROC-VALIDATION Review Package Summary:**\n\n**Program:** F-22 Raptor Maintenance & Mission Readiness Enhancement\n**Requesting Organization:** 325th Maintenance Squadron\n**Gate:** JROC-VALIDATION (Non-delegable)\n**Readiness Score:** 65/100\n**Package Completeness:** 75%\n\n**Executive Summary:**\nThe 325th Maintenance Squadron has identified three core capability needs for improving F-22 maintenance workflow, subsystem health monitoring, and digital traceability. Six system engineering requirements have been derived and traced to these capability needs. An OV-1 operational view has been generated identifying 5 operational activities and 6 system nodes. Cross-view consistency analysis shows 85% consistency with no critical issues.\n\n**Blockers (2):**\n1. GAP-001: SV-1 System Interface Description not generated\n2. GAP-002: CV-1 Capability Vision not generated\n\n**Risk-Acceptance Items (3):**\n3. GAP-003: TV-1 Standards Profile incomplete\n4. GAP-004: DOTMLPF-P analysis not completed\n5. GAP-005: Data integration assessment incomplete\n\n**Decision Required:** Human authority must review this package and decide whether to:\n- **APPROVE** — proceed with risk-acceptance on remaining gaps\n- **REMEDIATE** — address blockers before resubmission\n- **REJECT** — return for fundamental rework\n\n*This package was prepared by the DAS pipeline. The decision is non-delegable and must be made by an authorized human decision authority.*"
+      }
+    }
+  }
+}

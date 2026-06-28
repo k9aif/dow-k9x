@@ -117,6 +117,17 @@ async def event_stream():
 _DEMOS_DIR = Path(__file__).parent / "static" / "demos"
 
 
+@app.get("/demos/sample-result")
+async def sample_result():
+    sample_path = _DEMOS_DIR / "sample_result.json"
+    if not sample_path.exists():
+        return {"error": "No sample result available"}
+    with open(sample_path, encoding="utf-8") as f:
+        data = json.load(f)
+    _job_store[data["job_id"]] = data
+    return data
+
+
 @app.get("/demos")
 async def list_demos():
     if not _DEMOS_DIR.exists():
