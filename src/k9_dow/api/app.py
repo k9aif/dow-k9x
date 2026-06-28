@@ -411,6 +411,16 @@ async def download_doc(job_id: str, doc_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
 
     if doc_id == "icd":
+        # Serve static sample for demo job
+        if job_id == "JOB-20260628-DEMO01":
+            sample_md = _DEMOS_DIR / "sample_ICD.md"
+            if sample_md.exists():
+                content = sample_md.read_text(encoding="utf-8")
+                return Response(
+                    content=content,
+                    media_type="text/markdown",
+                    headers={"Content-Disposition": f'attachment; filename="{job_id}_ICD.md"'},
+                )
         content = _compose_icd(data)
         filename = f"{job_id}_ICD.md"
         return Response(
@@ -426,6 +436,13 @@ async def download_doc(job_id: str, doc_id: str):
 async def view_doc(job_id: str, doc_id: str):
     from fastapi.responses import HTMLResponse
 
+    # Serve static sample for demo job
+    if job_id == "JOB-20260628-DEMO01" and doc_id == "icd":
+        sample_md = _DEMOS_DIR / "sample_ICD.md"
+        if sample_md.exists():
+            md_content = sample_md.read_text(encoding="utf-8")
+            return _render_icd_html(job_id, md_content)
+
     data = _job_store.get(job_id)
     if not data:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -434,7 +451,12 @@ async def view_doc(job_id: str, doc_id: str):
         raise HTTPException(status_code=404, detail="Document not found")
 
     md_content = _compose_icd(data)
+    return _render_icd_html(job_id, md_content)
 
+
+def _render_icd_html(job_id: str, md_content: str):
+    from fastapi.responses import HTMLResponse
+    in_table = False
     html = f"""<!DOCTYPE html>
 <html><head>
 <meta charset="UTF-8">
@@ -464,30 +486,36 @@ async def view_doc(job_id: str, doc_id: str):
 
     for line in md_content.split("\n"):
         if line.startswith("# "):
+            if in_table: html += "</table>\n"; in_table = False
             html += f"<h1>{line[2:]}</h1>\n"
         elif line.startswith("## DRAFT"):
             html += f'<div class="draft">{line[3:]}</div>\n'
         elif line.startswith("## "):
+            if in_table: html += "</table>\n"; in_table = False
             html += f"<h2>{line[3:]}</h2>\n"
         elif line.startswith("### "):
+            if in_table: html += "</table>\n"; in_table = False
             html += f"<h3>{line[4:]}</h3>\n"
         elif line.startswith("---"):
+            if in_table: html += "</table>\n"; in_table = False
             html += "<hr>\n"
-        elif line.startswith("**") and ":**" in line:
-            html += f"<p>{line}</p>\n"
         elif line.startswith("|"):
             if "---|" in line:
                 continue
             cells = [c.strip() for c in line.split("|")[1:-1]]
-            if any(c.startswith("Gap ID") or c.startswith("---") for c in cells):
+            if not in_table:
                 html += "<table><tr>" + "".join(f"<th>{c}</th>" for c in cells) + "</tr>\n"
+                in_table = True
             else:
                 html += "<tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>\n"
         elif line.strip() == "":
+            if in_table: html += "</table>\n"; in_table = False
             html += "\n"
         else:
+            if in_table: html += "</table>\n"; in_table = False
             html += f"<p>{line}</p>\n"
 
+    if in_table: html += "</table>\n"
     html += "</body></html>"
     return HTMLResponse(content=html)
 
