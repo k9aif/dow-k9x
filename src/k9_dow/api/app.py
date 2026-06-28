@@ -251,6 +251,8 @@ def _is_garbage(s: str) -> bool:
 
 def _humanize_output(text, depth=0) -> str:
     """Convert JSON/dict agent output into readable markdown."""
+    if text is None:
+        return "*No output generated.*"
     if isinstance(text, str) and _is_garbage(text):
         return "*Content not generated — requires a more capable LLM backend.*"
     if isinstance(text, dict):
@@ -435,10 +437,10 @@ def _compose_icd(job_data: dict) -> str:
                     lines.append(agent_output.strip())
                     lines.append("")
                 continue
-            output_text = _humanize_output(agent_output)
+            output_text = _humanize_output(agent_output) or "*No output generated.*"
             lines.append(f"### {subsection_title}")
             lines.append("")
-            lines.append(output_text)
+            lines.append(str(output_text))
             lines.append("")
 
     lines.append("---")
