@@ -236,15 +236,12 @@ async def get_job(job_id: str):
 
 
 def _is_garbage(s: str) -> bool:
-    """Detect junk LLM output — walls of dashes, repeated chars, etc."""
+    """Detect obvious junk LLM output — only walls of identical characters."""
     s = s.strip()
     if not s:
         return True
-    if len(s) > 50 and len(set(s.replace(" ", ""))) <= 3:
-        return True
-    if s.count("-") > len(s) * 0.7:
-        return True
-    if s.count("=") > len(s) * 0.7:
+    # Only catch walls of repeated single characters (e.g., "--------...")
+    if len(s) > 100 and len(set(s.replace(" ", "").replace("\n", ""))) <= 2:
         return True
     return False
 
