@@ -249,17 +249,17 @@ def _is_garbage(s: str) -> bool:
     return False
 
 
-def _humanize_output(text) -> str:
+def _humanize_output(text, depth=0) -> str:
     """Convert JSON/dict agent output into readable markdown."""
     if isinstance(text, str) and _is_garbage(text):
         return "*Content not generated — requires a more capable LLM backend.*"
     if isinstance(text, dict):
         # If it has an "output" key, extract that first (agent result wrapper)
         if "output" in text and isinstance(text["output"], str) and len(text["output"]) > 20:
-            return _humanize_output(text["output"])
+            return _humanize_output(text["output"], depth)
         # ValidationLoopResult — extract the output from inside
         if "disposition" in text and "output" in text:
-            return _humanize_output(text["output"])
+            return _humanize_output(text["output"], depth)
         # Skip internal keys, extract readable content
         skip_keys = {"agent", "status", "squad_id", "steps", "iterations",
                      "evidence", "final_confidence", "disposition",
@@ -272,10 +272,17 @@ def _humanize_output(text) -> str:
                 if _is_garbage(v):
                     continue
                 if len(v) > 10:
-                    lines.append(v.strip())
+                    lines.append(f"**{k}:** {v}")
                 else:
                     lines.append(f"**{k}:** {v}")
             elif isinstance(v, list):
+                # Check if list items look like a table (dicts with same keys)
+                if v and all(isinstance(item, dict) for item in v):
+                    table = _dict_list_to_table(v)
+                    if table:
+                        lines.append(f"**{k}:**")
+                        lines.append(table)
+                        continue
                 clean_items = []
                 for item in v:
                     if isinstance(item, dict):
@@ -290,14 +297,46 @@ def _humanize_output(text) -> str:
                     lines.append(f"**{k}:**")
                     lines.extend(clean_items)
             elif isinstance(v, dict):
-                humanized = _humanize_output(v)
-                if humanized and "not generated" not in humanized:
-                    lines.append(f"**{k}:** {humanized}")
+                if depth < 3:
+                    humanized = _humanize_output(v, depth + 1)
+                    if humanized and "not generated" not in humanized:
+                        lines.append(f"\n**{k}:**\n{humanized}")
+                else:
+                    flat = ", ".join(f"{ik}: {iv}" for ik, iv in v.items()
+                                    if not isinstance(iv, (dict, list)))
+                    if flat:
+                        lines.append(f"**{k}:** {flat}")
             elif v is not None and str(v).strip():
                 lines.append(f"**{k}:** {v}")
         if not lines:
             return "*Content not generated — requires a more capable LLM backend.*"
         return "\n".join(lines)
+
+
+def _dict_list_to_table(items: list) -> str:
+    """Convert a list of dicts with consistent keys into a markdown table."""
+    if not items:
+        return ""
+    all_keys = []
+    for item in items:
+        for k in item.keys():
+            if k not in all_keys:
+                all_keys.append(k)
+    if len(all_keys) < 2 or len(all_keys) > 8:
+        return ""
+    header = "| " + " | ".join(all_keys) + " |"
+    sep = "| " + " | ".join("---" for _ in all_keys) + " |"
+    rows = []
+    for item in items:
+        cells = []
+        for k in all_keys:
+            val = item.get(k, "")
+            if isinstance(val, (dict, list)):
+                val = str(val)[:100]
+            val = str(val).replace("|", "/").replace("\n", " ")[:150]
+            cells.append(val)
+        rows.append("| " + " | ".join(cells) + " |")
+    return "\n".join([header, sep] + rows)
 
     if isinstance(text, list):
         lines = []
