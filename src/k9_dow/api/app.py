@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 import asyncio
+import os
 import uuid
 from collections import deque
 
@@ -235,148 +236,52 @@ async def get_job(job_id: str):
     return {"job_id": job_id, "status": "not_found"}
 
 
-def _is_garbage(s: str) -> bool:
-    """Detect obvious junk LLM output — only walls of identical characters."""
-    s = s.strip()
-    if not s:
-        return True
-    # Only catch walls of repeated single characters (e.g., "--------...")
-    if len(s) > 100 and len(set(s.replace(" ", "").replace("\n", ""))) <= 2:
-        return True
-    return False
-
-
-def _humanize_output(text, depth=0) -> str:
-    """Convert JSON/dict agent output into readable markdown."""
-    if text is None:
-        return "*No output generated.*"
-    if isinstance(text, str) and _is_garbage(text):
-        return "*Content not generated — requires a more capable LLM backend.*"
-    if isinstance(text, dict):
-        # If it has an "output" key, extract that first (agent result wrapper)
-        if "output" in text and isinstance(text["output"], str) and len(text["output"]) > 20:
-            return _humanize_output(text["output"], depth)
-        # ValidationLoopResult — extract the output from inside
-        if "disposition" in text and "output" in text:
-            return _humanize_output(text["output"], depth)
-        # Skip internal keys, extract readable content
-        skip_keys = {"agent", "status", "squad_id", "steps", "iterations",
-                     "evidence", "final_confidence", "disposition",
-                     "remaining_steps", "notes"}
-        lines = []
-        for k, v in text.items():
-            if k in skip_keys:
+def _extract_text(obj) -> str:
+    """Extract readable text from any agent output structure."""
+    if obj is None:
+        return ""
+    if isinstance(obj, str):
+        return obj.strip()
+    if isinstance(obj, dict):
+        # Try "output" key first (standard agent result)
+        if "output" in obj:
+            result = _extract_text(obj["output"])
+            if result:
+                return result
+        # Skip internal keys, collect everything else
+        skip = {"agent", "status", "squad_id", "steps", "iterations",
+                "evidence", "final_confidence", "disposition",
+                "remaining_steps", "notes", "source_markdown",
+                "prior_outputs", "filename", "icd_metadata",
+                "document_type", "job_id", "correlation_id"}
+        parts = []
+        for k, v in obj.items():
+            if k in skip:
                 continue
-            if isinstance(v, str):
-                if _is_garbage(v):
-                    continue
-                if len(v) > 10:
-                    lines.append(f"**{k}:** {v}")
-                else:
-                    lines.append(f"**{k}:** {v}")
+            if isinstance(v, str) and v.strip():
+                parts.append(f"**{k}:** {v}")
+            elif isinstance(v, (int, float)):
+                parts.append(f"**{k}:** {v}")
             elif isinstance(v, list):
-                # Check if list items look like a table (dicts with same keys)
-                if v and all(isinstance(item, dict) for item in v):
-                    table = _dict_list_to_table(v)
-                    if table:
-                        lines.append(f"**{k}:**")
-                        lines.append(table)
-                        continue
-                clean_items = []
+                parts.append(f"**{k}:**")
                 for item in v:
                     if isinstance(item, dict):
-                        clean = {ik: iv for ik, iv in item.items()
-                                 if not (isinstance(iv, str) and _is_garbage(iv))}
-                        if clean:
-                            parts = [f"{ik}: {iv}" for ik, iv in clean.items()]
-                            clean_items.append(f"- {', '.join(parts)}")
-                    elif isinstance(item, str) and not _is_garbage(item):
-                        clean_items.append(f"- {item}")
-                if clean_items:
-                    lines.append(f"**{k}:**")
-                    lines.extend(clean_items)
+                        line = ", ".join(f"{ik}: {iv}" for ik, iv in item.items()
+                                        if isinstance(iv, (str, int, float)))
+                        parts.append(f"- {line}")
+                    else:
+                        parts.append(f"- {item}")
             elif isinstance(v, dict):
-                if depth < 3:
-                    humanized = _humanize_output(v, depth + 1)
-                    if humanized and "not generated" not in humanized:
-                        lines.append(f"\n**{k}:**\n{humanized}")
-                else:
-                    flat = ", ".join(f"{ik}: {iv}" for ik, iv in v.items()
-                                    if not isinstance(iv, (dict, list)))
-                    if flat:
-                        lines.append(f"**{k}:** {flat}")
-            elif v is not None and str(v).strip():
-                lines.append(f"**{k}:** {v}")
-        if not lines:
-            return "*Content not generated — requires a more capable LLM backend.*"
-        return "\n".join(lines)
-
-
-def _dict_list_to_table(items: list) -> str:
-    """Convert a list of dicts with consistent keys into a markdown table."""
-    if not items:
-        return ""
-    all_keys = []
-    for item in items:
-        for k in item.keys():
-            if k not in all_keys:
-                all_keys.append(k)
-    if len(all_keys) < 2 or len(all_keys) > 8:
-        return ""
-    header = "| " + " | ".join(all_keys) + " |"
-    sep = "| " + " | ".join("---" for _ in all_keys) + " |"
-    rows = []
-    for item in items:
-        cells = []
-        for k in all_keys:
-            val = item.get(k, "")
-            if isinstance(val, (dict, list)):
-                val = str(val)[:100]
-            val = str(val).replace("|", "/").replace("\n", " ")[:150]
-            cells.append(val)
-        rows.append("| " + " | ".join(cells) + " |")
-    return "\n".join([header, sep] + rows)
-
-    if isinstance(text, list):
-        lines = []
-        for i, item in enumerate(text, 1):
-            if isinstance(item, dict):
-                title = item.get("title") or item.get("name") or item.get("id") or f"Item {i}"
-                desc = item.get("description") or item.get("shall_text") or ""
-                item_type = item.get("type", "")
-                line = f"**{i}. {title}**"
-                if item_type:
-                    line += f" ({item_type})"
-                if desc:
-                    line += f"\n   {desc}"
-                vmethod = item.get("verification_method", "")
-                if vmethod:
-                    line += f"\n   *Verification:* {vmethod}"
-                lines.append(line)
-            else:
-                lines.append(f"{i}. {item}")
-        return "\n\n".join(lines)
-
-    text = str(text).strip()
-    # Strip markdown code fences
-    import re
-    fence_match = re.search(r'```(?:json)?\s*\n(.*?)```', text, re.DOTALL)
-    if fence_match:
-        inner = fence_match.group(1).strip()
-        before = text[:fence_match.start()].strip()
-        try:
-            parsed = json.loads(inner)
-            humanized = _humanize_output(parsed)
-            return (before + "\n\n" + humanized).strip() if before else humanized
-        except (json.JSONDecodeError, ValueError):
-            pass
-    if text.startswith("[") or text.startswith("{"):
-        try:
-            parsed = json.loads(text)
-            return _humanize_output(parsed)
-        except (json.JSONDecodeError, ValueError):
-            pass
-    return text
+                inner = _extract_text(v)
+                if inner:
+                    parts.append(f"**{k}:**\n{inner}")
+        return "\n".join(parts)
+    if isinstance(obj, list):
+        parts = []
+        for i, item in enumerate(obj, 1):
+            parts.append(f"{i}. {_extract_text(item)}")
+        return "\n".join(parts)
+    return str(obj)
 
 
 def _compose_icd(job_data: dict) -> str:
@@ -395,6 +300,11 @@ def _compose_icd(job_data: dict) -> str:
     lines.append(f"**Date:** {date_str}")
     lines.append(f"**Status:** Awaiting HIL Review ({gate_id})")
     lines.append(f"**Classification:** UNCLASSIFIED — PROOF OF CONCEPT")
+    model_name = (
+        result.get("inference", {}).get("llm_factory", {}).get("models", {}).get("general", {}).get("model", "")
+        or os.environ.get("OLLAMA_MODEL", "unknown")
+    )
+    lines.append(f"**LLM Model:** {model_name}")
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -434,7 +344,7 @@ def _compose_icd(job_data: dict) -> str:
                     lines.append(agent_output.strip())
                     lines.append("")
                 continue
-            output_text = _humanize_output(agent_output) or "*No output generated.*"
+            output_text = _extract_text(agent_output) or "*No output generated.*"
             lines.append(f"### {subsection_title}")
             lines.append("")
             lines.append(str(output_text))
