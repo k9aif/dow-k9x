@@ -134,20 +134,14 @@ ENVEOF
     ;;
 
   demo)
+    ENV_FILE="$DEPLOY_DIR/dow-k9-aif/.env"
+    [[ -f "$ENV_FILE" ]] || { echo "Error: $ENV_FILE not found."; exit 1; }
     echo "Starting DAS in demo mode (app-backend only, no router/orchestrator) ..."
     sudo podman run -d --rm \
       --name das-demo \
       -p 8000:8000 \
       --add-host rhel-host:192.168.1.98 \
-      -e DEMO_MODE=ON \
-      -e K9_ENV=development \
-      -e KAFKA_BOOTSTRAP_SERVERS=rhel-host:9092 \
-      -e OLLAMA_HOST=http://rhel-host:11434 \
-      -e OLLAMA_MODEL=granite3-dense:2b \
-      -e POSTGRES_HOST=rhel-host \
-      -e POSTGRES_DB=dow \
-      -e POSTGRES_USER=postgres \
-      -e K9_PG_PASSWORD=postgres \
+      --env-file "$ENV_FILE" \
       "$IMAGE" \
       uvicorn k9_dow.api.app:app --host 0.0.0.0 --port 8000 --log-level info
     HOST_IP=$(hostname -I | awk '{print $1}')
