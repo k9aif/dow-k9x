@@ -320,6 +320,18 @@ def _humanize_output(text) -> str:
         return "\n\n".join(lines)
 
     text = str(text).strip()
+    # Strip markdown code fences
+    import re
+    fence_match = re.search(r'```(?:json)?\s*\n(.*?)```', text, re.DOTALL)
+    if fence_match:
+        inner = fence_match.group(1).strip()
+        before = text[:fence_match.start()].strip()
+        try:
+            parsed = json.loads(inner)
+            humanized = _humanize_output(parsed)
+            return (before + "\n\n" + humanized).strip() if before else humanized
+        except (json.JSONDecodeError, ValueError):
+            pass
     if text.startswith("[") or text.startswith("{"):
         try:
             parsed = json.loads(text)

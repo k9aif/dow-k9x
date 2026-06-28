@@ -16,7 +16,7 @@
 
 set -euo pipefail
 
-DEPLOY_DIR="${DAS_DEPLOY_DIR:-$HOME/das}"
+DEPLOY_DIR="${DAS_DEPLOY_DIR:-$HOME/ai/das-dev-pod-deployment}"
 VOLUMES_DIR="/home/container_storage/volumes/das-dev"
 FRAMEWORK_REPO="https://github.com/k9aif/k9-aif-framework.git"
 DAS_REPO="https://github.com/k9aif/dow-k9x.git"
