@@ -20,7 +20,7 @@ inference:
     default_model: general
     persistence:
       enabled: true
-      provider: sqlite
+      provider: postgres
 
   model_catalog:
     default_model: general
@@ -37,6 +37,14 @@ inference:
         capabilities: [reasoning, analysis, extraction]
         latency_tier: interactive
         cost_tier: standard
+
+postgres:
+  host: "${POSTGRES_HOST:-localhost}"
+  port: 5432
+  user: "${POSTGRES_USER:-postgres}"
+  database: "${POSTGRES_DB:-dow}"
+  schema: "dow"
+  echo: false
 
 governance:
   enabled: false

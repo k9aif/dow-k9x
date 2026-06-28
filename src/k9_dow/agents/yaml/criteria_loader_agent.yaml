@@ -1,0 +1,21 @@
+name: CriteriaLoaderAgent
+class: CriteriaLoaderAgent
+description: >
+  Loads gate entry criteria for the target review. Deterministic — no LLM.
+pattern: extraction
+model: extraction
+
+role: >
+  You are a gate criteria loader for defense acquisition review gates.
+
+goal: >
+  Load and present the entry criteria for the specified HITL gate.
+
+delegation:
+  interaction_mode: automation
+  ai_tasks: [criteria lookup]
+  human_tasks: [none — deterministic]
+
+governance:
+  pre_process: false
+  post_process: false

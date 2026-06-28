@@ -1,0 +1,214 @@
+from __future__ import annotations
+
+import logging
+import os
+import time
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional
+
+from k9_aif_abb.k9_agents.registry.agent_registry import AgentRegistry
+from k9_aif_abb.k9_core.orchestration.base_orchestrator import BaseOrchestrator
+from k9_aif_abb.k9_squad.squad_loader import SquadLoader
+
+from k9_dow.utils.agent_loader import AgentLoader
+from k9_dow.agents.src.model_extractor_agent import ModelExtractorAgent
+from k9_dow.agents.src.view_generator_agent import ViewGeneratorAgent
+from k9_dow.agents.src.view_consistency_checker_agent import ViewConsistencyCheckerAgent
+from k9_dow.agents.src.criteria_loader_agent import CriteriaLoaderAgent
+from k9_dow.agents.src.evidence_collector_agent import EvidenceCollectorAgent
+from k9_dow.agents.src.readiness_scorer_agent import ReadinessScorerAgent
+from k9_dow.agents.src.gap_reporter_agent import GapReporterAgent
+from k9_dow.agents.src.artifact_fetcher_agent import ArtifactFetcherAgent
+from k9_dow.agents.src.completeness_checker_agent import CompletenessCheckerAgent
+from k9_dow.agents.src.package_builder_agent import PackageBuilderAgent
+
+log = logging.getLogger(__name__)
+
+_JCIDS_AGENTS = {
+    "ModelExtractorAgent": ModelExtractorAgent,
+    "ViewGeneratorAgent": ViewGeneratorAgent,
+    "ViewConsistencyCheckerAgent": ViewConsistencyCheckerAgent,
+    "CriteriaLoaderAgent": CriteriaLoaderAgent,
+    "EvidenceCollectorAgent": EvidenceCollectorAgent,
+    "ReadinessScorerAgent": ReadinessScorerAgent,
+    "GapReporterAgent": GapReporterAgent,
+    "ArtifactFetcherAgent": ArtifactFetcherAgent,
+    "CompletenessCheckerAgent": CompletenessCheckerAgent,
+    "PackageBuilderAgent": PackageBuilderAgent,
+}
+
+
+class _ProgressMonitor:
+    """Lightweight monitor that forwards agent events to the progress callback."""
+
+    def __init__(self, callback):
+        self._callback = callback
+        self._interesting = {
+            "loop_started", "hypothesis_generated", "validation_tool_invoked",
+            "observation_evaluated", "loop_continued", "loop_finalized",
+            "loop_escalated", "loop_failed", "AgentCompleted",
+        }
+
+    def record_event(self, event: dict):
+        evt_type = event.get("type", "")
+        if evt_type not in self._interesting:
+            return
+        agent = event.get("agent", "?")
+        iteration = event.get("iteration", "")
+        confidence = ""
+        obs = event.get("observation", "")
+        if isinstance(obs, dict):
+            confidence = obs.get("confidence", "")
+        elif isinstance(obs, str) and "confidence" in obs:
+            try:
+                import re
+                m = re.search(r"'confidence':\s*([\d.]+)", obs)
+                if m:
+                    confidence = round(float(m.group(1)), 2)
+            except Exception:
+                pass
+
+        ui_event = {"type": evt_type, "agent": agent}
+        if iteration:
+            ui_event["iteration"] = iteration
+        if confidence:
+            ui_event["confidence"] = confidence
+        self._callback(ui_event)
+
+
+class JcidsOrchestrator(BaseOrchestrator):
+    """JCIDS Orchestrator — requirements process.
+
+    Owns: View Generation Squad, Gate Readiness Squad, Package Assembly Squad.
+    Produces: DoDAF views, JROC-ready packages.
+    Gate: JROC-VALIDATION (non-delegable).
+    """
+
+    layer = "DAS JCIDS Orchestrator"
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None,
+                 progress_callback: Optional[Callable[[dict], None]] = None, **kwargs) -> None:
+        super().__init__(config=config or {}, **kwargs)
+        self._squads_dir = Path(__file__).resolve().parent.parent / "squads" / "yaml"
+        self._agents_dir = Path(__file__).resolve().parent.parent / "agents" / "yaml"
+        self._progress = progress_callback or (lambda e: None)
+        self._monitor = _ProgressMonitor(self._progress) if progress_callback else None
+
+    def _load_squad(self, yaml_filename: str, squad_id: str):
+        agent_loader = AgentLoader(self._agents_dir)
+        registry = AgentRegistry()
+        for name, cls in _JCIDS_AGENTS.items():
+            registry.register(
+                name,
+                lambda c=cls, n=name: c(
+                    config=agent_loader.merge_with_global(n, self.config),
+                    monitor=self._monitor,
+                ),
+            )
+        loader = SquadLoader(registry)
+        return loader.load_one(str(self._squads_dir / yaml_filename), squad_id)
+
+    def _emit(self, event_type: str, **kwargs):
+        evt = {"type": event_type, "orchestrator": "JcidsOrchestrator", **kwargs}
+        self._progress(evt)
+
+    def _run_squad(self, squad, squad_name: str, payload: dict) -> dict:
+        flow = getattr(squad, "flow", [])
+        total = len(flow)
+        agents = [s.get("agent", "?") for s in flow]
+        print(f"\n  ▶ Squad: {squad_name}  ({total} agents)", flush=True)
+        self._emit("SquadStarted", squad=squad_name, agents=agents, total=total)
+        t0 = time.monotonic()
+        result = squad.execute(payload)
+        elapsed = time.monotonic() - t0
+        print(f"  ✓ Squad: {squad_name}  done ({elapsed:.1f}s)\n", flush=True)
+        self._emit("SquadCompleted", squad=squad_name, elapsed_s=round(elapsed, 1))
+        return result
+
+    def execute_flow(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        job_id = payload.get("job_id", "unknown")
+        filename = payload.get("filename", "?")
+        doc_type = payload.get("document_type", "?")
+
+        print(flush=True)
+        print("━" * 60, flush=True)
+        print(f"  DAS — JCIDS Orchestrator", flush=True)
+        print(f"  Job:      {job_id}", flush=True)
+        print(f"  Document: {filename}", flush=True)
+        print(f"  Type:     {doc_type}", flush=True)
+        print(f"  Gate:     JROC-VALIDATION", flush=True)
+        print("━" * 60, flush=True)
+
+        flow_t0 = time.monotonic()
+        self._emit("OrchestratorStarted", job_id=job_id, filename=filename, document_type=doc_type)
+
+        view_gen_squad = self._load_squad("view_generation_squad.yaml", "ViewGenerationSquad")
+        gate_squad = self._load_squad("gate_readiness_squad.yaml", "GateReadinessSquad")
+        package_squad = self._load_squad("package_assembly_squad.yaml", "PackageAssemblySquad")
+
+        view_result = self._run_squad(view_gen_squad, "ViewGenerationSquad", payload)
+
+        gate_payload = {**payload, "prior_outputs": view_result, "gate_id": "JROC-VALIDATION"}
+        gate_result = self._run_squad(gate_squad, "GateReadinessSquad", gate_payload)
+
+        package_payload = {**payload, "prior_outputs": {**view_result, **gate_result}, "gate_id": "JROC-VALIDATION"}
+        package_result = self._run_squad(package_squad, "PackageAssemblySquad", package_payload)
+
+        total_elapsed = time.monotonic() - flow_t0
+        print("━" * 60, flush=True)
+        print(f"  ✓ JCIDS Pipeline Complete  ({total_elapsed:.1f}s)", flush=True)
+        print(f"  Status: awaiting_gate (JROC-VALIDATION)", flush=True)
+        print("━" * 60, flush=True)
+        print(flush=True)
+        self._emit("OrchestratorCompleted", job_id=job_id, elapsed_s=round(total_elapsed, 1), gate="JROC-VALIDATION")
+
+        result = {
+            "job_id": job_id,
+            "orchestrator": "jcids",
+            "status": "awaiting_gate",
+            "gate_id": "JROC-VALIDATION",
+            "view_generation": view_result,
+            "gate_readiness": gate_result,
+            "review_package": package_result,
+        }
+
+        self._store_to_s3(job_id, result)
+        return result
+
+    def _store_to_s3(self, job_id: str, result: dict):
+        """Store generated docs to S3 under DAS_results/yyyymmdd/job_id/."""
+        try:
+            import json
+            from datetime import datetime
+            from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
+
+            store = ObjectStorageFactory.create(self.config)
+            date_prefix = datetime.now().strftime("%Y%m%d")
+            bucket = "DAS-results"
+
+            sections = {
+                "view_generation": "View Generation",
+                "gate_readiness": "Gate Readiness",
+                "review_package": "Review Package",
+            }
+
+            for section_key, label in sections.items():
+                section = result.get(section_key, {})
+                for agent_key, agent_output in section.items():
+                    if not isinstance(agent_output, dict):
+                        continue
+                    output_text = agent_output.get("output", "")
+                    if not output_text:
+                        continue
+                    agent_name = agent_output.get("agent", agent_key)
+                    key = f"{date_prefix}/{job_id}/{section_key}/{agent_key}.md"
+                    content = f"# {agent_name}\n\n{output_text}"
+                    store.upload(bucket, key, content.encode("utf-8"))
+
+            summary_key = f"{date_prefix}/{job_id}/result.json"
+            store.upload(bucket, summary_key, json.dumps(result, indent=2).encode("utf-8"))
+
+            log.info("[JCIDS] Stored results to S3 bucket=%s prefix=%s/%s", bucket, date_prefix, job_id)
+            print(f"  ☁ Results stored to S3: {bucket}/{date_prefix}/{job_id}/", flush=True)
+        except Exception as exc:
+            log.warning("[JCIDS] S3 storage failed (non-fatal): %s", exc)

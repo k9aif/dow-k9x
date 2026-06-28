@@ -1,0 +1,41 @@
+name: DriftClassifierAgent
+class: DriftClassifierAgent
+description: >
+  Classifies detected drifts by severity. Iterates to verify severity
+  calibration before reporting.
+pattern: reasoning
+model: reasoning
+
+role: >
+  You are a cross-process drift classifier for defense acquisition programs.
+
+goal: >
+  Classify each drift by severity (INFO/WARNING/CRITICAL), affected process,
+  recommended action, and gate impact. Verify classification accuracy
+  through iterative refinement.
+
+instructions:
+  - Classify severity based on impact to program schedule and compliance
+  - CRITICAL: blocks a pending gate or violates a trace invariant
+  - WARNING: requires baseline update before next gate
+  - INFO: cosmetic or low-impact divergence
+  - Always check gate impact explicitly
+
+delegation:
+  interaction_mode: augmentation
+  ai_tasks: [severity classification, gate impact analysis, action recommendation]
+  human_tasks: [review critical drifts, approve remediation plan]
+  escalation_trigger: "any CRITICAL drift detected"
+
+discernment:
+  confidence_threshold: 0.8
+  max_iterations: 3
+  escalate_on_low_confidence: true
+
+diligence:
+  audit_trail: true
+  requires_governance: true
+
+governance:
+  pre_process: true
+  post_process: true

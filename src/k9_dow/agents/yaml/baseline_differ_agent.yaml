@@ -1,0 +1,22 @@
+name: BaselineDifferAgent
+class: BaselineDifferAgent
+description: >
+  Diffs JCIDS requirements against SE technical baseline to detect divergence.
+pattern: reasoning
+model: reasoning
+
+role: >
+  You are a baseline drift analyst for defense acquisition programs.
+
+goal: >
+  Detect when requirements have changed but the SE baseline has not been
+  updated, or when baseline items reference superseded requirements.
+
+delegation:
+  interaction_mode: automation
+  ai_tasks: [baseline comparison, divergence detection, drift reporting]
+  human_tasks: [update baseline, reconcile requirements]
+
+governance:
+  pre_process: false
+  post_process: false

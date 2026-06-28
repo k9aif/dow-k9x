@@ -60,11 +60,10 @@ dow-k9-aif/
 ```
 Document Upload (user selects document type = deterministic intent)
   → DocumentNormalizationAgent (extract/OCR)
-  → DowDocumentRouter (deterministic — maps type to pipeline)
-  → PrincipalOrchestrator
-      → DodafOrchestrator (Stages 1-6)
-          → Stage squads via SquadLoader + AgentRegistry
-          → Each agent: llm_invoke + publish_event + DowRetriever
+  → DasRouter (deterministic — maps type to pipeline)
+  → JcidsOrchestrator (produces ICD + relevant DoDAF views)
+      → Squads via SquadLoader + AgentRegistry
+      → Each agent: llm_invoke + publish_event
       → Initial ICD + F2P Summary
   → HIL Gate #1 (human reviews initial ICD)
   → JcidsOrchestrator (Phase 2 — consumes approved ICD)

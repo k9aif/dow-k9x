@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0
+# Traceability Squad — cross-cutting, runs continuously
+# Owner: Master Orchestrator
+
+squads:
+  TraceabilitySquad:
+    description: >
+      Maintains the requirements traceability graph. Proposes links,
+      validates them, detects orphans, and scores coverage. Runs
+      continuously — not as a stage. Highest-value automation target.
+    agents:
+      - LinkProposerAgent
+      - LinkValidatorAgent
+      - OrphanDetectorAgent
+      - CoverageScorerAgent
+    flow:
+      - agent: LinkProposerAgent
+        result_key: proposed_links
+      - agent: LinkValidatorAgent
+        result_key: validated_links
+      - agent: OrphanDetectorAgent
+        result_key: orphans
+      - agent: CoverageScorerAgent
+        result_key: coverage_report

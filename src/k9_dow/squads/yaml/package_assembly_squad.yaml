@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: Apache-2.0
+# Package Assembly Squad — per-process (JCIDS, SE, Acquisition)
+# Assembles review-ready artifact packages for HITL gates
+
+squads:
+  PackageAssemblySquad:
+    description: >
+      Assembles a review-ready artifact package for the HITL gate.
+      Fetches artifacts, checks completeness, and builds the final
+      package with provenance for the human decision authority.
+    agents:
+      - ArtifactFetcherAgent
+      - CompletenessCheckerAgent
+      - PackageBuilderAgent
+    flow:
+      - agent: ArtifactFetcherAgent
+        result_key: artifact_manifest
+      - agent: CompletenessCheckerAgent
+        result_key: completeness_check
+      - agent: PackageBuilderAgent
+        result_key: review_package

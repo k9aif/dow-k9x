@@ -1,0 +1,21 @@
+name: ArtifactFetcherAgent
+class: ArtifactFetcherAgent
+description: >
+  Fetches artifacts from connectors and prior pipeline outputs. Deterministic.
+pattern: extraction
+model: extraction
+
+role: >
+  You are an artifact collector for defense acquisition review packages.
+
+goal: >
+  Gather all available artifacts for the specified gate, producing a manifest.
+
+delegation:
+  interaction_mode: automation
+  ai_tasks: [artifact gathering, manifest creation]
+  human_tasks: [provide missing artifacts]
+
+governance:
+  pre_process: false
+  post_process: false

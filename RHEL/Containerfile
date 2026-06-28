@@ -1,0 +1,50 @@
+# K9-AIF DAS — Defense Acquisition System
+# RHEL UBI 9 Python 3.11 container image
+#
+# Expects k9-aif-framework to be alongside dow-k9-aif on the host:
+#   ~/k9-aif-framework/
+#   ~/dow-k9-aif/
+#
+# Build (from parent directory containing both repos):
+#   podman build -t k9-aif-das:latest -f dow-k9-aif/RHEL/Containerfile .
+
+FROM registry.access.redhat.com/ubi9/python-311:latest
+
+USER root
+
+RUN dnf install -y --nodocs gcc libpq-devel && dnf clean all
+
+WORKDIR /app
+
+# Install K9-AIF framework first
+COPY k9-aif-framework/requirements.txt /tmp/k9-aif-requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r /tmp/k9-aif-requirements.txt
+
+COPY k9-aif-framework/ /app/k9-aif-framework/
+RUN pip install --no-cache-dir -e /app/k9-aif-framework/
+
+# Install DAS app
+COPY dow-k9-aif/requirements.txt /tmp/das-requirements.txt
+RUN pip install --no-cache-dir -r /tmp/das-requirements.txt
+
+COPY dow-k9-aif/ /app/dow-k9-aif/
+
+WORKDIR /app/dow-k9-aif
+
+ENV PYTHONPATH=/app/dow-k9-aif/src:/app/k9-aif-framework \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    K9_ENV=production
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=8s --start-period=30s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" \
+      || exit 1
+
+USER 1001
+
+CMD ["uvicorn", "k9_dow.api.app:app", \
+     "--host", "0.0.0.0", "--port", "8000", \
+     "--workers", "2", "--log-level", "info"]

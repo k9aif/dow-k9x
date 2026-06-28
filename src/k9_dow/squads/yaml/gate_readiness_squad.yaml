@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+# Gate Readiness Squad — per-process (JCIDS, SE, Acquisition)
+# Scores readiness for HITL gates
+
+squads:
+  GateReadinessSquad:
+    description: >
+      Assesses readiness for a HITL gate. Loads criteria, collects evidence,
+      scores readiness, and reports gaps. Agents prepare; humans decide.
+    agents:
+      - CriteriaLoaderAgent
+      - EvidenceCollectorAgent
+      - ReadinessScorerAgent
+      - GapReporterAgent
+    flow:
+      - agent: CriteriaLoaderAgent
+        result_key: criteria
+      - agent: EvidenceCollectorAgent
+        result_key: evidence
+      - agent: ReadinessScorerAgent
+        result_key: readiness_score
+      - agent: GapReporterAgent
+        result_key: gap_report

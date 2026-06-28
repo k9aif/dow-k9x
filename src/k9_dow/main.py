@@ -1,29 +1,25 @@
 # SPDX-License-Identifier: Apache-2.0
+# DAS CLI entry point
 
-import argparse
-import sys
+import click
 
 
+@click.group()
 def cli():
-    parser = argparse.ArgumentParser(
-        prog="k9-dow",
-        description="K9-AIF DoW Architecture Workbench",
-    )
-    sub = parser.add_subparsers(dest="command")
+    pass
 
-    sub.add_parser("serve", help="Start the FastAPI server")
-    sub.add_parser("version", help="Print version")
 
-    args = parser.parse_args()
+@cli.command()
+@click.option("--host", default="0.0.0.0")
+@click.option("--port", default=8000, type=int)
+def serve(host, port):
+    import uvicorn
+    uvicorn.run("k9_dow.api.app:app", host=host, port=port, reload=True)
 
-    if args.command == "version":
-        print("k9-dow 0.1.0")
-    elif args.command == "serve":
-        import uvicorn
-        uvicorn.run("k9_dow.api.app:app", host="0.0.0.0", port=8000, reload=True)
-    else:
-        parser.print_help()
-        sys.exit(1)
+
+@cli.command()
+def version():
+    click.echo("DAS — Defense Acquisition System v0.2.0")
 
 
 if __name__ == "__main__":

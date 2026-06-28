@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: Apache-2.0
+# View Generation Squad — JCIDS Orchestrator
+# Generates and validates DoDAF architecture views
+
+squads:
+  ViewGenerationSquad:
+    description: >
+      Generates DoDAF 2.0 architecture views from capability docs and
+      requirements. Checks cross-view consistency. DoDAF is the description
+      language used inside JCIDS — not a pipeline stage.
+    agents:
+      - ModelExtractorAgent
+      - ViewGeneratorAgent
+      - ViewConsistencyCheckerAgent
+    flow:
+      - agent: ModelExtractorAgent
+        result_key: model_elements
+      - agent: ViewGeneratorAgent
+        result_key: generated_views
+      - agent: ViewConsistencyCheckerAgent
+        result_key: consistency_report

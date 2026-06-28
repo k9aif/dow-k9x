@@ -1,136 +1,188 @@
 # SPDX-License-Identifier: Apache-2.0
-# DoW Architecture Workbench — DoDAF Orchestrator Runtime Process
+# DoW Architecture Workbench — Orchestrator Process (Process 3 of 3)
 #
-# Kafka consumer on: dow.orchestrator.in
-# Publishes to: dow.console.out / dow.results
+# Async Kafka consumer that reads from DAS domain topics,
+# dispatches each event to the correct orchestrator, and
+# publishes results to das.results.
 #
-# For each routed document event:
-#   1. Runs DoDAF 6-stage pipeline (squads → agents → LLM)
-#   2. Publishes stage progress to console.out
-#   3. Publishes final results to dow.results
-
-from __future__ import annotations
+# Usage:
+#   python -m k9_dow.runtime.dow_orchestrator_process
 
 import asyncio
-import json
 import logging
-from datetime import datetime, timezone
+import os
+from pathlib import Path
 
-from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parents[3] / ".env", override=False)
+except ImportError:
+    pass
 
-from k9_dow.config.settings import settings
-from k9_dow.orchestrators.dodaf_orchestrator import DodafOrchestrator
+from k9_aif_abb.k9_utils.config_loader import load_yaml
+from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
+from k9_dow.orchestrators.jcids_orchestrator import JcidsOrchestrator
+from k9_dow.orchestrators.acquisition_orchestrator import AcquisitionOrchestrator
+from k9_dow.orchestrators.se_orchestrator import SeOrchestrator
+from k9_dow.orchestrators.traceability_orchestrator import TraceabilityOrchestrator
 
-log = logging.getLogger("DoWOrchestrator")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+)
+log = logging.getLogger("dow.orchestrator_process")
+
+DOMAIN_TOPICS = [
+    "das.jcids",
+    "das.acquisition",
+    "das.se",
+    "das.traceability",
+    "das.drift",
+]
+RESULTS_TOPIC = "das.results"
+GROUP_ID = "dow-orchestrator"
 
 
-async def _publish_console(producer, topic: str, job_id: str, stage_name: str,
-                           status: str, message: str):
-    await producer.send_and_wait(
-        topic,
-        json.dumps({
-            "type": "console",
-            "job_id": job_id,
-            "stage_name": stage_name,
-            "stage_status": status,
-            "message": message,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }).encode("utf-8"),
-    )
-
-
-async def run_orchestrator():
-    config = settings.load_yaml("config.yaml")
-    messaging = config.get("messaging", {})
-    broker = messaging.get("bootstrap_servers", "localhost:9092")
-    topics = messaging.get("topics", {})
-
-    orchestrator = DodafOrchestrator(config=config)
-
-    consumer = AIOKafkaConsumer(
-        topics.get("orchestrator_in", "dow.orchestrator.in"),
-        bootstrap_servers=broker,
-        group_id="dow_dodaf_orchestrator_v1",
-        auto_offset_reset="latest",
-        session_timeout_ms=60000,
-        heartbeat_interval_ms=15000,
-        max_poll_interval_ms=900000,
-    )
-    producer = AIOKafkaProducer(bootstrap_servers=broker)
-
-    await producer.start()
-    await consumer.start()
-
-    console_topic = topics.get("console_out", "dow.console.out")
-    results_topic = topics.get("results", "dow.results")
-
-    log.info("[Orchestrator] Listening on %s", topics.get("orchestrator_in"))
-
-    await _publish_console(
-        producer, console_topic, "SYSTEM", "ORCHESTRATOR",
-        "ready", "DoDAF Orchestrator is ready",
-    )
-
+def _load_config() -> dict:
+    config_path = Path(__file__).resolve().parents[1] / "config" / "config.yaml"
     try:
-        async for msg in consumer:
-            try:
-                event = json.loads(msg.value.decode("utf-8"))
-            except Exception:
-                continue
+        return load_yaml(config_path)
+    except Exception as exc:
+        log.warning("Config load skipped: %s", exc)
+        return {}
 
-            job_id = event.get("job_id", "unknown")
-            log.info("[Orchestrator] Processing job=%s", job_id)
 
-            await _publish_console(
-                producer, console_topic, job_id, "PIPELINE",
-                "active", "DoDAF pipeline started",
+async def main() -> None:
+    config = _load_config()
+
+    from k9_dow.utils.health_check import check_dependencies
+    log.info("DAS Orchestrator — dependency check:")
+    if not check_dependencies(config, require_kafka=True):
+        log.error("Required dependencies are not available — aborting.")
+        return
+
+
+    brokers_raw = (
+        os.environ.get("KAFKA_BOOTSTRAP_SERVERS")
+        or config.get("messaging", {}).get("bootstrap_servers", "localhost:9092")
+    )
+    brokers = [b.strip() for b in brokers_raw.split(",") if b.strip()]
+    broker = brokers[0]
+
+    results_bus = K9EventBus(
+        broker_url=broker,
+        topic=RESULTS_TOPIC,
+        group_id=GROUP_ID,
+    )
+
+    def _publish_progress(evt: dict) -> None:
+        try:
+            results_bus.publish(evt)
+            if results_bus._producer:
+                results_bus._producer.flush()
+        except Exception as exc:
+            log.warning("[OrchestratorProcess] Progress publish failed: %s", exc)
+
+    # Wire LLM call trace → das.results so UI shows them live
+    from k9_aif_abb.k9_utils.llm_invoke import register_trace_callback
+    register_trace_callback(_publish_progress)
+
+    jcids_orch = JcidsOrchestrator(config=config, progress_callback=_publish_progress)
+    acq_orch = AcquisitionOrchestrator(config=config)
+    se_orch = SeOrchestrator(config=config)
+    trace_orch = TraceabilityOrchestrator(config=config)
+
+    handlers = {
+        "das.jcids": jcids_orch,
+        "das.acquisition": acq_orch,
+        "das.se": se_orch,
+        "das.traceability": trace_orch,
+    }
+
+    log.info(
+        "[OrchestratorProcess] Ready | handlers=%d | broker=%s",
+        len(handlers), broker,
+    )
+
+    inbound_bus = K9EventBus(
+        broker_url=broker,
+        topic=DOMAIN_TOPICS[0],
+        group_id=GROUP_ID,
+    )
+
+    async def handle(payload: dict) -> None:
+        event_type = payload.get("event_type", "")
+        corr = payload.get("correlation_id", "")
+        topic = payload.get("_topic", "")
+
+        orch = None
+        for topic_prefix, orchestrator in handlers.items():
+            if topic == topic_prefix or event_type.startswith(topic_prefix.split(".")[-1]):
+                orch = orchestrator
+                break
+
+        if not orch:
+            if "capability_gap" in event_type or "conops" in event_type:
+                orch = jcids_orch
+            else:
+                orch = jcids_orch
+
+        orch_name = orch.__class__.__name__
+        print(
+            f"\n  ◀ ORCHESTRATOR  CONSUME  event_type='{event_type}'  → {orch_name}  corr={corr}\n",
+            flush=True,
+        )
+
+        try:
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, orch.execute_flow, payload)
+            status = result.get("status", "?")
+            print(
+                f"  ✓ ORCHESTRATOR  DONE  {orch_name}  status='{status}'  →  '{RESULTS_TOPIC}'\n",
+                flush=True,
             )
-
-            # Run the pipeline synchronously (agents are sync)
-            loop = asyncio.get_running_loop()
-            result = await loop.run_in_executor(
-                None,
-                lambda: orchestrator.execute_flow({
-                    "job_id": job_id,
-                    "normalized_markdown": event.get("normalized_markdown", ""),
-                    "routing_decision": event.get("routing_decision", {}),
-                    "document_type": event.get("document_type", ""),
-                }),
+            job_id = result.get("job_id") or payload.get("job_id", "")
+            results_bus.publish({
+                "event_type": event_type,
+                "job_id": job_id,
+                "correlation_id": corr,
+                "orchestrator": orch_name,
+                "result": result,
+            })
+        except Exception as exc:
+            log.error(
+                "[OrchestratorProcess] Pipeline error %s event_type=%s: %s",
+                orch_name, event_type, exc, exc_info=True,
             )
+            results_bus.publish({
+                "event_type": event_type,
+                "job_id": payload.get("job_id", ""),
+                "correlation_id": corr,
+                "orchestrator": orch_name,
+                "result": {"status": "error", "detail": str(exc)},
+            })
 
-            # Publish stage-by-stage progress
-            for sr in result.get("stage_results", []):
-                await _publish_console(
-                    producer, console_topic, job_id,
-                    f"Stage {sr.get('stage', '?')}",
-                    sr.get("status", "unknown"),
-                    f"Stage {sr.get('stage')} — {sr.get('squad_id')} — {sr.get('status')}",
-                )
-
-            # Publish final result
-            await producer.send_and_wait(
-                results_topic,
-                json.dumps(result, default=str).encode("utf-8"),
-            )
-
-            status = result.get("status", "unknown")
-            await _publish_console(
-                producer, console_topic, job_id, "PIPELINE",
-                "completed" if status == "completed" else "failed",
-                f"DoDAF pipeline {status}",
-            )
-
-            log.info("[Orchestrator] Job %s %s", job_id, status)
-
+    log.info(
+        "[OrchestratorProcess] Starting K9EventBus async consumer on %d domain topics …",
+        len(DOMAIN_TOPICS),
+    )
+    try:
+        await inbound_bus.subscribe_async(
+            handle,
+            topics=DOMAIN_TOPICS,
+            session_timeout_ms=60000,
+            heartbeat_interval_ms=20000,
+            max_poll_interval_ms=600000,
+        )
     finally:
-        await consumer.stop()
-        await producer.stop()
-        log.info("[Orchestrator] Stopped.")
+        results_bus.close()
+        log.info("[OrchestratorProcess] Shutdown complete.")
 
 
 if __name__ == "__main__":
     try:
-        asyncio.run(run_orchestrator())
+        asyncio.run(main())
     except KeyboardInterrupt:
-        log.info("Shutdown requested.")
+        log.info("[OrchestratorProcess] Shutdown requested.")
+    except Exception as exc:
+        log.error("[OrchestratorProcess] Fatal: %s", exc, exc_info=True)

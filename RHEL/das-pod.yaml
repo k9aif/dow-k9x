@@ -1,0 +1,221 @@
+# K9-AIF DAS — Podman Pod Spec (3-container production deployment)
+#
+# Pod: k9-dow-pod
+# +-- app-backend       FastAPI API + web UI (port 8000)
+# +-- das-router        DasRouter - consumes dow.router.in, routes to das.* topics
+# +-- das-orchestrator  JcidsOrchestrator - consumes das.* topics, runs squads
+#
+# External services (on RHEL host):
+#   Ollama     -> rhel-host:11434
+#   Kafka      -> rhel-host:9092
+#   PostgreSQL -> rhel-host:5432
+#   Neo4j      -> rhel-host:7687
+#   MinIO      -> rhel-host:9000
+#
+# DEPLOY:
+#   podman play kube RHEL/das-pod.yaml --replace
+#
+# STOP:
+#   podman play kube RHEL/das-pod.yaml --down
+#
+# LOGS:
+#   podman logs -f k9-dow-pod-app-backend
+#   podman logs -f k9-dow-pod-das-router
+#   podman logs -f k9-dow-pod-das-orchestrator
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: k9-dow-pod
+  labels:
+    app: k9-aif-das
+    component: defense-acquisition-system
+    version: "0.2"
+  annotations:
+    description: "K9-AIF Defense Acquisition System — 3-container pod"
+
+spec:
+  restartPolicy: OnFailure
+
+  hostAliases:
+  - ip: "192.168.1.98"
+    hostnames:
+    - "rhel-host"
+
+  containers:
+
+  # -- Container 1: app-backend -------------------------------------------
+  - name: app-backend
+    image: localhost/k9-aif-das:latest
+    imagePullPolicy: Never
+
+    ports:
+    - name: http
+      containerPort: 8000
+      hostPort: 8000
+      protocol: TCP
+
+    command: ["uvicorn"]
+    args:
+    - "k9_dow.api.app:app"
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8000"
+    - "--workers"
+    - "2"
+    - "--log-level"
+    - "info"
+
+    env:
+    - name: KAFKA_BOOTSTRAP_SERVERS
+      value: "rhel-host:9092"
+    - name: OLLAMA_HOST
+      value: "http://rhel-host:11434"
+    - name: POSTGRES_HOST
+      value: "rhel-host"
+    - name: POSTGRES_PORT
+      value: "5432"
+    - name: POSTGRES_DB
+      value: "dow"
+    - name: POSTGRES_USER
+      value: "postgres"
+    - name: K9_PG_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: pg-password
+          key: pg-password
+    - name: NEO4J_URI
+      value: "bolt://rhel-host:7687"
+    - name: NEO4J_USER
+      value: "neo4j"
+    - name: NEO4J_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: neo4j-password
+          key: neo4j-password
+    - name: S3_ENDPOINT_URL
+      value: "http://rhel-host:9000"
+    - name: AWS_ACCESS_KEY_ID
+      value: "admin"
+    - name: AWS_SECRET_ACCESS_KEY
+      value: "admin123"
+    - name: PYTHONPATH
+      value: "/app/src"
+    - name: K9_ENV
+      value: "production"
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2"
+
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8000
+      initialDelaySeconds: 30
+      periodSeconds: 30
+      failureThreshold: 3
+
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8000
+      initialDelaySeconds: 15
+      periodSeconds: 10
+      failureThreshold: 5
+
+
+  # -- Container 2: das-router --------------------------------------------
+  - name: das-router
+    image: localhost/k9-aif-das:latest
+    imagePullPolicy: Never
+
+    command: ["python", "-m", "k9_dow.runtime.dow_router_process"]
+
+    env:
+    - name: KAFKA_BOOTSTRAP_SERVERS
+      value: "rhel-host:9092"
+    - name: OLLAMA_HOST
+      value: "http://rhel-host:11434"
+    - name: POSTGRES_HOST
+      value: "rhel-host"
+    - name: POSTGRES_DB
+      value: "dow"
+    - name: POSTGRES_USER
+      value: "postgres"
+    - name: K9_PG_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: pg-password
+          key: pg-password
+    - name: PYTHONPATH
+      value: "/app/src"
+    - name: K9_ENV
+      value: "production"
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "1"
+
+
+  # -- Container 3: das-orchestrator ---------------------------------------
+  - name: das-orchestrator
+    image: localhost/k9-aif-das:latest
+    imagePullPolicy: Never
+
+    command: ["python", "-m", "k9_dow.runtime.dow_orchestrator_process"]
+
+    env:
+    - name: KAFKA_BOOTSTRAP_SERVERS
+      value: "rhel-host:9092"
+    - name: OLLAMA_HOST
+      value: "http://rhel-host:11434"
+    - name: POSTGRES_HOST
+      value: "rhel-host"
+    - name: POSTGRES_PORT
+      value: "5432"
+    - name: POSTGRES_DB
+      value: "dow"
+    - name: POSTGRES_USER
+      value: "postgres"
+    - name: K9_PG_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: pg-password
+          key: pg-password
+    - name: NEO4J_URI
+      value: "bolt://rhel-host:7687"
+    - name: NEO4J_USER
+      value: "neo4j"
+    - name: NEO4J_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: neo4j-password
+          key: neo4j-password
+    - name: S3_ENDPOINT_URL
+      value: "http://rhel-host:9000"
+    - name: AWS_ACCESS_KEY_ID
+      value: "admin"
+    - name: AWS_SECRET_ACCESS_KEY
+      value: "admin123"
+    - name: PYTHONPATH
+      value: "/app/src"
+    - name: K9_ENV
+      value: "production"
+
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "1"
+      limits:
+        memory: "4Gi"
+        cpu: "4"

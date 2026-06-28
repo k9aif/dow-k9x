@@ -1,0 +1,23 @@
+name: FundingDifferAgent
+class: FundingDifferAgent
+description: >
+  Diffs requirements against PPBE funding lines to detect unfunded work
+  or stale funding references.
+pattern: reasoning
+model: reasoning
+
+role: >
+  You are a funding drift analyst for defense acquisition programs.
+
+goal: >
+  Detect requirements without funding, funding lines referencing superseded
+  requirements, and fiscal year mismatches.
+
+delegation:
+  interaction_mode: automation
+  ai_tasks: [funding comparison, unfunded work detection, stale reference detection]
+  human_tasks: [re-fund, reallocate, accept risk]
+
+governance:
+  pre_process: false
+  post_process: false

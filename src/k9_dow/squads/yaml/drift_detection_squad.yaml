@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: Apache-2.0
+# Drift Detection Squad — cross-cutting, runs continuously
+# Owner: Master Orchestrator
+
+squads:
+  DriftDetectionSquad:
+    description: >
+      Detects cross-process drift between JCIDS requirements, SE technical
+      baseline, and PPBE funding lines. Runs continuously alongside the
+      primary flow. Flags divergence before it blocks a gate.
+    agents:
+      - BaselineDifferAgent
+      - FundingDifferAgent
+      - DriftClassifierAgent
+    flow:
+      - agent: BaselineDifferAgent
+        result_key: baseline_drift
+      - agent: FundingDifferAgent
+        result_key: funding_drift
+      - agent: DriftClassifierAgent
+        result_key: drift_alerts

@@ -1,850 +1,750 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DoW Architecture Workbench</title>
+<title>DAS — Defense Acquisition System</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:false, theme:'dark', themeVariables:{primaryColor:'#1e293b',primaryBorderColor:'#3b82f6',lineColor:'#94a3b8',textColor:'#e2e8f0',noteBkgColor:'#1e293b',noteBorderColor:'#334155',noteTextColor:'#e2e8f0',actorBkg:'#1e293b',actorBorder:'#3b82f6',actorTextColor:'#e2e8f0',activationBkgColor:'#334155',activationBorderColor:'#3b82f6',sequenceNumberColor:'#e2e8f0'}});</script>
 <style>
-  :root {
-    --bg: #0f172a; --bg2: #1e293b; --bg3: #0f172a; --bg-hover: #253347;
-    --border: #334155; --border-active: #3b82f6;
-    --text: #e2e8f0; --text2: #94a3b8; --text3: #64748b; --text-bright: #f8fafc;
-    --accent: #3b82f6; --accent-hover: #2563eb; --accent-dim: rgba(59,130,246,0.15);
-    --green: #22c55e; --green-bg: rgba(34,197,94,0.12); --green-border: rgba(34,197,94,0.3);
-    --red: #ef4444; --red-bg: rgba(239,68,68,0.12); --red-border: rgba(239,68,68,0.3);
-    --yellow: #f59e0b; --yellow-bg: rgba(245,158,11,0.12);
-    --purple: #a78bfa; --purple-bg: rgba(167,139,250,0.12);
-    --teal: #14b8a6;
-    --console-bg: #0c1222;
-    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-    --pane-left: 270px; --pane-right: 400px;
-  }
-  [data-theme="light"] {
-    --bg: #f1f5f9; --bg2: #ffffff; --bg3: #f8fafc; --bg-hover: #e2e8f0;
-    --border: #e2e8f0; --border-active: #3b82f6;
-    --text: #1e293b; --text2: #64748b; --text3: #94a3b8; --text-bright: #0f172a;
-    --accent-dim: rgba(59,130,246,0.1);
-    --green-bg: rgba(34,197,94,0.08); --green-border: rgba(34,197,94,0.25);
-    --red-bg: rgba(239,68,68,0.08); --red-border: rgba(239,68,68,0.25);
-    --yellow-bg: rgba(245,158,11,0.08);
-    --purple-bg: rgba(167,139,250,0.08);
-    --console-bg: #f1f5f9;
-  }
+  :root{--bg:#0f172a;--bg2:#1e293b;--bg3:#0d1117;--border:#334155;--text:#e2e8f0;--text2:#94a3b8;--accent:#3b82f6;--green:#22c55e;--orange:#f59e0b;--red:#ef4444;--teal:#14b8a6;--mono:'JetBrains Mono','Fira Code',monospace}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; transition: background 0.3s, color 0.3s; display: flex; flex-direction: column; }
+  /* Header */
+  .header{background:var(--bg2);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+  .header h1{font-size:15px;font-weight:700;letter-spacing:0.5px}
+  .header .badge{background:var(--accent);color:white;font-size:8px;padding:2px 6px;border-radius:3px;font-weight:700}
+  .header .sub{color:var(--text2);font-size:11px}
+  .header .status-dot{width:7px;height:7px;border-radius:50%;margin-left:auto}
+  .header .status-dot.ok{background:var(--green)}
+  .header .status-dot.err{background:var(--red)}
 
-  /* ─── Header ─── */
-  .header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-  .header h1 { font-size: 16px; font-weight: 700; color: var(--text-bright); letter-spacing: -0.3px; }
-  .header .badge { background: var(--accent); color: white; font-size: 9px; padding: 2px 7px; border-radius: 3px; font-weight: 700; letter-spacing: 0.6px; }
-  .header .sub { color: var(--text3); font-size: 11px; }
-  .header .spacer { flex: 1; }
-  .header .status-pill { display: none; align-items: center; gap: 6px; background: var(--bg3); border: 1px solid var(--border); border-radius: 16px; padding: 4px 12px 4px 8px; font-size: 11px; }
-  .header .status-pill.active { display: inline-flex; }
-  .header .status-pill .dot { width: 7px; height: 7px; border-radius: 50%; }
-  .header .status-pill .dot.running { background: var(--accent); animation: pulse 1s infinite; }
-  .header .status-pill .dot.completed { background: var(--green); }
-  .header .status-pill .dot.failed { background: var(--red); }
-  .header .status-pill .dot.uploading { background: var(--yellow); animation: pulse 1s infinite; }
-  .header .elapsed { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-left: 4px; }
-  .theme-toggle { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: 14px; color: var(--text); }
-  .theme-toggle:hover { border-color: var(--accent); }
-  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+  /* Three-pane layout */
+  .panes{display:flex;flex:1;overflow:hidden}
 
-  /* ─── Three-Pane Layout ─── */
-  .workspace { display: flex; flex: 1; overflow: hidden; }
+  /* Left pane — Pipeline + Upload */
+  .pane-left{width:260px;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;background:var(--bg2)}
+  .pane-left .section{padding:12px;border-bottom:1px solid var(--border)}
+  .pane-left h3{font-size:10px;text-transform:uppercase;color:var(--text2);letter-spacing:1px;margin-bottom:8px;font-weight:600}
 
-  /* ─── Left Pane ─── */
-  .pane-left { width: var(--pane-left); background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
-  .pane-section { padding: 16px; border-bottom: 1px solid var(--border); }
-  .pane-section:last-child { border-bottom: none; flex: 1; }
-  .section-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text3); margin-bottom: 10px; }
+  /* Pipeline steps */
+  .pipe-step{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11px}
+  .pipe-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;border:1.5px solid var(--border);background:transparent}
+  .pipe-dot.active{background:var(--accent);border-color:var(--accent);box-shadow:0 0 6px rgba(59,130,246,0.4)}
+  .pipe-dot.done{background:var(--green);border-color:var(--green)}
+  .pipe-dot.gate{background:transparent;border-color:var(--orange)}
+  .pipe-dot.gate.done{background:var(--orange);border-color:var(--orange)}
+  .pipe-label{color:var(--text)}
+  .pipe-label.gate-label{color:var(--orange)}
+  .pipe-line{width:1px;height:10px;background:var(--border);margin-left:3.5px}
 
-  /* Pipeline selector */
-  .pipeline-list { display: flex; flex-direction: column; gap: 4px; }
-  .pipeline-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; }
-  .pipeline-item:hover { background: var(--bg-hover); }
-  .pipeline-item.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
-  .pipeline-item.disabled { opacity: 0.4; cursor: default; }
-  .pipeline-item .pip-dot { width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--text3); flex-shrink: 0; }
-  .pipeline-item.active .pip-dot { background: var(--accent); border-color: var(--accent); }
-  .pipeline-item .pip-phase { font-size: 9px; color: var(--text3); margin-left: auto; }
+  /* Upload form */
+  .upload-area{padding:12px}
+  .upload-area label{font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px}
+  .upload-area input[type=file]{width:100%;font-size:10px;color:var(--text2);margin-bottom:8px}
+  .upload-area select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;margin-bottom:10px}
+  .btn{width:100%;background:var(--accent);color:white;border:none;border-radius:5px;padding:8px;font-size:11px;font-weight:600;cursor:pointer}
+  .btn:disabled{opacity:0.4;cursor:not-allowed}
+  .btn:hover:not(:disabled){background:#2563eb}
 
-  /* Upload */
-  .upload-zone { border: 1.5px dashed var(--border); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
-  .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: var(--accent-dim); }
-  .upload-zone .uz-icon { font-size: 24px; margin-bottom: 6px; }
-  .upload-zone .uz-text { font-size: 11px; color: var(--text2); }
-  .upload-zone .uz-file { font-size: 11px; color: var(--green); font-weight: 600; margin-top: 6px; display: none; }
-  .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-  .doc-type-row { margin-top: 10px; }
-  .doc-type-row select { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; color: var(--text); font-size: 11px; }
-  .btn-analyze { width: 100%; margin-top: 10px; background: var(--accent); color: white; border: none; border-radius: 6px; padding: 9px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
-  .btn-analyze:hover { background: var(--accent-hover); }
-  .btn-analyze:disabled { background: var(--text3); cursor: not-allowed; }
+  /* Center pane — Live event feed */
+  .pane-center{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .pane-center .tab-bar{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+  .tab{padding:8px 16px;font-size:11px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent}
+  .tab.active{color:var(--text);border-color:var(--accent)}
+  .tab .count{font-size:9px;background:var(--bg);padding:1px 5px;border-radius:8px;margin-left:4px}
 
-  /* Stage list */
-  .stage-list { display: flex; flex-direction: column; gap: 2px; }
-  .stage-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; }
-  .stage-item:hover { background: var(--bg-hover); }
-  .stage-item.selected { background: var(--accent-dim); border-color: var(--border-active); }
-  .stage-item .st-num { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; border: 1.5px solid var(--border); color: var(--text3); flex-shrink: 0; transition: all 0.2s; }
-  .stage-item.active .st-num { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); animation: pulse 1.5s infinite; }
-  .stage-item.completed .st-num { border-color: var(--green); color: white; background: var(--green); }
-  .stage-item.completed .st-num::after { content: '\2713'; }
-  .stage-item.failed .st-num { border-color: var(--red); color: white; background: var(--red); }
-  .stage-item.failed .st-num::after { content: '\2717'; }
-  .stage-item .st-name { flex: 1; color: var(--text2); }
-  .stage-item.active .st-name, .stage-item.selected .st-name { color: var(--text-bright); }
-  .stage-item.completed .st-name { color: var(--green); }
-  .stage-item .st-views { font-size: 9px; color: var(--text3); font-family: var(--mono); }
+  .feed{flex:1;overflow-y:auto;padding:8px 12px;font-family:var(--mono);font-size:11px;line-height:1.7}
+  .feed-entry{padding:4px 0;border-bottom:1px solid rgba(51,65,85,0.3)}
+  .feed-ts{color:var(--text2);margin-right:8px}
+  .feed-type{font-weight:600;margin-right:6px}
+  .feed-type.router{color:var(--teal)}
+  .feed-type.orchestrator{color:var(--accent)}
+  .feed-type.squad{color:var(--green)}
+  .feed-type.agent{color:var(--orange)}
+  .feed-type.llm{color:#a78bfa}
+  .feed-type.gate{color:var(--red)}
+  .feed-type.result{color:var(--green)}
+  .feed-detail{color:var(--text2)}
 
-  /* ─── Center Pane ─── */
-  .pane-center { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+  /* Right pane — Job result */
+  .pane-right{width:340px;border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;background:var(--bg2)}
+  .pane-right h3{font-size:10px;text-transform:uppercase;color:var(--text2);letter-spacing:1px;padding:12px;border-bottom:1px solid var(--border);font-weight:600}
+  .result-area{flex:1;overflow-y:auto;padding:12px;font-family:var(--mono);font-size:10px;line-height:1.6;white-space:pre-wrap;color:var(--text2)}
+  .job-badge{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:10px;font-family:var(--mono);margin:8px 12px}
+  .job-badge.submitted{border-color:var(--accent);color:var(--accent)}
+  .job-badge.complete{border-color:var(--green);color:var(--green)}
 
-  /* Center: agent flow */
-  .agent-flow-area { flex: 1; overflow-y: auto; padding: 20px 24px; }
-  .center-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text3); gap: 8px; }
-  .center-empty .ce-icon { font-size: 40px; opacity: 0.3; }
-  .center-empty .ce-text { font-size: 13px; }
+  /* Endpoints */
+  .endpoints{padding:12px;border-top:1px solid var(--border);margin-top:auto}
+  .endpoints a{color:var(--accent);font-size:10px;font-family:var(--mono);display:block;margin:2px 0;text-decoration:none}
+  .endpoints a:hover{text-decoration:underline}
+  .demo-btn{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:8px 10px;font-size:11px;color:var(--text);cursor:pointer;text-align:left;margin-bottom:4px;transition:border-color 0.2s}
+  .demo-btn:hover{border-color:var(--accent);color:var(--accent)}
 
-  /* Stage header in center */
-  .stage-header { margin-bottom: 16px; }
-  .stage-header .sh-title { font-size: 15px; font-weight: 700; color: var(--text-bright); }
-  .stage-header .sh-desc { font-size: 11px; color: var(--text2); margin-top: 4px; }
-  .stage-header .sh-views { font-size: 10px; color: var(--accent); font-family: var(--mono); margin-top: 4px; }
+  /* Doc items */
+  .doc-section{color:var(--accent);font-size:11px;font-weight:600;margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+  .doc-item{display:flex;align-items:center;gap:10px;padding:8px 10px;margin:4px 0;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:11px}
+  .doc-item .doc-name{flex:1;font-family:var(--mono);color:var(--text)}
+  .doc-item .doc-size{color:var(--text2);font-size:10px}
+  .doc-item .doc-dl{background:var(--green);color:#000;border:none;border-radius:4px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;text-decoration:none}
+  .doc-item .doc-dl:hover{opacity:0.8}
 
-  /* Agent cards */
-  .agent-card { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 4px; border-radius: 8px; border: 1px solid transparent; transition: all 0.2s; }
-  .agent-card .ac-indicator { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; border: 1.5px solid var(--border); color: var(--text3); transition: all 0.2s; }
-  .agent-card.pending .ac-indicator { border-color: var(--border); color: var(--text3); }
-  .agent-card.running .ac-indicator { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
-  .agent-card.running .ac-indicator::after { content: ''; width: 8px; height: 8px; border: 2px solid var(--accent); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
-  .agent-card.completed .ac-indicator { border-color: var(--green); color: white; background: var(--green); font-size: 12px; }
-  .agent-card.failed .ac-indicator { border-color: var(--red); color: white; background: var(--red); font-size: 12px; }
-  .agent-card .ac-info { flex: 1; min-width: 0; }
-  .agent-card .ac-name { font-size: 12px; font-weight: 500; color: var(--text); }
-  .agent-card .ac-key { font-size: 10px; color: var(--text3); font-family: var(--mono); }
-  .agent-card.running { border-color: var(--accent); background: var(--accent-dim); }
-  .agent-card.completed { background: var(--green-bg); }
-  .agent-card.failed { background: var(--red-bg); border-color: var(--red-border); }
-  .agent-card .ac-time { font-size: 10px; color: var(--text3); font-family: var(--mono); }
-  .agent-card .ac-view-btn { background: none; border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 10px; color: var(--text2); cursor: pointer; display: none; }
-  .agent-card.completed .ac-view-btn { display: inline-block; }
-  .agent-card .ac-view-btn:hover { border-color: var(--accent); color: var(--accent); }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* Console */
-  .console-area { border-top: 1px solid var(--border); flex-shrink: 0; }
-  .console-hdr { background: var(--bg2); padding: 6px 14px; font-size: 10px; color: var(--text3); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; cursor: pointer; user-select: none; }
-  .console-hdr:hover { color: var(--text2); }
-  .console-body { background: var(--console-bg); max-height: 200px; overflow-y: auto; font-family: var(--mono); font-size: 11px; line-height: 1.8; padding: 8px 12px; transition: max-height 0.2s; }
-  .console-body.collapsed { max-height: 0; padding: 0 12px; }
-  .log { display: flex; gap: 6px; }
-  .log .t { color: var(--text3); min-width: 70px; font-size: 10px; }
-  .log .m { color: var(--text); }
-  .log .m.stage { color: #60a5fa; font-weight: 600; }
-  .log .m.agent { color: var(--purple); }
-  .log .m.ok { color: #4ade80; }
-  .log .m.warn { color: #fbbf24; }
-  .log .m.err { color: #f87171; }
-
-  /* ─── Right Pane ─── */
-  .pane-right { width: var(--pane-right); background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
-  .pane-right .doc-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; }
-  .pane-right .doc-tab { padding: 9px 14px; font-size: 11px; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; }
-  .pane-right .doc-tab:hover { color: var(--text); background: var(--bg-hover); }
-  .pane-right .doc-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-  .doc-viewer { flex: 1; overflow-y: auto; padding: 20px; }
-  .doc-viewer .dv-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text3); gap: 8px; }
-  .doc-viewer .dv-empty .dv-icon { font-size: 32px; opacity: 0.3; }
-  .doc-viewer .dv-empty .dv-text { font-size: 12px; text-align: center; line-height: 1.6; }
-
-  /* Rendered output content */
-  .doc-content { font-size: 12px; line-height: 1.7; color: var(--text); }
-  .doc-content h1, .doc-content h2, .doc-content h3 { color: var(--text-bright); margin: 16px 0 8px; }
-  .doc-content h1 { font-size: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-  .doc-content h2 { font-size: 14px; }
-  .doc-content h3 { font-size: 13px; }
-  .doc-content p { margin: 6px 0; }
-  .doc-content ul, .doc-content ol { margin: 6px 0 6px 20px; }
-  .doc-content li { margin: 3px 0; }
-  .doc-content strong { color: var(--text-bright); }
-  .doc-content code { background: var(--bg3); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; font-family: var(--mono); font-size: 11px; }
-  .doc-content pre { background: var(--console-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; margin: 8px 0; }
-  .doc-content pre code { background: none; border: none; padding: 0; }
-  .doc-content table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 11px; }
-  .doc-content table th, .doc-content table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
-  .doc-content table th { background: var(--bg3); font-weight: 600; color: var(--text-bright); }
-  .doc-content blockquote { border-left: 3px solid var(--accent); padding-left: 12px; margin: 8px 0; color: var(--text2); }
-  .doc-content hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
-
-  /* Agent output header in doc viewer */
-  .doc-agent-header { font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-  .doc-agent-header .dah-key { font-family: var(--mono); font-weight: 400; color: var(--text3); }
-
-  /* Resize handles (cosmetic dividers) */
-  .resize-handle { width: 1px; cursor: col-resize; background: transparent; position: relative; }
-  .resize-handle:hover { background: var(--accent); }
-
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+  /* Architecture diagram */
+  .arch-diagram{padding:16px;font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--text)}
+  .arch-diagram .arch-title{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px}
+  .arch-diagram .arch-subtitle{font-size:11px;color:var(--text2);margin-bottom:16px}
+  .arch-flow{display:flex;flex-direction:column;gap:2px}
+  .arch-row{display:flex;align-items:center;gap:0}
+  .arch-box{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:11px;text-align:center;min-width:140px}
+  .arch-box.router{border-color:var(--teal);color:var(--teal)}
+  .arch-box.orch{border-color:var(--accent);color:var(--accent)}
+  .arch-box.squad{border-color:var(--green);color:var(--green)}
+  .arch-box.agent{border-color:var(--orange);color:var(--orange);min-width:110px;font-size:10px}
+  .arch-box.gate{border-color:var(--red);color:var(--red);background:rgba(239,68,68,0.08)}
+  .arch-box.infra{border-color:var(--text2);color:var(--text2);font-size:10px}
+  .arch-arrow{color:var(--text2);font-size:14px;padding:0 6px}
+  .arch-arrow-down{color:var(--text2);font-size:12px;padding:2px 0;margin-left:60px}
+  .arch-label{font-size:9px;color:var(--text2);margin-left:8px}
+  .arch-section{margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
+  .arch-section-title{font-size:10px;text-transform:uppercase;color:var(--text2);letter-spacing:1px;margin-bottom:8px;font-weight:600}
 </style>
 </head>
 <body>
 
-<!-- ─── Header ─── -->
 <div class="header">
-  <h1>DoW Architecture Workbench</h1>
-  <span class="badge">K9-AIF</span>
-  <span class="sub">Defense Architecture Analysis</span>
-  <span class="spacer"></span>
-  <div class="status-pill" id="statusPill">
-    <span class="dot" id="statusDot"></span>
-    <span id="statusText">Ready</span>
-    <span class="elapsed" id="elapsed"></span>
+  <a href="https://k9x.ai" target="_blank" style="text-decoration:none;color:var(--accent);font-size:15px;font-weight:700">K9X</a>
+  <h1>DAS</h1>
+  <span class="sub">Defense Acquisition System <span style="color:var(--orange);font-size:9px;font-weight:600;border:1px solid var(--orange);padding:1px 5px;border-radius:3px;margin-left:4px">PROOF OF CONCEPT</span></span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+    <span id="llmInfo" style="font-size:10px;font-family:var(--mono);color:var(--text2)"></span>
+    <div class="status-dot ok" id="sseDot" title="SSE connected"></div>
   </div>
-  <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" id="themeBtn">&#9789;</button>
 </div>
 
-<!-- ─── Three-Pane Workspace ─── -->
-<div class="workspace">
+<div class="panes">
 
   <!-- LEFT PANE -->
   <div class="pane-left">
-    <!-- Pipelines -->
-    <div class="pane-section">
-      <div class="section-label">Pipeline</div>
-      <div class="pipeline-list">
-        <div class="pipeline-item active" data-pipeline="dodaf">
-          <span class="pip-dot"></span>
-          DoDAF 2.0
-          <span class="pip-phase">Phase 1</span>
-        </div>
-        <div class="pipeline-item disabled" data-pipeline="jcids" title="Phase 2 — coming soon">
-          <span class="pip-dot"></span>
-          JCIDS
-          <span class="pip-phase">Phase 2</span>
-        </div>
-        <div class="pipeline-item disabled" data-pipeline="se" title="Phase 3 — coming soon">
-          <span class="pip-dot"></span>
-          Systems Engineering
-          <span class="pip-phase">Phase 3</span>
-        </div>
-      </div>
+    <div class="section">
+      <h3>Pipeline</h3>
+      <div class="pipe-step"><div class="pipe-dot" id="dot-router"></div><span class="pipe-label">DasRouter</span></div>
+      <div class="pipe-line"></div>
+      <div class="pipe-step"><div class="pipe-dot" id="dot-jcids"></div><span class="pipe-label">JCIDS Orchestrator</span></div>
+      <div class="pipe-line"></div>
+      <div class="pipe-step"><div class="pipe-dot gate" id="dot-jroc"></div><span class="pipe-label gate-label">JROC Gate</span></div>
+      <div class="pipe-line"></div>
+      <div class="pipe-step"><div class="pipe-dot" id="dot-acq"></div><span class="pipe-label">Acquisition</span></div>
+      <div class="pipe-line"></div>
+      <div class="pipe-step"><div class="pipe-dot gate" id="dot-milestone"></div><span class="pipe-label gate-label">Milestone Gate</span></div>
+      <div class="pipe-line"></div>
+      <div class="pipe-step"><div class="pipe-dot" id="dot-se"></div><span class="pipe-label">SE Pipeline</span></div>
     </div>
 
-    <!-- Upload -->
-    <div class="pane-section">
-      <div class="section-label">Document Upload</div>
-      <div class="upload-zone" id="uploadZone">
-        <input type="file" id="fileInput" accept=".md,.txt,.pdf,.docx,.csv,.xlsx">
-        <div class="uz-icon">&#128196;</div>
-        <div class="uz-text">Drop file or click to browse</div>
-        <div class="uz-file" id="fileName"></div>
-      </div>
-      <div class="doc-type-row">
-        <select id="docType">
-          <option value="architecture_document">Architecture / Mission Document</option>
-          <option value="conops">CONOPS / Mission Thread</option>
-          <option value="capability_gap">Capability Needs / Gap Analysis</option>
-          <option value="system_description">System / Service Description</option>
-          <option value="requirements_icd_draft">Requirements / ICD Draft</option>
-          <option value="operational_views">Operational Views (OV)</option>
-          <option value="standards_compliance">Standards / Compliance</option>
-          <option value="call_report">Call Report / Meeting Notes</option>
-          <option value="engagement_summary">Engagement / Capture Summary</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-      <button class="btn-analyze" id="btnAnalyze" onclick="uploadDocument()">Analyze Document</button>
+    <div class="section">
+      <h3>Squads</h3>
+      <div id="squadList" style="font-size:11px;color:var(--text2)">Waiting for job...</div>
     </div>
 
-    <!-- Stages -->
-    <div class="pane-section">
-      <div class="section-label">DoDAF Stages</div>
-      <div class="stage-list" id="stageList"></div>
+    <div class="upload-area">
+      <h3 style="font-size:10px;text-transform:uppercase;color:var(--text2);letter-spacing:1px;margin-bottom:8px;font-weight:600">Document</h3>
+      <label>Demo Documents</label>
+      <select id="demoSelect" onchange="selectDemo()" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;margin-bottom:8px">
+        <option value="">-- Select a demo document --</option>
+      </select>
+      <div id="demoInfo" style="font-size:10px;color:var(--text2);margin-bottom:8px;display:none"></div>
+      <label>Or Upload Your Own</label>
+      <input type="file" id="fileInput" accept=".md,.txt,.pdf,.docx" onchange="clearDemo()">
+      <label>Document Type</label>
+      <select id="docType">
+        <option value="capability_gap">Capability Gap / Needs</option>
+        <option value="conops">CONOPS / Mission Thread</option>
+        <option value="architecture_document">Architecture Document</option>
+        <option value="icd_draft">ICD Draft</option>
+      </select>
+      <button class="btn" id="btnUpload" onclick="upload()">Analyze</button>
+    </div>
+
+    <div class="endpoints">
+      <a href="/health">/health</a>
+      <a href="/pipeline">/pipeline</a>
+      <a href="/graph/invariants">/graph/invariants</a>
     </div>
   </div>
 
   <!-- CENTER PANE -->
   <div class="pane-center">
-    <div class="agent-flow-area" id="agentFlowArea">
-      <div class="center-empty" id="centerEmpty">
-        <div class="ce-icon">&#9881;</div>
-        <div class="ce-text">Upload a document to begin DoDAF analysis</div>
-      </div>
+    <div class="tab-bar">
+      <div class="tab active" id="tab-live" onclick="switchTab('live')">Live Feed<span class="count" id="live-count">0</span></div>
+      <div class="tab" id="tab-agents" onclick="switchTab('agents')">Agents<span class="count" id="agent-count">0</span></div>
+      <div class="tab" id="tab-llm" onclick="switchTab('llm')">LLM Calls<span class="count" id="llm-count">0</span></div>
+      <div class="tab" id="tab-docs" onclick="switchTab('docs')">Generated Docs<span class="count" id="docs-count"></span></div>
+      <div class="tab" id="tab-arch" onclick="switchTab('arch')">Architecture</div>
+      <div style="margin-left:auto;font-size:10px;color:var(--text2);padding:8px 16px;letter-spacing:0.3px">Built on <span style="color:var(--accent);font-weight:600">K9-AIF Framework</span></div>
     </div>
-    <div class="console-area" id="consoleArea" style="display: none;">
-      <div class="console-hdr" onclick="toggleConsole()">
-        <span>Console</span>
-        <span id="consoleToggle">&#9660;</span>
-      </div>
-      <div class="console-body" id="consoleBody"></div>
-    </div>
+    <div class="feed" id="feedArea"></div>
   </div>
 
   <!-- RIGHT PANE -->
   <div class="pane-right">
-    <div class="doc-tabs" id="docTabs"></div>
-    <div class="doc-viewer" id="docViewer">
-      <div class="dv-empty">
-        <div class="dv-icon">&#128203;</div>
-        <div class="dv-text">Output documents will appear here<br>as stages complete</div>
-      </div>
-    </div>
+    <h3>Job Result</h3>
+    <div id="jobStatus"></div>
+    <div class="result-area" id="resultArea">No results yet. Upload a document to start.</div>
   </div>
 
 </div>
 
 <script>
-// ─── Theme ───
-function toggleTheme() {
-  const html = document.documentElement;
-  const btn = document.getElementById('themeBtn');
-  if (html.dataset.theme === 'dark') {
-    html.dataset.theme = 'light'; btn.innerHTML = '&#9788;'; localStorage.setItem('theme', 'light');
-  } else {
-    html.dataset.theme = 'dark'; btn.innerHTML = '&#9789;'; localStorage.setItem('theme', 'dark');
-  }
-}
-(function() {
-  const s = localStorage.getItem('theme');
-  if (s === 'light') { document.documentElement.dataset.theme = 'light'; document.getElementById('themeBtn').innerHTML = '&#9788;'; }
-})();
+const state = {
+  events: [],
+  agentEvents: [],
+  llmEvents: [],
+  docs: [],
+  activeTab: 'live',
+  jobId: null,
+  corrId: null,
+};
 
-// ─── Console toggle ───
-function toggleConsole() {
-  const body = document.getElementById('consoleBody');
-  const icon = document.getElementById('consoleToggle');
-  body.classList.toggle('collapsed');
-  icon.innerHTML = body.classList.contains('collapsed') ? '&#9650;' : '&#9660;';
-}
+// ─── SSE ──────────────────────────────────────────────
+function connectSSE() {
+  const dot = document.getElementById('sseDot');
+  const es = new EventSource('/events/stream');
+  es.onmessage = (e) => {
+    try {
+      const evt = JSON.parse(e.data);
+      evt._ts = new Date().toLocaleTimeString();
+      state.events.push(evt);
 
-// ─── Stage & Agent Data (from squad YAMLs) ───
-const STAGES = [
-  {
-    num: 1, name: 'Intended Use', fullName: 'Determine Intended Use of Architecture',
-    desc: 'Stakeholder requirements, purpose, critical issues, target objectives, key tradeoffs, decision points, and probable analysis methods.',
-    views: ['AV-1'],
-    agents: [
-      { name: 'ValidationAgent', key: 'validation', label: 'Validation' },
-      { name: 'StakeholderExtractorAgent', key: 'stakeholders', label: 'Stakeholder Extraction' },
-      { name: 'PainPointExtractorAgent', key: 'pain_points', label: 'Pain Point Extraction' },
-      { name: 'ObjectiveExtractorAgent', key: 'objectives', label: 'Objective Extraction' },
-      { name: 'MissionAssessmentAgent', key: 'mission_context', label: 'Mission Assessment' },
-      { name: 'F2PIntentAgent', key: 'f2p_intent', label: 'F2P Intent Synthesis' },
-      { name: 'SummarizerAgent', key: 'stage_summary', label: 'Stage Summary' },
-      { name: 'GovernanceAgent', key: 'governance', label: 'Governance Review' },
-    ]
-  },
-  {
-    num: 2, name: 'Scope', fullName: 'Determine Scope of Architecture',
-    desc: 'Geographical, operational, and functional bounds; technological bounds; time frame(s); architecture resource and schedule constraints.',
-    views: ['CV-1', 'OV-1', 'OV-5'],
-    agents: [
-      { name: 'ProjectScopeAgent', key: 'scope', label: 'Project Scope' },
-      { name: 'ConstraintAgent', key: 'constraints', label: 'Constraints' },
-      { name: 'OperationalExtractorAgent', key: 'operations', label: 'Operational Extraction' },
-      { name: 'CapabilityExtractorAgent', key: 'capabilities', label: 'Capability Extraction' },
-      { name: 'RiskExtractorAgent', key: 'risks', label: 'Risk Extraction' },
-      { name: 'VocabularyAgent', key: 'vocabulary', label: 'AV-2 Dictionary' },
-      { name: 'ArchitectureAnalyzerAgent', key: 'architecture_analysis', label: 'Architecture Analysis' },
-      { name: 'RequirementAgent', key: 'icd_draft', label: 'ICD Draft Requirements' },
-      { name: 'SummarizerAgent', key: 'stage_summary', label: 'Stage Summary' },
-      { name: 'GovernanceAgent', key: 'governance', label: 'Governance Review' },
-    ]
-  },
-  {
-    num: 3, name: 'Data Required', fullName: 'Determine Data Required to Support Architecture Development',
-    desc: 'Required architectural characteristics, architectural data entities, levels of detail, units of measure, and associated models.',
-    views: ['CV-2', 'CV-3', 'CV-6'],
-    agents: [
-      { name: 'DataRequirementsAgent', key: 'data_requirements', label: 'Data Requirements' },
-      { name: 'CapabilityExtractorAgent', key: 'capability_data', label: 'Capability Data' },
-      { name: 'DM2ExtractorAgent', key: 'dm2_data', label: 'DM2 Extraction' },
-      { name: 'SystemServiceExtractorAgent', key: 'system_service_data', label: 'System/Service Data' },
-      { name: 'SystemViewAgent', key: 'system_views', label: 'System Views' },
-      { name: 'SummarizerAgent', key: 'stage_summary', label: 'Stage Summary' },
-      { name: 'GovernanceAgent', key: 'governance', label: 'Governance Review' },
-    ]
-  },
-  {
-    num: 4, name: 'Collect & Store', fullName: 'Collect, Organize, Correlate, and Store Architectural Data',
-    desc: 'Automated repositories, activity models, data models, dynamic models, organizational models, and metadata registration.',
-    views: ['OV-2', 'OV-6', 'SV-1', 'SvcV-1', 'TV-1'],
-    agents: [
-      { name: 'OperationalExtractorAgent', key: 'operational_data', label: 'Operational Data' },
-      { name: 'CapabilityExtractorAgent', key: 'capability_data', label: 'Capability Data' },
-      { name: 'SystemServiceExtractorAgent', key: 'system_service_data', label: 'System/Service Data' },
-      { name: 'SystemViewAgent', key: 'system_views', label: 'System Views' },
-      { name: 'ServicesViewAgent', key: 'service_views', label: 'Services Views' },
-      { name: 'DM2ExtractorAgent', key: 'dm2_bundle', label: 'DM2 Bundle' },
-      { name: 'DataCorrelationAgent', key: 'correlation', label: 'Data Correlation' },
-      { name: 'ReportWriterAgent', key: 'persistence', label: 'Report Assembly' },
-      { name: 'SummarizerAgent', key: 'stage_summary', label: 'Stage Summary' },
-      { name: 'GovernanceAgent', key: 'governance', label: 'Governance Review' },
-    ]
-  },
-  {
-    num: 5, name: 'Analyses', fullName: 'Conduct Analyses in Support of Architecture Objectives',
-    desc: 'Shortfall analyses, capacity analyses, interoperability assessments, business process analysis, and test architecture completeness, accuracy, and sufficiency.',
-    views: ['SV-5', 'OV-7', 'TV-1'],
-    agents: [
-      { name: 'ValidationAgent', key: 'revalidation', label: 'Re-validation' },
-      { name: 'CapabilityAnalyzerAgent', key: 'capability_analysis', label: 'Capability Analysis' },
-      { name: 'OperationalAnalyzerAgent', key: 'operational_analysis', label: 'Operational Analysis' },
-      { name: 'ArchitectureAnalyzerAgent', key: 'objective_alignment', label: 'Objective Alignment' },
-      { name: 'RiskExtractorAgent', key: 'risk_review', label: 'Risk Review' },
-      { name: 'VerificationAgent', key: 'consistency_check', label: 'Consistency Check' },
-      { name: 'ActionItemAgent', key: 'action_items', label: 'Action Items' },
-      { name: 'RequirementAgent', key: 'requirements', label: 'Requirements' },
-      { name: 'SummarizerAgent', key: 'stage_summary', label: 'Stage Summary' },
-      { name: 'GovernanceAgent', key: 'governance', label: 'Governance Review' },
-    ]
-  },
-  {
-    num: 6, name: 'Results', fullName: 'Document Results in Accordance with Decision-Maker Needs',
-    desc: 'Architecture presentations and views, reusable architecture data, and analysis reports.',
-    views: ['AV-1', 'AV-2', 'CV-6'],
-    agents: [
-      { name: 'VerificationAgent', key: 'final_validation', label: 'Final Validation' },
-      { name: 'PresentationAgent', key: 'presentation', label: 'Presentation Compile' },
-      { name: 'SummarizerAgent', key: 'executive_summary', label: 'Executive Summary' },
-      { name: 'GovernanceAgent', key: 'governance_signoff', label: 'Governance Sign-off' },
-      { name: 'ReportWriterAgent', key: 'final_reports', label: 'Final Reports' },
-    ]
-  },
-];
+      const result = evt.result || {};
+      const evtType = evt.event_type || evt.type || '';
+      const orch = evt.orchestrator || result.orchestrator || '';
 
-let t0 = null, timer = null;
-let jobResults = {};
-let selectedStage = null;
-let selectedDocTab = null;
-
-// ─── Initialize stage list ───
-function initStageList() {
-  const list = document.getElementById('stageList');
-  list.innerHTML = '';
-  STAGES.forEach(s => {
-    const el = document.createElement('div');
-    el.className = 'stage-item';
-    el.id = `stage-item-${s.num}`;
-    el.onclick = () => selectStage(s.num);
-    el.innerHTML = `
-      <span class="st-num">${s.num}</span>
-      <span class="st-name">${s.name}</span>
-      <span class="st-views">${s.views.join(' ')}</span>
-    `;
-    list.appendChild(el);
-  });
-}
-
-// ─── Select a stage to view in center pane ───
-function selectStage(num) {
-  selectedStage = num;
-  document.querySelectorAll('.stage-item').forEach(el => el.classList.remove('selected'));
-  const el = document.getElementById(`stage-item-${num}`);
-  if (el) el.classList.add('selected');
-  renderAgentFlow(num);
-}
-
-// ─── Set stage status ───
-function setStageStatus(num, status) {
-  const el = document.getElementById(`stage-item-${num}`);
-  if (!el) return;
-  el.classList.remove('active', 'completed', 'failed');
-  if (status) el.classList.add(status);
-  const numEl = el.querySelector('.st-num');
-  if (status === 'completed') numEl.textContent = '';
-  else if (status === 'failed') numEl.textContent = '';
-  else numEl.textContent = num;
-}
-
-// ─── Render agent flow for a stage ───
-function renderAgentFlow(num) {
-  const area = document.getElementById('agentFlowArea');
-  const stage = STAGES.find(s => s.num === num);
-  if (!stage) return;
-
-  const stageResult = jobResults[`stage_${num}`];
-  let html = `
-    <div class="stage-header">
-      <div class="sh-title">Stage ${stage.num} &mdash; ${stage.fullName}</div>
-      <div class="sh-desc">${stage.desc}</div>
-      <div class="sh-views">DoDAF Views: ${stage.views.join(', ')}</div>
-    </div>
-  `;
-
-  stage.agents.forEach((agent, i) => {
-    let status = 'pending';
-    let timeStr = '';
-    if (stageResult) {
-      if (stageResult.agentStatus && stageResult.agentStatus[agent.key]) {
-        status = stageResult.agentStatus[agent.key];
-      } else if (stageResult.result && agent.key in stageResult.result) {
-        status = 'completed';
-      }
-    }
-
-    const indicatorContent = status === 'completed' ? '&#10003;' : status === 'failed' ? '&#10007;' : status === 'running' ? '' : (i + 1);
-
-    html += `
-      <div class="agent-card ${status}" id="agent-${num}-${agent.key}">
-        <div class="ac-indicator">${indicatorContent}</div>
-        <div class="ac-info">
-          <div class="ac-name">${agent.label}</div>
-          <div class="ac-key">${agent.name} &rarr; ${agent.key}</div>
-        </div>
-        <span class="ac-time">${timeStr}</span>
-        <button class="ac-view-btn" onclick="viewAgentOutput(${num}, '${agent.key}')">View</button>
-      </div>
-    `;
-  });
-
-  area.innerHTML = html;
-}
-
-// ─── View agent output in right pane ───
-function viewAgentOutput(stageNum, key) {
-  const stageResult = jobResults[`stage_${stageNum}`];
-  if (!stageResult || !stageResult.result || !(key in stageResult.result)) return;
-
-  selectedDocTab = `${stageNum}_${key}`;
-  updateDocTabs();
-
-  const output = stageResult.result[key];
-  renderDocument(key, output, stageNum);
-}
-
-// ─── Update doc tabs ───
-function updateDocTabs() {
-  const tabs = document.getElementById('docTabs');
-  tabs.innerHTML = '';
-
-  for (const [stageKey, data] of Object.entries(jobResults)) {
-    if (!data.result) continue;
-    const stageNum = parseInt(stageKey.replace('stage_', ''));
-    const stage = STAGES.find(s => s.num === stageNum);
-    if (!stage) continue;
-
-    const tab = document.createElement('div');
-    tab.className = 'doc-tab' + (selectedDocTab && selectedDocTab.startsWith(`${stageNum}_`) ? ' active' : '');
-    tab.textContent = `S${stageNum}`;
-    tab.title = stage.fullName;
-    tab.onclick = () => {
-      selectedDocTab = `${stageNum}_summary`;
-      updateDocTabs();
-      renderStageOverview(stageNum);
-    };
-    tabs.appendChild(tab);
-  }
-}
-
-// ─── Render stage overview in doc viewer ───
-function renderStageOverview(stageNum) {
-  const stageResult = jobResults[`stage_${stageNum}`];
-  if (!stageResult || !stageResult.result) return;
-  const stage = STAGES.find(s => s.num === stageNum);
-
-  const viewer = document.getElementById('docViewer');
-  let html = `<div class="doc-agent-header">Stage ${stageNum} &mdash; ${stage.fullName}</div>`;
-
-  for (const [key, value] of Object.entries(stageResult.result)) {
-    if (typeof value !== 'string' || value.length < 20) continue;
-    const agent = stage.agents.find(a => a.key === key);
-    const label = agent ? agent.label : key;
-
-    html += `
-      <div style="margin-bottom: 16px;">
-        <div style="font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px;"
-             onclick="viewAgentOutput(${stageNum}, '${key}')">
-          &#9654; ${label}
-          <span style="font-size: 10px; font-weight: 400; color: var(--text3); font-family: var(--mono);">${key}</span>
-        </div>
-        <div style="font-size: 11px; color: var(--text2); max-height: 60px; overflow: hidden; border-left: 2px solid var(--border); padding-left: 10px;">
-          ${escapeHtml(value.substring(0, 200))}${value.length > 200 ? '...' : ''}
-        </div>
-      </div>
-    `;
-  }
-
-  viewer.innerHTML = `<div class="doc-content">${html}</div>`;
-}
-
-// ─── Render a document in the right pane ───
-function renderDocument(key, content, stageNum) {
-  const viewer = document.getElementById('docViewer');
-  const stage = STAGES.find(s => s.num === stageNum);
-  const agent = stage ? stage.agents.find(a => a.key === key) : null;
-  const label = agent ? agent.label : key;
-
-  let html = `<div class="doc-agent-header">
-    ${label}
-    <span class="dah-key">${key} &bull; Stage ${stageNum}</span>
-  </div>`;
-
-  if (typeof content === 'string') {
-    html += `<div class="doc-content">${renderMarkdown(content)}</div>`;
-  } else {
-    html += `<pre style="font-size: 11px; white-space: pre-wrap;">${escapeHtml(JSON.stringify(content, null, 2))}</pre>`;
-  }
-
-  viewer.innerHTML = html;
-}
-
-// ─── Simple Markdown renderer ───
-function renderMarkdown(md) {
-  if (!md) return '';
-  let html = escapeHtml(md);
-
-  // Headers
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-
-  // Bold/italic
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-
-  // Code blocks
-  html = html.replace(/```[\s\S]*?```/g, match => {
-    const inner = match.slice(3, -3).replace(/^\w+\n/, '');
-    return `<pre><code>${inner}</code></pre>`;
-  });
-  html = html.replace(/`(.+?)`/g, '<code>$1</code>');
-
-  // Blockquotes
-  html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
-
-  // Horizontal rules
-  html = html.replace(/^---$/gm, '<hr>');
-
-  // Lists
-  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-
-  // Numbered lists
-  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-
-  // Tables (basic)
-  html = html.replace(/^\|(.+)\|$/gm, (match, content) => {
-    const cells = content.split('|').map(c => c.trim());
-    if (cells.every(c => /^[-:]+$/.test(c))) return '';
-    const tag = 'td';
-    return '<tr>' + cells.map(c => `<${tag}>${c}</${tag}>`).join('') + '</tr>';
-  });
-  html = html.replace(/(<tr>.*<\/tr>\n?)+/g, '<table>$&</table>');
-
-  // Paragraphs
-  html = html.replace(/\n\n/g, '</p><p>');
-  html = '<p>' + html + '</p>';
-  html = html.replace(/<p>\s*<(h[1-3]|ul|ol|pre|blockquote|table|hr)/g, '<$1');
-  html = html.replace(/<\/(h[1-3]|ul|ol|pre|blockquote|table)>\s*<\/p>/g, '</$1>');
-
-  return html;
-}
-
-function escapeHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
-}
-
-// ─── Status ───
-function setStatus(state, text) {
-  const pill = document.getElementById('statusPill');
-  pill.classList.add('active');
-  document.getElementById('statusDot').className = 'dot ' + state;
-  document.getElementById('statusText').textContent = text;
-}
-
-// ─── Logging ───
-function addLog(msg, cls) {
-  const body = document.getElementById('consoleBody');
-  const now = new Date().toLocaleTimeString('en-US', { hour12: false });
-  const d = document.createElement('div');
-  d.className = 'log';
-  d.innerHTML = `<span class="t">${now}</span><span class="m ${cls||''}">${msg}</span>`;
-  body.appendChild(d);
-  body.scrollTop = body.scrollHeight;
-}
-
-// ─── Upload Zone ───
-(function() {
-  const zone = document.getElementById('uploadZone');
-  const fi = document.getElementById('fileInput');
-  const fn = document.getElementById('fileName');
-
-  fi.addEventListener('change', () => {
-    if (fi.files.length) {
-      fn.style.display = 'block';
-      fn.textContent = fi.files[0].name + ' (' + (fi.files[0].size / 1024).toFixed(1) + ' KB)';
-    }
-  });
-
-  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-  zone.addEventListener('drop', e => {
-    e.preventDefault();
-    zone.classList.remove('dragover');
-    if (e.dataTransfer.files.length) {
-      fi.files = e.dataTransfer.files;
-      fn.style.display = 'block';
-      fn.textContent = e.dataTransfer.files[0].name + ' (' + (e.dataTransfer.files[0].size / 1024).toFixed(1) + ' KB)';
-    }
-  });
-})();
-
-// ─── Upload & Run ───
-async function uploadDocument() {
-  const fi = document.getElementById('fileInput');
-  const dt = document.getElementById('docType').value;
-  const btn = document.getElementById('btnAnalyze');
-  if (!fi.files.length) { alert('Select a document file first.'); return; }
-
-  btn.disabled = true; btn.textContent = 'Processing...';
-
-  const file = fi.files[0];
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('document_type', dt);
-
-  // Reset state
-  jobResults = {};
-  selectedStage = null;
-  selectedDocTab = null;
-  document.getElementById('docTabs').innerHTML = '';
-  document.getElementById('docViewer').innerHTML = '<div class="dv-empty"><div class="dv-icon">&#128203;</div><div class="dv-text">Processing... outputs appear as stages complete</div></div>';
-
-  initStageList();
-  document.getElementById('centerEmpty').style.display = 'none';
-  document.getElementById('consoleArea').style.display = 'block';
-  document.getElementById('consoleBody').innerHTML = '';
-  document.getElementById('consoleBody').classList.remove('collapsed');
-
-  t0 = Date.now();
-  timer = setInterval(() => {
-    const secs = ((Date.now() - t0) / 1000) | 0;
-    const m = (secs / 60) | 0;
-    const s = secs % 60;
-    document.getElementById('elapsed').textContent = m > 0 ? `${m}m ${s}s` : `${s}s`;
-  }, 1000);
-
-  setStatus('uploading', 'Uploading...');
-  addLog(`Uploading: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'ok');
-
-  try {
-    const resp = await fetch('/jobs/upload', { method: 'POST', body: fd });
-    const data = await resp.json();
-    const jobId = data.job_id || '';
-
-    if (data.status === 'submitted') {
-      setStatus('running', 'Submitted to Kafka');
-      addLog(`Job ${jobId} submitted to pipeline via Kafka`, 'ok');
-      addLog('Monitor progress via Kafka consumer', 'warn');
-      clearInterval(timer);
-      btn.disabled = false; btn.textContent = 'Analyze Document';
-      return;
-    }
-
-    setStatus('running', 'Pipeline running...');
-    addLog(`Routed: ${data.routing?.route_to || 'dodaf_pipeline'} (${data.routing?.classification || dt})`, 'ok');
-
-    // Process stage results with animated progression
-    const stageResults = data.stage_results || [];
-
-    for (let i = 0; i < stageResults.length; i++) {
-      const sr = stageResults[i];
-      const stageNum = sr.stage;
-      const stage = STAGES.find(s => s.num === stageNum);
-
-      // Mark stage active
-      setStageStatus(stageNum, 'active');
-      selectStage(stageNum);
-      addLog(`Stage ${stageNum} — ${stage ? stage.fullName : sr.squad_id}`, 'stage');
-
-      if (sr.result && stage) {
-        // Animate agents one by one
-        for (let j = 0; j < stage.agents.length; j++) {
-          const agent = stage.agents[j];
-          const agentEl = document.getElementById(`agent-${stageNum}-${agent.key}`);
-
-          if (agentEl) {
-            agentEl.className = 'agent-card running';
-            agentEl.querySelector('.ac-indicator').innerHTML = '';
-          }
-
-          // Small delay for visual effect
-          await sleep(120);
-
-          if (agent.key in sr.result) {
-            if (agentEl) {
-              agentEl.className = 'agent-card completed';
-              agentEl.querySelector('.ac-indicator').innerHTML = '&#10003;';
-            }
-            addLog(`  ${agent.label} → ${agent.key}`, 'agent');
-          } else {
-            if (agentEl) {
-              agentEl.className = 'agent-card completed';
-              agentEl.querySelector('.ac-indicator').innerHTML = '&#10003;';
-            }
-          }
+      // Pipeline result (final)
+      if (result.status) {
+        updatePipeline(orch, result.status);
+        if (evt.correlation_id === state.corrId || evt.job_id === state.jobId) {
+          // Show summary in right pane, not raw JSON
+          const r = result;
+          let summary = `Job: ${state.jobId}\n`;
+          summary += `Orchestrator: ${orch}\n`;
+          summary += `Status: ${r.status || '?'}\n`;
+          summary += `Gate: ${r.gate_id || 'N/A'}\n\n`;
+          if (r.view_generation) summary += `── View Generation ──\n${Object.keys(r.view_generation).map(k => '  ✓ ' + k).join('\n')}\n\n`;
+          if (r.gate_readiness) summary += `── Gate Readiness ──\n${Object.keys(r.gate_readiness).map(k => '  ✓ ' + k).join('\n')}\n\n`;
+          if (r.review_package) summary += `── Review Package ──\n${Object.keys(r.review_package).map(k => '  ✓ ' + k).join('\n')}\n\n`;
+          summary += `View generated docs in the "Generated Docs" tab.`;
+          document.getElementById('resultArea').textContent = summary;
+          const badge = document.getElementById('jobStatus');
+          badge.innerHTML = '<span class="job-badge complete">' + (state.jobId || '') + ' COMPLETE</span>';
+          // Fetch doc list and show completion banner in center pane
+          fetchDocs(state.jobId);
+          const completionBanner = {
+            _ts: new Date().toLocaleTimeString(),
+            type: 'PipelineComplete',
+            orchestrator: orch,
+            status: r.status,
+            gate: r.gate_id,
+          };
+          state.events.push(completionBanner);
+          if (state.activeTab === 'live') renderLive();
+          // Auto-switch to Generated Docs tab
+          setTimeout(() => switchTab('docs'), 1500);
         }
       }
 
-      // Store results
-      jobResults[`stage_${stageNum}`] = sr;
-
-      if (sr.status === 'completed') {
-        setStageStatus(stageNum, 'completed');
-        addLog(`Stage ${stageNum} completed`, 'ok');
-        updateDocTabs();
-      } else {
-        setStageStatus(stageNum, 'failed');
-        addLog(`Stage ${stageNum} failed: ${sr.error || 'unknown'}`, 'err');
+      // Progress events — update squad list
+      if (evtType === 'OrchestratorStarted') {
+        updatePipeline('JcidsOrchestrator', 'active');
+        const sl = document.getElementById('squadList');
+        if (sl) sl.innerHTML = '<div style="color:var(--accent)">Pipeline started...</div>';
       }
-    }
-
-    clearInterval(timer);
-
-    if (data.status === 'completed') {
-      setStatus('completed', 'Pipeline completed');
-      addLog('DoDAF pipeline completed successfully', 'ok');
-
-      // Auto-select last stage's output
-      if (stageResults.length > 0) {
-        const lastStage = stageResults[stageResults.length - 1].stage;
-        selectedDocTab = `${lastStage}_summary`;
-        updateDocTabs();
-        renderStageOverview(lastStage);
+      if (evtType === 'SquadStarted') {
+        const sl = document.getElementById('squadList');
+        const agents = (evt.agents || []).map(a => '<div style="margin-left:10px;color:var(--text2)">  ' + a + '</div>').join('');
+        if (sl) sl.innerHTML += '<div style="color:var(--green);margin-top:6px">▶ ' + (evt.squad||'') + '</div>' + agents;
       }
-    } else if (data.status === 'needs_human_review') {
-      setStatus('running', 'Awaiting HIL review');
-      addLog('Pipeline paused — Human-in-the-Loop review required', 'warn');
-    } else {
-      setStatus('failed', `Pipeline ${data.status}`);
-      addLog(`Pipeline finished: ${data.status}`, 'warn');
-    }
+      if (evtType === 'SquadCompleted') {
+        const sl = document.getElementById('squadList');
+        if (sl) sl.innerHTML += '<div style="color:var(--text2);margin-left:10px">✓ done (' + (evt.elapsed_s||'?') + 's)</div>';
+      }
+      if (evtType === 'OrchestratorCompleted') {
+        updatePipeline('JcidsOrchestrator', 'done');
+      }
 
-  } catch (err) {
-    clearInterval(timer);
-    setStatus('failed', 'Error');
-    addLog(`Error: ${err.message}`, 'err');
-  }
+      // LLM calls
+      if (evt.type === 'LLMCall' || (result && result.model_used)) {
+        state.llmEvents.push(evt);
+        document.getElementById('llm-count').textContent = state.llmEvents.length;
+      }
+      // Agent events
+      if (evtType.includes('Agent') || evtType.includes('Squad') || evtType.includes('Orchestrator') || evt.agent) {
+        state.agentEvents.push(evt);
+        document.getElementById('agent-count').textContent = state.agentEvents.length;
+      }
 
-  btn.disabled = false;
-  btn.textContent = 'Analyze Document';
+      document.getElementById('live-count').textContent = state.events.length;
+      if (state.activeTab === 'live') renderLive();
+      else if (state.activeTab === 'agents') renderAgents();
+      else if (state.activeTab === 'llm') renderLLM();
+    } catch(err) { console.error('SSE parse error', err); }
+  };
+  es.onopen = () => { dot.className = 'status-dot ok'; dot.title = 'SSE connected'; };
+  es.onerror = () => { dot.className = 'status-dot err'; dot.title = 'SSE disconnected'; };
 }
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+// ─── Pipeline dots ────────────────────────────────────
+function updatePipeline(orch, status) {
+  const map = {
+    'JcidsOrchestrator': 'dot-jcids',
+    'AcquisitionOrchestrator': 'dot-acq',
+    'SeOrchestrator': 'dot-se',
+    'TraceabilityOrchestrator': 'dot-router',
+  };
+  // Light up router as done since we got a result
+  const routerDot = document.getElementById('dot-router');
+  if (routerDot) routerDot.className = 'pipe-dot done';
 
-// ─── Init ───
-initStageList();
+  const dotId = map[orch];
+  if (dotId) {
+    const el = document.getElementById(dotId);
+    if (el) el.className = status === 'error' ? 'pipe-dot' : 'pipe-dot done';
+  }
+}
+
+// ─── Render tabs ──────────────────────────────────────
+function renderLive() {
+  const area = document.getElementById('feedArea');
+  const last50 = state.events.slice(-50);
+  area.innerHTML = last50.map(e => {
+    const t = e._ts || '';
+    const evtType = e.event_type || e.type || '?';
+    const orch = e.orchestrator || '';
+    const status = (e.result||{}).status || '';
+    let cls = 'result';
+    let detail = '';
+    if (evtType === 'OrchestratorStarted') { cls = 'orchestrator'; detail = (e.filename||'') + ' → ' + (e.document_type||''); }
+    else if (evtType === 'SquadStarted') { cls = 'squad'; detail = (e.squad||'') + ' (' + (e.total||'?') + ' agents: ' + (e.agents||[]).join(', ') + ')'; }
+    else if (evtType === 'SquadCompleted') { cls = 'squad'; detail = (e.squad||'') + ' done in ' + (e.elapsed_s||'?') + 's'; }
+    else if (evtType === 'OrchestratorCompleted') { cls = 'orchestrator'; detail = 'completed in ' + (e.elapsed_s||'?') + 's → gate: ' + (e.gate||''); }
+    else if (evtType === 'PipelineComplete') { cls = 'result'; detail = '✓ Processing Complete — ' + (e.orchestrator||'') + ' → ' + (e.gate||''); }
+    else if (evtType === 'loop_started') { cls = 'agent'; detail = (e.agent||'?') + ' — ValidationLoop started'; }
+    else if (evtType === 'hypothesis_generated') { cls = 'agent'; detail = (e.agent||'?') + ' — iteration ' + (e.iteration||'?') + ' hypothesis'; }
+    else if (evtType === 'validation_tool_invoked') { cls = 'llm'; detail = (e.agent||'?') + ' — iteration ' + (e.iteration||'?') + ' LLM validation'; }
+    else if (evtType === 'observation_evaluated') { cls = 'agent'; detail = (e.agent||'?') + ' — iteration ' + (e.iteration||'?') + ' confidence: ' + (e.confidence||'?'); }
+    else if (evtType === 'loop_continued') { cls = 'agent'; detail = (e.agent||'?') + ' — iteration ' + (e.iteration||'?') + ' continuing...'; }
+    else if (evtType === 'loop_finalized') { cls = 'result'; detail = (e.agent||'?') + ' — ✓ finalized at iteration ' + (e.iteration||'?') + ' confidence: ' + (e.confidence||'?'); }
+    else if (evtType === 'loop_escalated') { cls = 'gate'; detail = (e.agent||'?') + ' — ⚠ escalated to HIL'; }
+    else if (evtType === 'AgentCompleted') { cls = 'agent'; detail = (e.agent||'?') + ' — done'; }
+    else if (evtType.includes('Route')) { cls = 'router'; detail = orch; }
+    else if (evtType === 'LLMCall') { cls = 'llm'; detail = (e.agent||'?') + ' → ' + (e.model||'?') + ' (' + (e.latency_ms||'?') + 'ms)'; }
+    else { detail = (orch ? orch+' ' : '') + status; }
+    return `<div class="feed-entry"><span class="feed-ts">${t}</span><span class="feed-type ${cls}">${evtType}</span><span class="feed-detail">${detail}</span></div>`;
+  }).join('');
+  area.scrollTop = area.scrollHeight;
+}
+
+function renderAgents() {
+  const area = document.getElementById('feedArea');
+  const items = state.agentEvents.slice(-80);
+  area.innerHTML = items.length ? items.map(e => {
+    const t = e._ts || '';
+    const evtType = e.type || '?';
+    const agent = e.agent || '?';
+    let cls = 'agent';
+    let detail = '';
+    if (evtType === 'loop_started') { detail = 'ValidationLoop started'; }
+    else if (evtType === 'hypothesis_generated') { detail = 'iteration ' + (e.iteration||'?') + ' — forming hypothesis'; }
+    else if (evtType === 'validation_tool_invoked') { cls = 'llm'; detail = 'iteration ' + (e.iteration||'?') + ' — LLM validation'; }
+    else if (evtType === 'observation_evaluated') { detail = 'iteration ' + (e.iteration||'?') + ' — confidence: ' + (e.confidence||'?'); }
+    else if (evtType === 'loop_continued') { detail = 'iteration ' + (e.iteration||'?') + ' — below threshold, continuing'; }
+    else if (evtType === 'loop_finalized') { cls = 'result'; detail = '✓ finalized at iteration ' + (e.iteration||'?') + ' — confidence: ' + (e.confidence||'?'); }
+    else if (evtType === 'loop_escalated') { cls = 'gate'; detail = '⚠ escalated to HIL'; }
+    else if (evtType === 'AgentCompleted') { detail = 'completed'; }
+    else { detail = evtType; }
+    return `<div class="feed-entry"><span class="feed-ts">${t}</span><span class="feed-type ${cls}">${agent}</span><span class="feed-detail">${detail}</span></div>`;
+  }).join('') : '<div style="color:var(--text2);padding:20px">No agent events yet</div>';
+  area.scrollTop = area.scrollHeight;
+}
+
+function renderLLM() {
+  const area = document.getElementById('feedArea');
+  const items = state.llmEvents.slice(-50);
+  area.innerHTML = items.length ? items.map(e => {
+    const t = e._ts || '';
+    const model = e.model || '?';
+    const ms = e.latency_ms || '?';
+    const agent = e.agent || '?';
+    return `<div class="feed-entry"><span class="feed-ts">${t}</span><span class="feed-type llm">${model}</span><span class="feed-detail">${agent} ${ms}ms</span></div>`;
+  }).join('') : '<div style="color:var(--text2);padding:20px">No LLM calls yet</div>';
+}
+
+async function fetchDocs(jobId, retries) {
+  retries = retries || 0;
+  try {
+    const resp = await fetch(`/jobs/${jobId}/docs`);
+    if (resp.status === 404 && retries < 3) {
+      setTimeout(() => fetchDocs(jobId, retries + 1), 2000);
+      return;
+    }
+    const data = await resp.json();
+    state.docs = data.docs || [];
+    document.getElementById('docs-count').textContent = state.docs.length || '';
+    if (state.docs.length) console.log('Docs ready:', state.docs.length);
+  } catch(err) {
+    console.error('fetchDocs failed (retry ' + retries + '):', err);
+    if (retries < 3) setTimeout(() => fetchDocs(jobId, retries + 1), 3000);
+  }
+}
+
+function renderDocs() {
+  const area = document.getElementById('feedArea');
+  if (!state.docs || !state.docs.length) {
+    area.innerHTML = '<div style="color:var(--text2);padding:20px">No generated docs yet. Run the pipeline first.</div>';
+    return;
+  }
+  let html = '';
+  let curSection = '';
+  for (const doc of state.docs) {
+    if (doc.section !== curSection) {
+      curSection = doc.section;
+      html += `<div class="doc-section">${curSection}</div>`;
+    }
+    const sizeKb = (doc.size / 1024).toFixed(1);
+    html += `<div class="doc-item">
+      <span class="doc-name">${doc.agent}</span>
+      <span class="doc-size">${sizeKb} KB</span>
+      <a class="doc-dl" href="/jobs/${state.jobId}/view/${doc.id}" target="_blank" style="background:var(--accent)">View</a>
+      <a class="doc-dl" href="/jobs/${state.jobId}/docs/${doc.id}" download="${doc.filename}">Download</a>
+    </div>`;
+  }
+  area.innerHTML = html;
+}
+
+function switchTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  if (tab === 'live') renderLive();
+  else if (tab === 'agents') renderAgents();
+  else if (tab === 'llm') renderLLM();
+  else if (tab === 'docs') renderDocs();
+  else if (tab === 'arch') renderArch();
+}
+
+function renderArch() {
+  const area = document.getElementById('feedArea');
+  area.innerHTML = `
+<div style="padding:20px 24px;line-height:1.7;color:var(--text2);font-size:12px;max-width:900px">
+  <div style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:8px">Architecture-First Agentic AI</div>
+  <p>
+    This application is not just code that works — it is a <span style="color:var(--text)">Solution Building Block (SBB)</span>
+    built on the <span style="color:var(--accent)">K9-AIF Framework</span>, grounded in
+    <span style="color:var(--text)">Object-Oriented Analysis (OOA)</span>,
+    <span style="color:var(--text)">Object-Oriented Design (OOD)</span>, and
+    <span style="color:var(--text)">TOGAF architecture principles</span>.
+  </p>
+  <p style="margin-top:8px">
+    Every component — Router, Orchestrator, Squad, Agent — extends an abstract
+    <span style="color:var(--text)">Architecture Building Block (ABB)</span> contract defined by the framework.
+    This enforces <span style="color:var(--text)">three-layer decoupling</span> — Router knows only Orchestrators,
+    Orchestrators know only Squads, Squads know only Agents. No layer references its caller.
+  </p>
+  <p style="margin-top:8px">
+    The result is <span style="color:var(--text)">structural consistency across the enterprise</span>.
+    Whether a team builds an insurance operations center, a defense acquisition pipeline, or a supply chain optimizer —
+    the architecture is identical. Agent behavior is defined in YAML. Infrastructure is config-driven.
+    LLM calls go through a governed inference pipeline with weighted model routing.
+    Every solution is testable, auditable, and maintainable by any team that understands the framework —
+    not just the team that wrote it.
+  </p>
+  <p style="margin-top:8px">
+    As projects evolve, new agents are added without modifying orchestrators. New orchestrators are added without
+    touching the router. New LLM providers are swapped via config — no code changes.
+    This is <span style="color:var(--text)">architecture as a force multiplier</span>:
+    the framework absorbs complexity so domain teams focus on domain logic.
+  </p>
+  <div style="margin-top:16px;padding:12px 16px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:8px">
+    <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px">Open Source &amp; Adoptable</div>
+    <p style="margin:0">
+      K9-AIF is an <span style="color:var(--text)">open-source framework</span> designed for full organizational adoption.
+      It can be adopted, customized, and specialized for mission-specific workflows under the Apache 2.0 license.
+    </p>
+  </div>
+
+  <div style="margin-top:16px;padding:12px 16px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px">
+    <div style="font-size:12px;font-weight:600;color:var(--orange);margin-bottom:6px">About This Proof of Concept</div>
+    <p style="margin:0">
+      This demonstration uses a lightweight <span style="color:var(--text)">2B-parameter LLM (IBM Granite 3 Dense 2B)</span>
+      hosted locally on the same machine for testing. The output quality — depth of analysis, specificity of
+      DoDAF views, and richness of requirements traceability — is limited by the model's capacity.
+    </p>
+    <p style="margin:8px 0 0">
+      In a production deployment, a full-scale LLM such as
+      <span style="color:var(--text)">Anthropic Claude Opus, IBM Granite 34B, Meta Llama 70B,</span> or equivalent
+      would be used — delivering substantially richer and more accurate results.
+      The pipeline architecture, governance model, HITL gates, and document structure remain
+      <span style="color:var(--text)">identical</span> — only the model configuration changes. The framework is the constant;
+      the LLM is a pluggable variable.
+    </p>
+  </div>
+
+  <div style="margin-top:16px;padding:12px 16px;background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.25);border-radius:8px">
+    <div style="font-size:12px;font-weight:600;color:var(--teal);margin-bottom:6px">4Ds AI Fluency — Built Into Every Agent</div>
+    <p style="margin:0">
+      Every agent in this pipeline is designed using the
+      <span style="color:var(--text)">4Ds AI Fluency Framework</span> — four competencies that govern
+      how humans and AI collaborate responsibly:
+    </p>
+    <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">
+      <div><span style="color:var(--teal);font-weight:600">Delegation</span> — What does the AI do vs. what stays with the human?
+        Every HITL gate is non-delegable. Agents prepare; humans decide.</div>
+      <div><span style="color:var(--teal);font-weight:600">Description</span> — How is each agent instructed?
+        Role, goal, instructions, and output schema are defined in YAML — explicit, auditable, version-controlled.</div>
+      <div><span style="color:var(--teal);font-weight:600">Discernment</span> — How do we know the output is good?
+        Validation loop agents iterate until confidence thresholds are met. Low confidence triggers escalation, not silent failure.</div>
+      <div><span style="color:var(--teal);font-weight:600">Diligence</span> — Is every action traceable?
+        Every LLM call, agent decision, and gate outcome is logged, auditable, and stored with provenance.</div>
+    </div>
+  </div>
+</div>
+
+<div style="padding:0 16px 16px">
+  <div class="mermaid" id="mermaid-seq">
+sequenceDiagram
+    participant UI as Browser UI
+    participant API as App Backend
+    participant K as Kafka
+    participant R as DasRouter
+    participant JO as JCIDS Orchestrator
+    participant VG as ViewGeneration Squad
+    participant GR as GateReadiness Squad
+    participant PA as PackageAssembly Squad
+    participant LLM as Ollama LLM
+    participant S3 as MinIO S3
+    participant HIL as HITL Gate
+
+    UI->>API: Upload document
+    API->>K: Publish to dow.router.in
+    API-->>UI: job_id + correlation_id
+
+    K->>R: Consume event
+    R->>R: Classify document_type
+    R->>K: Publish to das.jcids
+    Note over R: Deterministic routing
+
+    K->>JO: Consume from das.jcids
+    JO->>K: OrchestratorStarted
+
+    rect rgb(30, 41, 59)
+        Note over JO,LLM: ViewGeneration Squad
+        JO->>VG: execute(payload)
+        VG->>LLM: ModelExtractorAgent
+        LLM-->>VG: extracted model elements
+        VG->>LLM: ViewGeneratorAgent
+        LLM-->>VG: DoDAF views (OV/SV/CV)
+        VG->>LLM: ConsistencyCheckerAgent
+        LLM-->>VG: consistency report
+        VG-->>JO: view_generation result
+    end
+
+    JO->>K: SquadCompleted
+
+    rect rgb(30, 41, 59)
+        Note over JO,LLM: GateReadiness Squad
+        JO->>GR: execute(payload + views)
+        GR->>GR: CriteriaLoaderAgent
+        GR->>LLM: EvidenceCollectorAgent
+        LLM-->>GR: evidence collected
+        GR->>LLM: ReadinessScorerAgent
+        LLM-->>GR: readiness score
+        GR->>LLM: GapReporterAgent
+        LLM-->>GR: gap report
+        GR-->>JO: gate_readiness result
+    end
+
+    JO->>K: SquadCompleted
+
+    rect rgb(30, 41, 59)
+        Note over JO,LLM: PackageAssembly Squad
+        JO->>PA: execute(payload + views + gate)
+        PA->>PA: ArtifactFetcherAgent
+        PA->>LLM: CompletenessCheckerAgent
+        LLM-->>PA: completeness check
+        PA->>LLM: PackageBuilderAgent
+        LLM-->>PA: review package
+        PA-->>JO: review_package result
+    end
+
+    JO->>S3: Store results to DAS-results/
+    JO->>K: Publish to das.results
+    K-->>API: SSE stream to browser
+    API-->>UI: Live Feed + Generated Docs
+
+    Note over HIL: JROC-VALIDATION Gate
+    HIL->>HIL: Human reviews package
+    HIL->>K: gate_approved / gate_rejected
+  </div>
+</div>`;
+  area.innerHTML += `
+<div style="padding:16px;border-top:1px solid var(--border)">
+  <div class="mermaid" id="mermaid-cls">
+classDiagram
+    direction LR
+
+    class BaseRouter {
+        &lt;&lt;ABB&gt;&gt;
+        +route(payload) dict
+    }
+    class BaseOrchestrator {
+        &lt;&lt;ABB&gt;&gt;
+        +execute_flow(payload) dict
+    }
+    class BaseSquad {
+        &lt;&lt;ABB&gt;&gt;
+        +execute(payload) dict
+        +flow: list
+    }
+    class BaseAgent {
+        &lt;&lt;ABB&gt;&gt;
+        +execute(payload) dict
+        +publish_event(event)
+    }
+    class K9EventBus {
+        &lt;&lt;ABB&gt;&gt;
+        +publish(event)
+        +subscribe_async(callback)
+    }
+    class K9ModelRouter {
+        &lt;&lt;ABB&gt;&gt;
+        +route(request) RouteDecision
+        +invoke(request) InferenceResponse
+    }
+
+    class DasRouter {
+        &lt;&lt;SBB&gt;&gt;
+        +route(payload) dict
+    }
+    class JcidsOrchestrator {
+        &lt;&lt;SBB&gt;&gt;
+        +execute_flow(payload) dict
+    }
+    class AcquisitionOrchestrator {
+        &lt;&lt;SBB&gt;&gt;
+    }
+    class SeOrchestrator {
+        &lt;&lt;SBB&gt;&gt;
+    }
+    class ModelExtractorAgent {
+        &lt;&lt;SBB&gt;&gt;
+    }
+    class ViewGeneratorAgent {
+        &lt;&lt;SBB&gt;&gt;
+    }
+    class EvidenceCollectorAgent {
+        &lt;&lt;SBB&gt;&gt;
+    }
+
+    BaseRouter &lt;|-- DasRouter
+    BaseOrchestrator &lt;|-- JcidsOrchestrator
+    BaseOrchestrator &lt;|-- AcquisitionOrchestrator
+    BaseOrchestrator &lt;|-- SeOrchestrator
+    BaseAgent &lt;|-- ModelExtractorAgent
+    BaseAgent &lt;|-- ViewGeneratorAgent
+    BaseAgent &lt;|-- EvidenceCollectorAgent
+
+    DasRouter ..> K9EventBus : publishes via
+    JcidsOrchestrator ..> BaseSquad : loads squads
+    BaseSquad ..> BaseAgent : executes agents
+    BaseAgent ..> K9ModelRouter : llm_invoke()
+  </div>
+</div>`;
+  mermaid.run({nodes: [document.getElementById('mermaid-seq'), document.getElementById('mermaid-cls')]});
+}
+
+// ─── Upload / Demo ───────────────────────────────────
+async function upload() {
+  const fi = document.getElementById('fileInput');
+  const demoSel = document.getElementById('demoSelect');
+  const dt = document.getElementById('docType').value;
+  const btn = document.getElementById('btnUpload');
+
+  const isDemo = demoSel.value && !fi.files.length;
+  const isFile = fi.files.length > 0;
+  if (!isDemo && !isFile) { alert('Select a demo document or upload a file'); return; }
+
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  const resultArea = document.getElementById('resultArea');
+  resultArea.textContent = 'Submitting to DAS pipeline...';
+
+  // Reset
+  document.querySelectorAll('.pipe-dot').forEach(d => {
+    d.className = d.className.includes('gate') ? 'pipe-dot gate' : 'pipe-dot';
+  });
+  state.events = []; state.agentEvents = []; state.llmEvents = []; state.docs = [];
+  renderLive();
+
+  try {
+    let resp;
+    if (isDemo) {
+      resp = await fetch(`/jobs/demo/${demoSel.value}`, { method: 'POST' });
+    } else {
+      const fd = new FormData();
+      fd.append('file', fi.files[0]);
+      fd.append('document_type', dt);
+      resp = await fetch('/jobs/upload', { method: 'POST', body: fd });
+    }
+    const data = await resp.json();
+    state.jobId = data.job_id;
+    state.corrId = data.correlation_id;
+
+    document.getElementById('jobStatus').innerHTML = '<span class="job-badge submitted">' + data.job_id + ' SUBMITTED</span>';
+    resultArea.textContent = JSON.stringify(data, null, 2) + '\n\nWaiting for pipeline results via SSE...';
+    document.getElementById('squadList').innerHTML = '<div style="color:var(--text2)">Waiting for pipeline...</div>';
+    switchTab('live');
+  } catch(err) {
+    resultArea.textContent = 'Error: ' + err.message;
+  }
+  btn.disabled = false; btn.textContent = 'Analyze';
+}
+
+// ─── Init ─────────────────────────────────────────────
+connectSSE();
+
+// Load demo documents into dropdown
+fetch('/demos').then(r=>r.json()).then(d=>{
+  const sel = document.getElementById('demoSelect');
+  if (!d.demos || !d.demos.length) return;
+  d.demos.forEach(demo => {
+    const opt = document.createElement('option');
+    opt.value = demo.filename;
+    opt.textContent = demo.name;
+    sel.appendChild(opt);
+  });
+}).catch(()=>{});
+
+function selectDemo() {
+  const sel = document.getElementById('demoSelect');
+  const info = document.getElementById('demoInfo');
+  const fi = document.getElementById('fileInput');
+  if (sel.value) {
+    info.style.display = 'block';
+    info.innerHTML = 'Selected: <span style="color:var(--accent)">' + sel.options[sel.selectedIndex].text + '</span>';
+    fi.value = '';
+  } else {
+    info.style.display = 'none';
+  }
+}
+
+function clearDemo() {
+  document.getElementById('demoSelect').value = '';
+  document.getElementById('demoInfo').style.display = 'none';
+}
+
+fetch('/llm').then(r=>r.json()).then(d=>{
+  const el = document.getElementById('llmInfo');
+  if(el) el.innerHTML = '<span style="color:var(--green)">&#9679;</span> ' + (d.ollama_model||'?') + ' <span style="color:var(--text2)">@</span> ' + (d.ollama_host||'?').replace('http://','');
+}).catch(()=>{});
 </script>
 </body>
 </html>

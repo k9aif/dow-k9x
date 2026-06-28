@@ -1,157 +1,115 @@
 # SPDX-License-Identifier: Apache-2.0
-# DoW Architecture Workbench — Router Runtime Process
+# DoW Architecture Workbench — Router Process (Process 2 of 3)
 #
-# Kafka consumer on: dow.router.in
-# Publishes to: dow.orchestrator.in / dow.jcids.in / dow.se.in / dow.console.out
+# Async Kafka consumer that routes events from dow.router.in
+# to the correct pipeline topic via DasRouter.
 #
-# For each uploaded document event:
-#   1. Fetches original file from S3
-#   2. If .md/.txt → uses as-is; else → Docling normalization (optional)
-#   3. Deterministic routing based on document_type
-#   4. Publishes routed event to the correct pipeline topic
-
-from __future__ import annotations
+# Usage:
+#   python -m k9_dow.runtime.dow_router_process
 
 import asyncio
-import json
 import logging
-from datetime import datetime, timezone
+import os
+from pathlib import Path
 
-from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
-from kafka.admin import KafkaAdminClient, NewTopic
-from kafka.errors import TopicAlreadyExistsError
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parents[3] / ".env", override=False)
+except ImportError:
+    pass
 
-from k9_dow.config.settings import settings
-from k9_dow.routers.dow_document_router import DowDocumentRouter
-from k9_dow.agents.src.document_normalization_agent import DocumentNormalizationAgent
+from k9_aif_abb.k9_utils.config_loader import load_yaml
+from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
+from k9_dow.routers.das_router import DasRouter, DAS_TOPICS
 
-log = logging.getLogger("DoWRouter")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+)
+log = logging.getLogger("dow.router_process")
+
+INBOUND_TOPIC = "dow.router.in"
+GROUP_ID = "dow-router"
 
 
-def _ensure_topics(broker: str, topics: dict):
+def _load_config() -> dict:
+    config_path = Path(__file__).resolve().parents[1] / "config" / "config.yaml"
     try:
-        admin = KafkaAdminClient(bootstrap_servers=broker)
-        existing = set(admin.list_topics())
-        needed = set(topics.values()) - existing
-        if needed:
-            admin.create_topics(
-                [NewTopic(name=t, num_partitions=1, replication_factor=1) for t in needed]
-            )
-            log.info("[Router] Created topics: %s", ", ".join(needed))
-        else:
-            log.info("[Router] All topics exist.")
+        return load_yaml(config_path)
     except Exception as exc:
-        log.warning("[Router] Topic check failed: %s", exc)
+        log.warning("Config load skipped: %s", exc)
+        return {}
 
 
-_ROUTE_TO_TOPIC = {
-    "dodaf_pipeline": "orchestrator_in",
-    "jcids_pipeline": "jcids_in",
-    "se_pipeline": "se_in",
-    "business_pipeline": "orchestrator_in",
-    "unknown_pipeline": "orchestrator_in",
-}
+async def main() -> None:
+    config = _load_config()
 
+    from k9_dow.utils.health_check import check_dependencies
+    log.info("DAS Router — dependency check:")
+    if not check_dependencies(config, require_kafka=True):
+        log.error("Required dependencies are not available — aborting.")
+        return
 
-async def run_router():
-    config = settings.load_yaml("config.yaml")
-    messaging = config.get("messaging", {})
-    broker = messaging.get("bootstrap_servers", "localhost:9092")
-    topics = messaging.get("topics", {})
-
-    _ensure_topics(broker, topics)
-
-    router = DowDocumentRouter(config=config)
-    normalizer = DocumentNormalizationAgent(config=config)
-
-    consumer = AIOKafkaConsumer(
-        topics.get("router_in", "dow.router.in"),
-        bootstrap_servers=broker,
-        group_id="dow_router_v1",
-        auto_offset_reset="latest",
+    brokers_raw = (
+        os.environ.get("KAFKA_BOOTSTRAP_SERVERS")
+        or config.get("messaging", {}).get("bootstrap_servers", "localhost:9092")
     )
-    producer = AIOKafkaProducer(bootstrap_servers=broker)
+    brokers = [b.strip() for b in brokers_raw.split(",") if b.strip()]
+    broker = brokers[0]
 
-    await producer.start()
-    await consumer.start()
+    router = DasRouter(config=config)
+    log.info("[RouterProcess] Initialized | broker=%s | inbound=%s", broker, INBOUND_TOPIC)
 
-    log.info("[Router] Listening on %s at %s", topics.get("router_in"), broker)
+    outbound_buses: dict[str, K9EventBus] = {}
+    for label, topic in DAS_TOPICS.items():
+        outbound_buses[topic] = K9EventBus(
+            broker_url=broker,
+            topic=topic,
+            group_id=f"dow-router-pub-{label}",
+        )
 
-    # Ready signal
-    await producer.send_and_wait(
-        topics.get("console_out", "dow.console.out"),
-        json.dumps({
-            "type": "console",
-            "stage_name": "ROUTER",
-            "stage_status": "ready",
-            "message": "DoW Router is ready and listening for documents",
-        }).encode("utf-8"),
+    inbound_bus = K9EventBus(
+        broker_url=broker,
+        topic=INBOUND_TOPIC,
+        group_id=GROUP_ID,
     )
 
+    async def handle(payload: dict) -> None:
+        event_type = payload.get("event_type", "")
+        corr = payload.get("correlation_id", "")
+        log.info("[RouterProcess] Received event_type=%s corr=%s", event_type, corr)
+        try:
+            routed = router.route(payload)
+            route_to = routed.get("route_to", "")
+            classification = routed.get("classification", "")
+
+            bus = outbound_buses.get(route_to)
+            if bus:
+                bus.publish(payload)
+                if bus._producer:
+                    bus._producer.flush()
+                print(
+                    f"\n  ▶ ROUTER  PUBLISH  event_type='{event_type}'  →  topic='{route_to}'  ({classification})  corr={corr}\n",
+                    flush=True,
+                )
+            else:
+                log.warning("[RouterProcess] No outbound bus for topic=%s", route_to)
+        except Exception as exc:
+            log.error("[RouterProcess] Routing failed: %s", exc, exc_info=True)
+
+    log.info("[RouterProcess] Starting K9EventBus async consumer …")
     try:
-        async for msg in consumer:
-            try:
-                event = json.loads(msg.value.decode("utf-8"))
-            except Exception:
-                continue
-
-            job_id = event.get("job_id", "unknown")
-            log.info("[Router] Received event for job=%s", job_id)
-
-            # Normalize
-            norm_result = normalizer.execute({
-                "source_markdown": event.get("text", ""),
-                "metadata": event.get("metadata", {}),
-            })
-            normalized_md = norm_result.get("output") or norm_result.get("markdown") or event.get("text", "")
-
-            # Route
-            routing = router.route({
-                "job_id": job_id,
-                "filename": event.get("filename", ""),
-                "markdown": normalized_md,
-                "document_type": event.get("document_type", ""),
-            })
-
-            route_to = routing.get("route_to", "unknown_pipeline")
-            dest_topic_key = _ROUTE_TO_TOPIC.get(route_to, "orchestrator_in")
-            dest_topic = topics.get(dest_topic_key, "dow.orchestrator.in")
-
-            out_event = {
-                "job_id": job_id,
-                "filename": event.get("filename"),
-                "normalized_markdown": normalized_md,
-                "routing_decision": routing,
-                "document_type": event.get("document_type"),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-
-            await producer.send_and_wait(
-                dest_topic, json.dumps(out_event).encode("utf-8"),
-            )
-
-            log.info("[Router] Routed job=%s → %s (topic=%s)", job_id, route_to, dest_topic)
-
-            await producer.send_and_wait(
-                topics.get("console_out", "dow.console.out"),
-                json.dumps({
-                    "type": "console",
-                    "job_id": job_id,
-                    "stage_name": "ROUTER",
-                    "stage_status": "completed",
-                    "message": f"Routed to {route_to} (topic={dest_topic})",
-                }).encode("utf-8"),
-            )
-
+        await inbound_bus.subscribe_async(handle)
     finally:
-        await consumer.stop()
-        await producer.stop()
-        log.info("[Router] Stopped.")
+        for bus in outbound_buses.values():
+            bus.close()
+        log.info("[RouterProcess] Shutdown complete.")
 
 
 if __name__ == "__main__":
     try:
-        asyncio.run(run_router())
+        asyncio.run(main())
     except KeyboardInterrupt:
-        log.info("Shutdown requested.")
+        log.info("[RouterProcess] Shutdown requested.")
+    except Exception as exc:
+        log.error("[RouterProcess] Fatal: %s", exc, exc_info=True)

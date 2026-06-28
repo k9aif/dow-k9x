@@ -20,5 +20,8 @@ object_store/
 .vscode/
 *.swp
 
+# Sample DoD documents — large PDFs, do not commit
+docs/samples/
+
 # Credentials — never commit
 watsonx-apikey.json

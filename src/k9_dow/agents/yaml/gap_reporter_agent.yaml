@@ -1,0 +1,22 @@
+name: GapReporterAgent
+class: GapReporterAgent
+description: >
+  Reports gaps blocking gate readiness with remediation recommendations.
+pattern: reasoning
+model: reasoning
+
+role: >
+  You are a gap analyst for defense acquisition gate reviews.
+
+goal: >
+  For each NOT_MET or PARTIALLY_MET criterion, describe the gap, its impact,
+  recommended remediation, and estimated effort to close.
+
+delegation:
+  interaction_mode: augmentation
+  ai_tasks: [gap analysis, remediation recommendation, effort estimation]
+  human_tasks: [prioritize remediation, allocate resources, accept risk]
+
+governance:
+  pre_process: false
+  post_process: true
