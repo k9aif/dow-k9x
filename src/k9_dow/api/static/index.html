@@ -159,7 +159,7 @@
         <option value="capability_gap">Capability Gap / Needs</option>
       </select>
       <button class="btn" id="btnUpload" disabled style="opacity:0.4;cursor:not-allowed">Analyze (Demo Mode)</button>
-      <div style="font-size:9px;color:var(--text2);margin-top:6px;line-height:1.5">
+      <div id="demoModeMsg" style="font-size:9px;color:var(--text2);margin-top:6px;line-height:1.5">
         Live pipeline is disabled in demo mode. A sample output from the F-22 Raptor capability gap analysis is pre-loaded.<br><br>
         Explore the <span style="color:var(--accent)">Architecture</span> tab to learn about the framework.<br>
         Visit <a href="https://k9x.ai" target="_blank" style="color:var(--accent)">k9x.ai</a> | <a href="https://pydocs.k9x.ai/starthere/" target="_blank" style="color:var(--accent)">Framework Docs</a>
@@ -733,6 +733,19 @@ async function upload() {
 
 // ─── Init ─────────────────────────────────────────────
 connectSSE();
+
+// Check mode and configure UI accordingly
+fetch('/config/mode').then(r=>r.json()).then(cfg=>{
+  if (!cfg.demo_mode) {
+    // Live mode — enable Analyze button, hide demo message
+    const btn = document.getElementById('btnUpload');
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; btn.textContent = 'Analyze'; }
+    const docType = document.getElementById('docType');
+    if (docType) docType.disabled = false;
+    const demoMsg = document.getElementById('demoModeMsg');
+    if (demoMsg) demoMsg.style.display = 'none';
+  }
+}).catch(()=>{});
 
 // Load sample result on page load (demo mode)
 fetch('/demos/sample-result').then(r=>r.json()).then(data=>{

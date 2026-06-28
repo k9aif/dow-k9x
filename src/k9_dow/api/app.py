@@ -128,6 +128,14 @@ async def sample_result():
     return data
 
 
+DEMO_MODE = os.environ.get("DEMO_MODE", "ON").upper() == "ON"
+
+
+@app.get("/config/mode")
+async def get_mode():
+    return {"demo_mode": DEMO_MODE}
+
+
 @app.get("/demos")
 async def list_demos():
     if not _DEMOS_DIR.exists():

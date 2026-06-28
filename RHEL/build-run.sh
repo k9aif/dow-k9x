@@ -133,8 +133,36 @@ ENVEOF
     echo "  sudo podman logs -f ${POD_NAME}-das-orchestrator"
     ;;
 
+  demo)
+    echo "Starting DAS in demo mode (app-backend only, no router/orchestrator) ..."
+    sudo podman run -d --rm \
+      --name das-demo \
+      -p 8000:8000 \
+      --add-host rhel-host:192.168.1.98 \
+      -e DEMO_MODE=ON \
+      -e K9_ENV=development \
+      -e KAFKA_BOOTSTRAP_SERVERS=rhel-host:9092 \
+      -e OLLAMA_HOST=http://rhel-host:11434 \
+      -e OLLAMA_MODEL=granite3-dense:2b \
+      -e POSTGRES_HOST=rhel-host \
+      -e POSTGRES_DB=dow \
+      -e POSTGRES_USER=postgres \
+      -e K9_PG_PASSWORD=postgres \
+      "$IMAGE" \
+      uvicorn k9_dow.api.app:app --host 0.0.0.0 --port 8000 --log-level info
+    HOST_IP=$(hostname -I | awk '{print $1}')
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  DAS — Demo Mode (static sample output)"
+    echo "  Web UI:  http://${HOST_IP}:8000/"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "  Stop:  sudo podman stop das-demo"
+    ;;
+
   down)
     echo "Stopping pod: $POD_NAME ..."
+    sudo podman stop das-demo 2>/dev/null || true
     sudo podman play kube "$DEPLOY_DIR/dow-k9-aif/RHEL/das-pod.yaml" --down || true
     echo "Pod stopped."
     ;;
