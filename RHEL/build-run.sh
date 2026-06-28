@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # K9-AIF DAS — Podman build and deploy helper
-# Run from any directory on RHEL.
+# Run from any directory on RHEL (no sudo needed — script handles it).
 #
 # Commands:
 #   clone        — clone both repos from GitHub
@@ -82,7 +82,7 @@ ENVEOF
   build)
     echo "Building $IMAGE from $DEPLOY_DIR ..."
     cd "$DEPLOY_DIR"
-    podman build -t "$IMAGE" \
+    sudo podman build -t "$IMAGE" \
       -f "dow-k9-aif/RHEL/Containerfile" \
       .
     echo "Build complete: $IMAGE"
@@ -94,19 +94,19 @@ ENVEOF
 
     # Neo4j password
     NEO4J_PW=$(grep -E '^NEO4J_PASSWORD=' "$ENV_FILE" | cut -d= -f2- | tr -d '[:space:]')
-    if podman secret exists neo4j-password 2>/dev/null; then
-      podman secret rm neo4j-password
+    if sudo podman secret exists neo4j-password 2>/dev/null; then
+      sudo podman secret rm neo4j-password
     fi
-    printf '%s' "$NEO4J_PW" | podman secret create neo4j-password -
+    printf '%s' "$NEO4J_PW" | sudo podman secret create neo4j-password -
     echo "Secret 'neo4j-password' stored."
 
     # Postgres password
     PG_PW=$(grep -E '^K9_PG_PASSWORD=' "$ENV_FILE" | cut -d= -f2- | tr -d '[:space:]')
     if [[ -n "$PG_PW" ]]; then
-      if podman secret exists pg-password 2>/dev/null; then
-        podman secret rm pg-password
+      if sudo podman secret exists pg-password 2>/dev/null; then
+        sudo podman secret rm pg-password
       fi
-      printf '%s' "$PG_PW" | podman secret create pg-password -
+      printf '%s' "$PG_PW" | sudo podman secret create pg-password -
       echo "Secret 'pg-password' stored."
     else
       echo "Warning: K9_PG_PASSWORD not found in .env"
@@ -115,10 +115,10 @@ ENVEOF
 
   up)
     echo "Deploying pod: $POD_NAME (3 containers) ..."
-    podman play kube "$DEPLOY_DIR/dow-k9-aif/RHEL/das-pod.yaml" --replace
+    sudo podman play kube "$DEPLOY_DIR/dow-k9-aif/RHEL/das-pod.yaml" --replace
     echo ""
     echo "Pod running. Containers:"
-    podman ps --filter "pod=$POD_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Command}}"
+    sudo podman ps --filter "pod=$POD_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Command}}"
     echo ""
     HOST_IP=$(hostname -I | awk '{print $1}')
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -128,36 +128,36 @@ ENVEOF
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "Logs:"
-    echo "  podman logs -f ${POD_NAME}-app-backend"
-    echo "  podman logs -f ${POD_NAME}-das-router"
-    echo "  podman logs -f ${POD_NAME}-das-orchestrator"
+    echo "  sudo podman logs -f ${POD_NAME}-app-backend"
+    echo "  sudo podman logs -f ${POD_NAME}-das-router"
+    echo "  sudo podman logs -f ${POD_NAME}-das-orchestrator"
     ;;
 
   down)
     echo "Stopping pod: $POD_NAME ..."
-    podman play kube "$DEPLOY_DIR/dow-k9-aif/RHEL/das-pod.yaml" --down || true
+    sudo podman play kube "$DEPLOY_DIR/dow-k9-aif/RHEL/das-pod.yaml" --down || true
     echo "Pod stopped."
     ;;
 
   status)
     echo "=== Pod ==="
-    podman pod ps --filter "name=$POD_NAME"
+    sudo podman pod ps --filter "name=$POD_NAME"
     echo ""
     echo "=== Containers ==="
-    podman ps -a --filter "pod=$POD_NAME" \
+    sudo podman ps -a --filter "pod=$POD_NAME" \
       --format "table {{.Names}}\t{{.Status}}\t{{.RestartCount}}\t{{.Command}}"
     ;;
 
   logs)
-    podman logs -f "${POD_NAME}-app-backend"
+    sudo podman logs -f "${POD_NAME}-app-backend"
     ;;
 
   logs-router)
-    podman logs -f "${POD_NAME}-das-router"
+    sudo podman logs -f "${POD_NAME}-das-router"
     ;;
 
   logs-orch)
-    podman logs -f "${POD_NAME}-das-orchestrator"
+    sudo podman logs -f "${POD_NAME}-das-orchestrator"
     ;;
 
   all)
