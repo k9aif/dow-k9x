@@ -519,6 +519,12 @@ function renderArch() {
       <span style="color:var(--text)">identical</span> — only the model configuration changes. The framework is the constant;
       the LLM is a pluggable variable.
     </p>
+    <p style="margin:8px 0 0">
+      In a production deployment, a <span style="color:var(--text)">Domain Retriever</span> would also be configured —
+      connecting agents to knowledge corpus data sources (regulations, standards, prior architectures, organizational policies)
+      to retrieve domain knowledge and enrich each agent's context. This is vital to producing rich output documents
+      that comply with organizational and regulatory standards. This demo does not include the Domain Retriever.
+    </p>
   </div>
 
   <div style="margin-top:16px;padding:12px 16px;background:rgba(20,184,166,0.08);border:1px solid rgba(20,184,166,0.25);border-radius:8px">
