@@ -1,0 +1,24 @@
+[Unit]
+Description=K9-AIF DAS — k9-dow-pod (3-container Podman pod)
+Documentation=https://das.k9x.ai
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=DAS_DEPLOY_DIR=/home/ravinata/ai/das-dev-pod-deployment
+
+ExecStart=/usr/bin/podman play kube \
+    ${DAS_DEPLOY_DIR}/dow-k9-aif/RHEL/das-pod.yaml \
+    --replace
+
+ExecStop=/usr/bin/podman play kube \
+    ${DAS_DEPLOY_DIR}/dow-k9-aif/RHEL/das-pod.yaml \
+    --down
+
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
