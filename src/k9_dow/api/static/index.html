@@ -335,7 +335,7 @@ function renderLive() {
     else if (evtType === 'observation_evaluated') { cls = 'agent'; detail = (e.agent||'?') + ' — iteration ' + (e.iteration||'?') + ' confidence: ' + (e.confidence||'?'); }
     else if (evtType === 'loop_continued') { cls = 'agent'; detail = (e.agent||'?') + ' — iteration ' + (e.iteration||'?') + ' continuing...'; }
     else if (evtType === 'loop_finalized') { cls = 'result'; detail = (e.agent||'?') + ' — ✓ finalized at iteration ' + (e.iteration||'?') + ' confidence: ' + (e.confidence||'?'); }
-    else if (evtType === 'loop_escalated') { cls = 'gate'; detail = (e.agent||'?') + ' — ⚠ escalated to HIL'; }
+    else if (evtType === 'loop_escalated') { cls = 'gate'; detail = (e.agent||'?') + ' — ⚠ escalated for human review'; }
     else if (evtType === 'AgentCompleted') { cls = 'agent'; detail = (e.agent||'?') + ' — done'; }
     else if (evtType.includes('Route')) { cls = 'router'; detail = orch; }
     else if (evtType === 'LLMCall') { cls = 'llm'; detail = (e.agent||'?') + ' → ' + (e.model||'?') + ' (' + (e.latency_ms||'?') + 'ms)'; }
@@ -360,7 +360,7 @@ function renderAgents() {
     else if (evtType === 'observation_evaluated') { detail = 'iteration ' + (e.iteration||'?') + ' — confidence: ' + (e.confidence||'?'); }
     else if (evtType === 'loop_continued') { detail = 'iteration ' + (e.iteration||'?') + ' — below threshold, continuing'; }
     else if (evtType === 'loop_finalized') { cls = 'result'; detail = '✓ finalized at iteration ' + (e.iteration||'?') + ' — confidence: ' + (e.confidence||'?'); }
-    else if (evtType === 'loop_escalated') { cls = 'gate'; detail = '⚠ escalated to HIL'; }
+    else if (evtType === 'loop_escalated') { cls = 'gate'; detail = '⚠ escalated for human review'; }
     else if (evtType === 'AgentCompleted') { detail = 'completed'; }
     else { detail = evtType; }
     return `<div class="feed-entry"><span class="feed-ts">${t}</span><span class="feed-type ${cls}">${agent}</span><span class="feed-detail">${detail}</span></div>`;
@@ -561,7 +561,7 @@ sequenceDiagram
     participant PA as PackageAssembly Squad
     participant LLM as Ollama LLM
     participant S3 as MinIO S3
-    participant HIL as HITL Gate
+    participant GATE as DAS Gate Registry
 
     UI->>API: Upload document
     API->>K: Publish to dow.router.in
@@ -620,9 +620,11 @@ sequenceDiagram
     K-->>API: SSE stream to browser
     API-->>UI: Live Feed + Generated Docs
 
-    Note over HIL: JROC-VALIDATION Gate
-    HIL->>HIL: Human reviews package
-    HIL->>K: gate_approved / gate_rejected
+    Note over API: Status: awaiting_gate (JROC-VALIDATION)
+    API->>GATE: POST /gates/{gate_id}/decide
+    GATE->>GATE: record_decision()
+    GATE-->>API: state + may_proceed
+    Note over GATE: Self-contained within DAS's own API —<br/>not yet connected to the separate K9X HIL<br/>platform (hil.k9x.ai) via Kafka
   </div>
 </div>`;
   area.innerHTML += `
