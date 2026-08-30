@@ -172,11 +172,15 @@ class JcidsOrchestrator(BaseOrchestrator):
             "review_package": package_result,
         }
 
-        self._store_to_s3(job_id, result)
+        s3_uri = self._store_to_s3(job_id, result)
+        self._publish_hil_task(job_id, result, s3_uri)
         return result
 
-    def _store_to_s3(self, job_id: str, result: dict):
-        """Store generated docs to S3 under DAS_results/yyyymmdd/job_id/."""
+    def _store_to_s3(self, job_id: str, result: dict) -> Optional[str]:
+        """Store generated docs to S3 under DAS_results/yyyymmdd/job_id/.
+
+        Returns the URI of the stored result.json summary, or None on failure.
+        """
         try:
             import json
             from datetime import datetime
@@ -210,5 +214,54 @@ class JcidsOrchestrator(BaseOrchestrator):
 
             log.info("[JCIDS] Stored results to S3 bucket=%s prefix=%s/%s", bucket, date_prefix, job_id)
             print(f"  ☁ Results stored to S3: {bucket}/{date_prefix}/{job_id}/", flush=True)
+            return store.get_uri(bucket, summary_key)
         except Exception as exc:
             log.warning("[JCIDS] S3 storage failed (non-fatal): %s", exc)
+            return None
+
+    def _publish_hil_task(self, job_id: str, result: dict, s3_uri: Optional[str]):
+        """Publish a HIL task for the JROC-VALIDATION gate to Kafka.
+
+        This is a fire-and-forget publish only: DAS does not consume a
+        reply topic, and no downstream orchestrator resumes automatically
+        on approval. That loop is a disclosed, unimplemented POC gap —
+        this method's only job is to make the pending decision visible
+        and actionable in K9X HIL.
+        """
+        try:
+            from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
+
+            broker = self.config.get("messaging", {}).get("bootstrap_servers", "localhost:9092")
+            gap_report = result.get("gate_readiness", {}).get("GapReporterAgent", {})
+            readiness = result.get("gate_readiness", {}).get("ReadinessScorerAgent", {})
+
+            task = {
+                "title": f"JROC-VALIDATION review — {job_id}",
+                "description": "DAS JCIDS pipeline complete; program manager or JROC "
+                               "representative review requested before proceeding to Acquisition.",
+                "source_orchestrator": "JcidsOrchestrator",
+                "source_topic": "das.jcids",
+                "reply_to": "das.jroc.replies",
+                "correlation_id": job_id,
+                "priority": "high",
+                "payload": {
+                    "job_id": job_id,
+                    "gate_id": result.get("gate_id", "JROC-VALIDATION"),
+                    "readiness_score": readiness.get("output") if isinstance(readiness, dict) else None,
+                    "gap_summary": gap_report.get("output") if isinstance(gap_report, dict) else None,
+                },
+                "artifacts": [s3_uri] if s3_uri else [],
+                "pii": False,
+                "ttl_hours": 168,
+                "ttl_action": "reject",
+            }
+
+            bus = K9EventBus(broker_url=broker, topic="workflow.hil.das.jroc", group_id="das-jcids")
+            bus.publish(task)
+            if bus._producer:
+                bus._producer.flush()
+            bus.close()
+            log.info("[JCIDS] Published HIL task for job=%s to workflow.hil.das.jroc", job_id)
+            print(f"  → HIL task published: workflow.hil.das.jroc (job={job_id})", flush=True)
+        except Exception as exc:
+            log.warning("[JCIDS] HIL task publish failed (non-fatal): %s", exc)

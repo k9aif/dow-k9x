@@ -11,6 +11,7 @@ output_reports/
 *.db
 .pytest_cache/
 object_store/
+.chroma/
 
 # Word/Office temp lock files
 ~$*

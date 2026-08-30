@@ -159,7 +159,10 @@
       <select id="docType" disabled>
         <option value="capability_gap">Capability Gap / Needs</option>
       </select>
-      <button class="btn" id="btnUpload" disabled style="opacity:0.4;cursor:not-allowed">Analyze (Demo Mode)</button>
+      <button class="btn" id="btnUpload" onclick="upload()" disabled style="opacity:0.4;cursor:not-allowed">Analyze (Demo Mode)</button>
+      <div id="jobRunningMsg" style="display:none;font-size:10px;color:var(--orange);margin-top:6px;line-height:1.5">
+        ⚠ A job is currently running. This host has one shared GPU — only one analysis can run at a time. Please wait for it to finish before starting another.
+      </div>
       <div id="demoModeMsg" style="font-size:9px;color:var(--text2);margin-top:6px;line-height:1.5">
         Live pipeline is disabled in demo mode. A sample output from the F-22 Raptor capability gap analysis is pre-loaded.<br><br>
         Explore the <span style="color:var(--accent)">Architecture</span> tab to learn about the framework.<br>
@@ -189,9 +192,11 @@
 
   <!-- RIGHT PANE -->
   <div class="pane-right">
-    <h3>Job Result</h3>
+    <h3>Job Progress</h3>
     <div id="jobStatus"></div>
-    <div class="result-area" id="resultArea">No results yet. Upload a document to start.</div>
+    <div id="jobProgress" style="margin-bottom:18px;font-size:11px;color:var(--text2)">No job running. Select a document and click Analyze.</div>
+    <h3>Job Result</h3>
+    <div class="result-area" id="resultArea">No results yet.</div>
   </div>
 
 </div>
@@ -205,7 +210,102 @@ const state = {
   activeTab: 'live',
   jobId: null,
   corrId: null,
+  jobInProgress: false,
+  lastCompletedJobId: null,
 };
+
+// Derives squad/agent progress and the latest final result directly from
+// state.events (not exact job/correlation-id matching, which breaks across
+// a page reload since only one job runs at a time on this host anyway).
+function renderJobPanel() {
+  const progressEl = document.getElementById('jobProgress');
+  const resultEl = document.getElementById('resultArea');
+  const statusEl = document.getElementById('jobStatus');
+  if (!progressEl || !resultEl || !statusEl) return;
+
+  const squads = [];
+  let currentSquad = null;
+  state.events.forEach(e => {
+    const t = e.type || e.event_type || '';
+    if (t === 'SquadStarted') {
+      currentSquad = { name: e.squad || '?', status: 'active', elapsed_s: null,
+        agents: (e.agents || []).map(a => ({ name: a, done: false })) };
+      squads.push(currentSquad);
+    } else if (t === 'SquadCompleted') {
+      const s = [...squads].reverse().find(s => s.name === e.squad && s.status === 'active');
+      if (s) { s.status = 'done'; s.elapsed_s = e.elapsed_s; }
+    } else if (t === 'AgentCompleted' && currentSquad) {
+      const agentName = (e.agent || '').replace(/^DAS\s+/, '').toLowerCase();
+      const match = currentSquad.agents.find(a => !a.done && a.name.toLowerCase().startsWith(agentName));
+      if (match) match.done = true;
+    }
+  });
+
+  if (squads.length === 0) {
+    progressEl.innerHTML = state.jobInProgress
+      ? '<div style="color:var(--text2)">Job submitted — waiting for pipeline to start...</div>'
+      : 'No job running. Select a document and click Analyze.';
+  } else {
+    progressEl.innerHTML = squads.map(s => {
+      const done = s.status === 'done';
+      const boxColor = done ? 'var(--green)' : 'var(--accent)';
+      const agentsHtml = s.agents.map(a =>
+        `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 6px;border-radius:3px;font-size:9px;` +
+        `background:${a.done ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)'};` +
+        `color:${a.done ? 'var(--green)' : 'var(--text2)'};` +
+        `border:1px solid ${a.done ? 'var(--green)' : 'var(--border)'}">${a.done ? '✓ ' : ''}${a.name}</span>`
+      ).join('');
+      return `<div style="margin-bottom:10px;padding:8px 10px;border-radius:6px;border:1px solid ${boxColor};` +
+        `background:${done ? 'rgba(34,197,94,0.08)' : 'rgba(59,130,246,0.08)'}">` +
+        `<div style="font-weight:600;color:${boxColor};margin-bottom:4px">` +
+        `${done ? '✓' : '▶'} ${s.name} ${done ? '— done (' + s.elapsed_s + 's)' : '— running...'}</div>` +
+        `<div>${agentsHtml}</div></div>`;
+    }).join('');
+  }
+
+  let lastResult = null, lastOrch = '', lastJobId = state.jobId;
+  for (let i = state.events.length - 1; i >= 0; i--) {
+    const e = state.events[i];
+    const r = e.result || {};
+    if (r.status) { lastResult = r; lastOrch = e.orchestrator || r.orchestrator || ''; lastJobId = e.job_id || lastJobId; break; }
+  }
+
+  if (lastResult) {
+    let summary = `Job: ${lastJobId || '?'}\nOrchestrator: ${lastOrch}\nStatus: ${lastResult.status}\nGate: ${lastResult.gate_id || 'N/A'}\n\n`;
+    if (lastResult.view_generation) summary += `── View Generation ──\n${Object.keys(lastResult.view_generation).map(k => '  ✓ ' + k).join('\n')}\n\n`;
+    if (lastResult.gate_readiness) summary += `── Gate Readiness ──\n${Object.keys(lastResult.gate_readiness).map(k => '  ✓ ' + k).join('\n')}\n\n`;
+    if (lastResult.review_package) summary += `── Review Package ──\n${Object.keys(lastResult.review_package).map(k => '  ✓ ' + k).join('\n')}\n\n`;
+    summary += `View generated docs in the "Generated Docs" tab.`;
+    resultEl.textContent = summary;
+    statusEl.innerHTML = '<span class="job-badge complete">' + (lastJobId || '') + ' COMPLETE</span>';
+
+    if (lastJobId && lastJobId !== state.lastCompletedJobId) {
+      state.lastCompletedJobId = lastJobId;
+      setJobInProgress(false);
+      fetchDocs(lastJobId);
+      setTimeout(() => switchTab('docs'), 1500);
+    }
+  } else if (squads.length > 0) {
+    resultEl.textContent = 'Pipeline running — see Job Progress above.';
+  }
+}
+
+function setJobInProgress(running) {
+  state.jobInProgress = running;
+  const btn = document.getElementById('btnUpload');
+  const demoSel = document.getElementById('demoSelect');
+  const docType = document.getElementById('docType');
+  const msg = document.getElementById('jobRunningMsg');
+  if (btn) {
+    btn.disabled = running;
+    btn.style.opacity = running ? '0.4' : '1';
+    btn.style.cursor = running ? 'not-allowed' : 'pointer';
+    btn.textContent = running ? 'Job Running...' : 'Analyze';
+  }
+  if (demoSel) demoSel.disabled = running;
+  if (docType) docType.disabled = running;
+  if (msg) msg.style.display = running ? 'block' : 'none';
+}
 
 // ─── SSE ──────────────────────────────────────────────
 function connectSSE() {
@@ -221,37 +321,20 @@ function connectSSE() {
       const evtType = evt.event_type || evt.type || '';
       const orch = evt.orchestrator || result.orchestrator || '';
 
-      // Pipeline result (final)
+      // Pipeline result (final) — resultArea/badge/fetchDocs/tab-switch are
+      // handled by renderJobPanel() below, derived fresh from state.events
+      // rather than exact job/correlation-id matching (which breaks across
+      // a page reload). This block just adds the Live Feed banner line.
       if (result.status) {
         updatePipeline(orch, result.status);
-        if (evt.correlation_id === state.corrId || evt.job_id === state.jobId) {
-          // Show summary in right pane, not raw JSON
-          const r = result;
-          let summary = `Job: ${state.jobId}\n`;
-          summary += `Orchestrator: ${orch}\n`;
-          summary += `Status: ${r.status || '?'}\n`;
-          summary += `Gate: ${r.gate_id || 'N/A'}\n\n`;
-          if (r.view_generation) summary += `── View Generation ──\n${Object.keys(r.view_generation).map(k => '  ✓ ' + k).join('\n')}\n\n`;
-          if (r.gate_readiness) summary += `── Gate Readiness ──\n${Object.keys(r.gate_readiness).map(k => '  ✓ ' + k).join('\n')}\n\n`;
-          if (r.review_package) summary += `── Review Package ──\n${Object.keys(r.review_package).map(k => '  ✓ ' + k).join('\n')}\n\n`;
-          summary += `View generated docs in the "Generated Docs" tab.`;
-          document.getElementById('resultArea').textContent = summary;
-          const badge = document.getElementById('jobStatus');
-          badge.innerHTML = '<span class="job-badge complete">' + (state.jobId || '') + ' COMPLETE</span>';
-          // Fetch doc list and show completion banner in center pane
-          fetchDocs(state.jobId);
-          const completionBanner = {
-            _ts: new Date().toLocaleTimeString(),
-            type: 'PipelineComplete',
-            orchestrator: orch,
-            status: r.status,
-            gate: r.gate_id,
-          };
-          state.events.push(completionBanner);
-          if (state.activeTab === 'live') renderLive();
-          // Auto-switch to Generated Docs tab
-          setTimeout(() => switchTab('docs'), 1500);
-        }
+        const completionBanner = {
+          _ts: new Date().toLocaleTimeString(),
+          type: 'PipelineComplete',
+          orchestrator: orch,
+          status: result.status,
+          gate: result.gate_id,
+        };
+        state.events.push(completionBanner);
       }
 
       // Progress events — update squad list
@@ -285,6 +368,7 @@ function connectSSE() {
       }
 
       document.getElementById('live-count').textContent = state.events.length;
+      renderJobPanel();
       if (state.activeTab === 'live') renderLive();
       else if (state.activeTab === 'agents') renderAgents();
       else if (state.activeTab === 'llm') renderLLM();
@@ -317,6 +401,15 @@ function updatePipeline(orch, status) {
 function renderLive() {
   const area = document.getElementById('feedArea');
   const last50 = state.events.slice(-50);
+  if (last50.length === 0) {
+    area.innerHTML = state.jobId
+      ? `<div style="padding:40px 24px;text-align:center;color:var(--text2)">
+          <div style="font-size:13px;margin-bottom:8px">Job <span style="color:var(--accent)">${state.jobId}</span> submitted — waiting for pipeline events...</div>
+          <div style="font-size:11px">Events stream in here via SSE as the router, orchestrator, and agents process the document.</div>
+        </div>`
+      : `<div style="padding:40px 24px;text-align:center;color:var(--text2);font-size:12px">Select a demo document and click Analyze to start a run.</div>`;
+    return;
+  }
   area.innerHTML = last50.map(e => {
     const t = e._ts || '';
     const evtType = e.event_type || e.type || '?';
@@ -351,7 +444,7 @@ function renderAgents() {
   area.innerHTML = items.length ? items.map(e => {
     const t = e._ts || '';
     const evtType = e.type || '?';
-    const agent = e.agent || '?';
+    const agent = e.agent || e.squad || e.orchestrator || '?';
     let cls = 'agent';
     let detail = '';
     if (evtType === 'loop_started') { detail = 'ValidationLoop started'; }
@@ -362,6 +455,10 @@ function renderAgents() {
     else if (evtType === 'loop_finalized') { cls = 'result'; detail = '✓ finalized at iteration ' + (e.iteration||'?') + ' — confidence: ' + (e.confidence||'?'); }
     else if (evtType === 'loop_escalated') { cls = 'gate'; detail = '⚠ escalated for human review'; }
     else if (evtType === 'AgentCompleted') { detail = 'completed'; }
+    else if (evtType === 'SquadStarted') { cls = 'squad'; detail = 'squad started (' + (e.total||'?') + ' agents)'; }
+    else if (evtType === 'SquadCompleted') { cls = 'squad'; detail = 'squad done in ' + (e.elapsed_s||'?') + 's'; }
+    else if (evtType === 'OrchestratorStarted') { cls = 'orchestrator'; detail = 'orchestrator started'; }
+    else if (evtType === 'OrchestratorCompleted') { cls = 'orchestrator'; detail = 'completed in ' + (e.elapsed_s||'?') + 's → gate: ' + (e.gate||''); }
     else { detail = evtType; }
     return `<div class="feed-entry"><span class="feed-ts">${t}</span><span class="feed-type ${cls}">${agent}</span><span class="feed-detail">${detail}</span></div>`;
   }).join('') : '<div style="color:var(--text2);padding:20px">No agent events yet</div>';
@@ -705,16 +802,17 @@ classDiagram
 
 // ─── Upload / Demo ───────────────────────────────────
 async function upload() {
+  if (state.jobInProgress) { alert('A job is already running. Please wait for it to complete.'); return; }
+
   const fi = document.getElementById('fileInput');
   const demoSel = document.getElementById('demoSelect');
   const dt = document.getElementById('docType').value;
-  const btn = document.getElementById('btnUpload');
 
   const isDemo = demoSel.value && !fi.files.length;
   const isFile = fi.files.length > 0;
   if (!isDemo && !isFile) { alert('Select a demo document or upload a file'); return; }
 
-  btn.disabled = true; btn.textContent = 'Submitting...';
+  setJobInProgress(true);
   const resultArea = document.getElementById('resultArea');
   resultArea.textContent = 'Submitting to DAS pipeline...';
 
@@ -723,7 +821,9 @@ async function upload() {
     d.className = d.className.includes('gate') ? 'pipe-dot gate' : 'pipe-dot';
   });
   state.events = []; state.agentEvents = []; state.llmEvents = []; state.docs = [];
+  state.lastCompletedJobId = null;
   renderLive();
+  renderJobPanel();
 
   try {
     let resp;
@@ -745,27 +845,42 @@ async function upload() {
     switchTab('live');
   } catch(err) {
     resultArea.textContent = 'Error: ' + err.message;
+    setJobInProgress(false);
   }
-  btn.disabled = false; btn.textContent = 'Analyze';
 }
 
 // ─── Init ─────────────────────────────────────────────
 connectSSE();
 
+// Populate the demo document dropdown
+fetch('/demos').then(r=>r.json()).then(data=>{
+  const sel = document.getElementById('demoSelect');
+  (data.demos || []).forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.filename;
+    opt.textContent = d.name;
+    sel.appendChild(opt);
+  });
+}).catch(err => console.error('Failed to load demo documents:', err));
+
 // Check mode and configure UI accordingly
 fetch('/config/mode').then(r=>r.json()).then(cfg=>{
   if (!cfg.demo_mode) {
-    // Live mode — enable Analyze button, hide demo message
+    // Live mode — enable Analyze button, hide demo message, start blank (no prefill)
     const btn = document.getElementById('btnUpload');
     if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; btn.textContent = 'Analyze'; }
     const docType = document.getElementById('docType');
     if (docType) docType.disabled = false;
     const demoMsg = document.getElementById('demoModeMsg');
     if (demoMsg) demoMsg.style.display = 'none';
+  } else {
+    // Demo mode — pre-load the canned sample result for showcase
+    loadSamplePrefill();
   }
 }).catch(()=>{});
 
-// Load sample result on page load (demo mode)
+// Pre-load the canned sample result (demo mode only — see call site above)
+function loadSamplePrefill() {
 fetch('/demos/sample-result').then(r=>r.json()).then(data=>{
   if (!data || data.error) return;
   state.jobId = data.job_id;
@@ -851,6 +966,7 @@ fetch('/demos/sample-result').then(r=>r.json()).then(data=>{
   // Fetch docs
   fetchDocs(data.job_id);
 }).catch(err => console.error('Sample load failed:', err));
+}
 
 function selectDemo() {
   const sel = document.getElementById('demoSelect');
