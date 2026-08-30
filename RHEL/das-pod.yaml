@@ -97,7 +97,7 @@ spec:
     - name: PYTHONPATH
       value: "/app/dow-k9-aif/src:/app/k9-aif-framework"
     - name: DEMO_MODE
-      value: "ON"
+      value: "OFF"
     - name: K9_ENV
       value: "development"
 
