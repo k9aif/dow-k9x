@@ -56,7 +56,7 @@ async def _consume_results():
         consumer = AIOKafkaConsumer(
             "das.results",
             bootstrap_servers=[broker],
-            group_id="das-app-sse",
+            group_id=f"das-app-sse-{uuid.uuid4()}",
             auto_offset_reset="latest",
             value_deserializer=lambda m: json.loads(m.decode("utf-8")),
         )
