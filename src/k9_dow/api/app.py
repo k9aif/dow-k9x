@@ -406,12 +406,13 @@ def _extract_docs(job_data: dict) -> list[dict]:
 
     icd_content = _compose_icd(job_data)
     job_id = result.get("job_id", "unknown")
+    date_prefix = datetime.now().strftime("%d%m%Y_%H%M%S")
 
     return [{
         "id": "icd",
         "section": "Deliverables",
         "agent": "Initial Capabilities Document (ICD)",
-        "filename": f"{job_id}_ICD.md",
+        "filename": f"{date_prefix}_{job_id}_ICD.md",
         "size": len(icd_content),
     }]
 
@@ -451,7 +452,8 @@ async def download_doc(job_id: str, doc_id: str):
                     headers={"Content-Disposition": f'attachment; filename="{job_id}_ICD.md"'},
                 )
         content = _compose_icd(data)
-        filename = f"{job_id}_ICD.md"
+        date_prefix = datetime.now().strftime("%d%m%Y_%H%M%S")
+        filename = f"{date_prefix}_{job_id}_ICD.md"
         return Response(
             content=content,
             media_type="text/markdown",
