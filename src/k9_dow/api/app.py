@@ -171,6 +171,7 @@ async def llm_info():
         "active_llm": settings.ACTIVE_LLM,
         "ollama_host": settings.OLLAMA_HOST,
         "ollama_model": settings.OLLAMA_MODEL,
+        "ollama_display_name": settings.OLLAMA_DISPLAY_NAME,
     }
 
 

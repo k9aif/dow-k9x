@@ -7,11 +7,11 @@ inference:
     base_url: "${OLLAMA_HOST:-http://localhost:11434}"
     models:
       general:
-        model: "granite3-dense:2b"
+        model: "qwen2.5:32b"
         temperature: 0.3
         max_tokens: 4096
       reasoning:
-        model: "granite3-dense:2b"
+        model: "qwen2.5:32b"
         temperature: 0.2
         max_tokens: 4096
 

@@ -71,7 +71,7 @@ spec:
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: "rhel-host:9092"
     - name: OLLAMA_HOST
-      value: "http://rhel-host:11434"
+      value: "http://192.168.1.244:11434"
     - name: POSTGRES_HOST
       value: "rhel-host"
     - name: POSTGRES_PORT
@@ -98,6 +98,8 @@ spec:
       value: "/app/dow-k9-aif/src:/app/k9-aif-framework"
     - name: DEMO_MODE
       value: "OFF"
+    - name: OLLAMA_DISPLAY_NAME
+      value: "powerAI-5090"
     - name: K9_ENV
       value: "development"
 
@@ -137,7 +139,7 @@ spec:
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: "rhel-host:9092"
     - name: OLLAMA_HOST
-      value: "http://rhel-host:11434"
+      value: "http://192.168.1.244:11434"
     - name: POSTGRES_HOST
       value: "rhel-host"
     - name: POSTGRES_DB
@@ -171,7 +173,7 @@ spec:
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: "rhel-host:9092"
     - name: OLLAMA_HOST
-      value: "http://rhel-host:11434"
+      value: "http://192.168.1.244:11434"
     - name: POSTGRES_HOST
       value: "rhel-host"
     - name: POSTGRES_PORT

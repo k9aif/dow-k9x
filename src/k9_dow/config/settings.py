@@ -22,6 +22,7 @@ class Settings:
 
     OLLAMA_HOST = _env("OLLAMA_HOST", "http://localhost:11434")
     OLLAMA_MODEL = _env("OLLAMA_MODEL", "granite3.3:8b")
+    OLLAMA_DISPLAY_NAME = _env("OLLAMA_DISPLAY_NAME", "")
 
     POSTGRES_HOST = _env("POSTGRES_HOST", "localhost")
     POSTGRES_PORT = int(_env("POSTGRES_PORT", "5432"))
