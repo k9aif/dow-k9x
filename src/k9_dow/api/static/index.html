@@ -624,23 +624,28 @@ function renderArch() {
   <div style="margin-top:16px;padding:12px 16px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px">
     <div style="font-size:12px;font-weight:600;color:var(--orange);margin-bottom:6px">About This Proof of Concept</div>
     <p style="margin:0">
-      This demonstration uses a lightweight <span style="color:var(--text)">2B-parameter LLM (IBM Granite 3 Dense 2B)</span>
-      hosted locally on the same machine for testing. The output quality — depth of analysis, specificity of
-      DoDAF views, and richness of requirements traceability — is limited by the model's capacity.
+      This demonstration runs a locally-hosted <span style="color:var(--text)">32B-parameter LLM (Qwen 2.5 32B)</span>
+      on dedicated on-premise GPU hardware. The output quality — depth of analysis, specificity of
+      DoDAF views, and richness of requirements traceability — is a function of the model's capacity, whatever
+      model is configured.
     </p>
     <p style="margin:8px 0 0">
-      In a production deployment, a full-scale LLM such as
+      A larger or provider-hosted LLM such as
       <span style="color:var(--text)">Anthropic Claude Opus, IBM Granite 34B, Meta Llama 70B,</span> or equivalent
-      would be used — delivering substantially richer and more accurate results.
+      could be substituted for even richer results.
       The pipeline architecture, governance model, HITL gates, and document structure remain
       <span style="color:var(--text)">identical</span> — only the model configuration changes. The framework is the constant;
       the LLM is a pluggable variable.
     </p>
     <p style="margin:8px 0 0">
       In a production deployment, a <span style="color:var(--text)">Domain Retriever</span> would also be configured —
-      connecting agents to knowledge corpus data sources (regulations, standards, prior architectures, organizational policies)
-      to retrieve domain knowledge and enrich each agent's context. This is vital to producing rich output documents
-      that comply with organizational and regulatory standards. This demo does not include the Domain Retriever.
+      a K9Retriever-pattern extension pointing at an organization's own DoW knowledge corpus (prior CDDs and ICDs,
+      DoDAF reference architectures, acquisition regulations) rather than only the submitted source document.
+      Retrieved passages would be graphed in Neo4j alongside the generated ICD's own entities, surfacing how a
+      new capability need relates to precedent programs. This is essential to producing a rich output document —
+      one that shows relationships to prior programs and organizational knowledge, not just a restatement of the
+      input document. <span style="color:var(--text)">This demo has no such data sources configured</span>, so the
+      generated ICD reflects only the input document.
     </p>
   </div>
 
