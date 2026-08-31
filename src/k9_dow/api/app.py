@@ -116,11 +116,12 @@ async def event_stream():
 
 
 _DEMOS_DIR = Path(__file__).parent / "static" / "demos"
+_OUTPUT_SAMPLES_DIR = _DEMOS_DIR / "output_samples"
 
 
 @app.get("/demos/sample-result")
 async def sample_result():
-    sample_path = _DEMOS_DIR / "sample_result.json"
+    sample_path = _OUTPUT_SAMPLES_DIR / "sample_result.json"
     if not sample_path.exists():
         return {"error": "No sample result available"}
     with open(sample_path, encoding="utf-8") as f:
@@ -447,7 +448,7 @@ async def download_doc(job_id: str, doc_id: str):
     if doc_id == "icd":
         # Serve static sample for demo job
         if job_id == "JOB-20260628-DEMO01":
-            sample_md = _DEMOS_DIR / "sample_ICD.md"
+            sample_md = _OUTPUT_SAMPLES_DIR / "sample_ICD.md"
             if sample_md.exists():
                 content = sample_md.read_text(encoding="utf-8")
                 return Response(
@@ -473,7 +474,7 @@ async def view_doc(job_id: str, doc_id: str):
 
     # Serve static sample for demo job
     if job_id == "JOB-20260628-DEMO01" and doc_id == "icd":
-        sample_md = _DEMOS_DIR / "sample_ICD.md"
+        sample_md = _OUTPUT_SAMPLES_DIR / "sample_ICD.md"
         if sample_md.exists():
             md_content = sample_md.read_text(encoding="utf-8")
             return _render_icd_html(job_id, md_content)
