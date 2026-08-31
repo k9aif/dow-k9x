@@ -160,8 +160,7 @@
         <option value="capability_gap">Capability Gap / Needs</option>
       </select>
       <button class="btn" id="btnUpload" onclick="upload()" disabled style="opacity:0.4;cursor:not-allowed">Analyze (Demo Mode)</button>
-      <div id="jobRunningMsg" style="display:none;font-size:10px;color:var(--orange);margin-top:6px;line-height:1.5">
-        ⚠ A job is currently running. This host has one shared GPU — only one analysis can run at a time. Please wait for it to finish before starting another.<br>
+      <div id="jobRunningMsg" style="display:none;font-size:10px;color:var(--text2);margin-top:6px;line-height:1.5">
         Stuck? <a href="#" onclick="forceResetJob('Job tracking reset by user. If a job is still running server-side, it will keep processing — this only clears the local lock.'); return false;" style="color:var(--accent)">Reset</a>
       </div>
       <div id="demoModeMsg" style="font-size:9px;color:var(--text2);margin-top:6px;line-height:1.5">
