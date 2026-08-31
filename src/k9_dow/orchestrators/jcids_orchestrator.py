@@ -232,8 +232,11 @@ class JcidsOrchestrator(BaseOrchestrator):
             from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
 
             broker = self.config.get("messaging", {}).get("bootstrap_servers", "localhost:9092")
-            gap_report = result.get("gate_readiness", {}).get("GapReporterAgent", {})
-            readiness = result.get("gate_readiness", {}).get("ReadinessScorerAgent", {})
+            # Keyed by the squad's own result_key (readiness_score/gap_report),
+            # not the agent class name -- matches app.py's _compose_icd(),
+            # which navigates the same gate_readiness dict the same way.
+            gap_report = result.get("gate_readiness", {}).get("gap_report", {})
+            readiness = result.get("gate_readiness", {}).get("readiness_score", {})
 
             task = {
                 "title": f"JROC-VALIDATION review — {job_id}",
@@ -250,7 +253,16 @@ class JcidsOrchestrator(BaseOrchestrator):
                     "readiness_score": readiness.get("output") if isinstance(readiness, dict) else None,
                     "gap_summary": gap_report.get("output") if isinstance(gap_report, dict) else None,
                 },
-                "artifacts": [s3_uri] if s3_uri else [],
+                # DAS's own /view/icd endpoint renders on demand from
+                # _job_store, independent of whether S3 storage succeeded --
+                # always include it so an approver always has something
+                # clickable to actually review, even if s3_uri is None.
+                "artifacts": [
+                    u for u in (
+                        f"{os.environ.get('DAS_PUBLIC_URL', 'https://das.k9x.ai').rstrip('/')}/jobs/{job_id}/view/icd",
+                        s3_uri,
+                    ) if u
+                ],
                 "pii": False,
                 "ttl_hours": 168,
                 "ttl_action": "reject",
