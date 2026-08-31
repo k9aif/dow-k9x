@@ -188,7 +188,10 @@ class JcidsOrchestrator(BaseOrchestrator):
 
             store = ObjectStorageFactory.create(self.config)
             date_prefix = datetime.now().strftime("%Y%m%d")
-            bucket = "DAS-results"
+            # jcids-output already exists in MinIO, provisioned for exactly
+            # this purpose -- DAS-results was never actually created, so
+            # every upload here was silently failing (caught below).
+            bucket = "jcids-output"
 
             sections = {
                 "view_generation": "View Generation",

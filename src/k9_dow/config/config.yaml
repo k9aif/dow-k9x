@@ -80,3 +80,9 @@ object_storage:
     stage_outputs: "dow-stage-outputs"
     reports: "dow-reports"
     docling_out: "dow-docling-out"
+    # Actual bucket JcidsOrchestrator._store_to_s3() writes results to --
+    # hardcoded there today rather than read from here (see the same
+    # hardcoded-vs-configured gap already flagged for Kafka topic names).
+    # jcids-output is a pre-existing MinIO bucket, provisioned for this
+    # exact purpose.
+    results: "jcids-output"
