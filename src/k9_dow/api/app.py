@@ -427,11 +427,14 @@ async def list_docs(job_id: str):
     data = _job_store.get(job_id)
     if not data:
         log.warning("[API] /docs: job %s not found in store. Keys: %s", job_id, list(_job_store.keys()))
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise HTTPException(status_code=404, detail="Job not found", headers={"Cache-Control": "no-store"})
     log.info("[API] /docs: composing docs for job=%s", job_id)
     try:
         docs = _extract_docs(data)
-        return {"job_id": job_id, "docs": docs}
+        return JSONResponse(
+            content={"job_id": job_id, "docs": docs},
+            headers={"Cache-Control": "no-store"},
+        )
     except Exception as exc:
         log.error("[API] /docs failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
@@ -443,7 +446,7 @@ async def download_doc(job_id: str, doc_id: str):
 
     data = _job_store.get(job_id)
     if not data:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise HTTPException(status_code=404, detail="Job not found", headers={"Cache-Control": "no-store"})
 
     if doc_id == "icd":
         # Serve static sample for demo job
@@ -462,7 +465,10 @@ async def download_doc(job_id: str, doc_id: str):
         return Response(
             content=content,
             media_type="text/markdown",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Cache-Control": "no-store",
+            },
         )
 
     raise HTTPException(status_code=404, detail="Document not found")
@@ -481,7 +487,7 @@ async def view_doc(job_id: str, doc_id: str):
 
     data = _job_store.get(job_id)
     if not data:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise HTTPException(status_code=404, detail="Job not found", headers={"Cache-Control": "no-store"})
 
     if doc_id != "icd":
         raise HTTPException(status_code=404, detail="Document not found")
