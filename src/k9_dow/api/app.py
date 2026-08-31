@@ -226,7 +226,11 @@ async def _submit_job(filename: str, text: str, document_type: str):
             bus._producer.flush()
         bus.close()
         log.info("[API] Published to dow.router.in job=%s corr=%s", job_id, event["correlation_id"])
-        _job_store[job_id] = {"job_id": job_id, "status": "submitted", "correlation_id": event["correlation_id"]}
+        _job_store[job_id] = {
+            "job_id": job_id, "status": "submitted", "correlation_id": event["correlation_id"],
+            "filename": filename, "document_type": document_type,
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
+        }
         return JSONResponse(content={
             "job_id": job_id, "status": "submitted",
             "correlation_id": event["correlation_id"],
