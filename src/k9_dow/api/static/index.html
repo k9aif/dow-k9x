@@ -117,6 +117,24 @@
 </head>
 <body>
 
+<div id="loginOverlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000">
+  <div style="width:320px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:28px">
+    <div style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:2px">K9X DAS</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:18px">Defense Acquisition System</div>
+    <form onsubmit="doLogin(event)">
+      <input id="loginUser" placeholder="Username" autocomplete="username" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:8px 10px;color:var(--text);font-size:12px;margin-bottom:8px">
+      <input id="loginPass" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:8px 10px;color:var(--text);font-size:12px;margin-bottom:12px">
+      <button type="submit" class="btn">Sign In</button>
+      <div id="loginError" style="color:var(--red);font-size:11px;margin-top:8px"></div>
+    </form>
+    <div style="margin-top:16px;padding:10px 12px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:6px;font-size:11px;color:var(--text2);line-height:1.7">
+      <div style="font-weight:600;color:var(--text);margin-bottom:4px">Try it out:</div>
+      <span style="font-family:var(--mono);color:var(--accent)">demo</span> / <span style="font-family:var(--mono);color:var(--accent)">demo</span>
+    </div>
+  </div>
+</div>
+
+<div id="mainApp" style="display:none">
 <div class="header">
   <a href="https://k9x.ai" target="_blank" style="text-decoration:none;color:var(--accent);font-size:15px;font-weight:700">K9X</a>
   <h1>DAS</h1>
@@ -205,6 +223,7 @@
   </div>
 
 </div>
+</div>
 
 <script>
 const state = {
@@ -212,6 +231,9 @@ const state = {
   agentEvents: [],
   llmEvents: [],
   docs: [],
+  allRuns: [], // every run this tab has generated docs for this session, newest first
+  sessionId: null,
+  mySessionJobIds: new Set(), // job_ids this tab submitted -- SSE filters to these only
   activeTab: 'live',
   jobId: null,
   corrId: null,
@@ -332,6 +354,15 @@ function connectSSE() {
   es.onmessage = (e) => {
     try {
       const evt = JSON.parse(e.data);
+
+      // Session isolation: /events/stream is one global broadcast shared by
+      // every concurrent visitor. Drop any event carrying a job_id that
+      // isn't one this tab submitted, so concurrent users' runs don't mix
+      // in each other's Live Feed. Events with no job_id (rare) pass through.
+      const evtResult = evt.result || {};
+      const evtJobId = evt.job_id || evtResult.job_id || null;
+      if (evtJobId && !state.mySessionJobIds.has(evtJobId)) return;
+
       evt._ts = new Date().toLocaleTimeString();
       state.events.push(evt);
 
@@ -506,8 +537,19 @@ async function fetchDocs(jobId, retries) {
     }
     const data = await resp.json();
     state.docs = data.docs || [];
-    document.getElementById('docs-count').textContent = state.docs.length || '';
-    if (state.docs.length) console.log('Docs ready:', state.docs.length);
+    if (state.docs.length) {
+      // Accumulate into this tab's run history rather than replacing it,
+      // so multiple runs in one session all stay visible in Generated Docs.
+      const existing = state.allRuns.find(r => r.jobId === jobId);
+      if (existing) {
+        existing.docs = state.docs;
+      } else {
+        state.allRuns.unshift({ jobId, ts: new Date().toLocaleTimeString(), docs: state.docs });
+      }
+      console.log('Docs ready:', state.docs.length);
+    }
+    const totalDocs = state.allRuns.reduce((n, r) => n + r.docs.length, 0);
+    document.getElementById('docs-count').textContent = totalDocs || '';
   } catch(err) {
     console.error('fetchDocs failed (retry ' + retries + '):', err);
     if (retries < 3) setTimeout(() => fetchDocs(jobId, retries + 1), 3000);
@@ -516,27 +558,32 @@ async function fetchDocs(jobId, retries) {
 
 function renderDocs() {
   const area = document.getElementById('feedArea');
-  if (!state.docs || !state.docs.length) {
+  if (!state.allRuns || !state.allRuns.length) {
     area.innerHTML = '<div style="color:var(--text2);padding:20px">No generated docs yet. Run the pipeline first.</div>';
     return;
   }
   let html = '';
-  if (state.jobId === 'JOB-20260628-DEMO01') {
-    html += '<div style="display:inline-block;background:rgba(245,158,11,0.15);color:var(--orange);font-size:10px;font-weight:600;padding:4px 12px;border-radius:4px;border:1px solid rgba(245,158,11,0.3);margin-bottom:12px">SAMPLE OUTPUT</div>';
-  }
-  let curSection = '';
-  for (const doc of state.docs) {
-    if (doc.section !== curSection) {
-      curSection = doc.section;
-      html += `<div class="doc-section">${curSection}</div>`;
-    }
-    const sizeKb = (doc.size / 1024).toFixed(1);
-    html += `<div class="doc-item">
-      <span class="doc-name">${doc.agent}</span>
-      <span class="doc-size">${sizeKb} KB</span>
-      <a class="doc-dl" href="/jobs/${state.jobId}/view/${doc.id}" target="_blank" style="background:var(--accent)">View</a>
-      <a class="doc-dl" href="/jobs/${state.jobId}/docs/${doc.id}" download="${doc.filename}">Download</a>
+  for (const run of state.allRuns) {
+    const isSample = run.jobId === 'JOB-20260628-DEMO01';
+    html += `<div style="display:flex;align-items:center;gap:8px;margin:16px 0 6px">
+      <span style="font-size:10px;font-family:var(--mono);color:var(--text2)">${run.jobId}</span>
+      <span style="font-size:10px;color:var(--text2)">${run.ts}</span>
+      ${isSample ? '<span style="background:rgba(245,158,11,0.15);color:var(--orange);font-size:9px;font-weight:600;padding:2px 8px;border-radius:4px;border:1px solid rgba(245,158,11,0.3)">SAMPLE OUTPUT</span>' : ''}
     </div>`;
+    let curSection = '';
+    for (const doc of run.docs) {
+      if (doc.section !== curSection) {
+        curSection = doc.section;
+        html += `<div class="doc-section">${curSection}</div>`;
+      }
+      const sizeKb = (doc.size / 1024).toFixed(1);
+      html += `<div class="doc-item">
+        <span class="doc-name">${doc.agent}</span>
+        <span class="doc-size">${sizeKb} KB</span>
+        <a class="doc-dl" href="/jobs/${run.jobId}/view/${doc.id}" target="_blank" style="background:var(--accent)">View</a>
+        <a class="doc-dl" href="/jobs/${run.jobId}/docs/${doc.id}" download="${doc.filename}">Download</a>
+      </div>`;
+    }
   }
   area.innerHTML = html;
 }
@@ -850,6 +897,8 @@ async function upload() {
   document.querySelectorAll('.pipe-dot').forEach(d => {
     d.className = d.className.includes('gate') ? 'pipe-dot gate' : 'pipe-dot';
   });
+  // Live Feed/Agents/LLM Calls reset per job -- Generated Docs (state.allRuns)
+  // deliberately does not, so multiple runs stay visible in the same tab.
   state.events = []; state.agentEvents = []; state.llmEvents = []; state.docs = [];
   state.lastCompletedJobId = null;
   renderLive();
@@ -868,6 +917,7 @@ async function upload() {
     const data = await resp.json();
     state.jobId = data.job_id;
     state.corrId = data.correlation_id;
+    if (data.job_id) state.mySessionJobIds.add(data.job_id);
 
     document.getElementById('jobStatus').innerHTML = '<span class="job-badge submitted">' + data.job_id + ' SUBMITTED</span>';
     resultArea.textContent = JSON.stringify(data, null, 2) + '\n\nWaiting for pipeline results via SSE...';
@@ -879,8 +929,26 @@ async function upload() {
   }
 }
 
+// ─── Login ────────────────────────────────────────────
+// Hardcoded, client-side only -- not real authentication. Purpose is
+// session isolation for concurrent visitors (see state.mySessionJobIds
+// filtering in connectSSE below), not access control.
+function doLogin(e) {
+  e.preventDefault();
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if (u !== 'demo' || p !== 'demo') {
+    document.getElementById('loginError').textContent = 'Invalid credentials. Try demo / demo.';
+    return;
+  }
+  state.sessionId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  connectSSE();
+}
+
 // ─── Init ─────────────────────────────────────────────
-connectSSE();
+// connectSSE() now fires only after login (see doLogin above).
 
 // Live clock in the header — evidence this is a live session, not a static screenshot
 function updateClock() {
