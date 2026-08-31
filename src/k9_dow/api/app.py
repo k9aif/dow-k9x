@@ -82,7 +82,9 @@ async def _consume_results():
                             matched_key = k
                             break
                 if matched_key:
-                    _job_store[matched_key] = evt
+                    # Merge, don't replace -- the submission-time entry carries
+                    # filename/document_type/submitted_at that evt doesn't have.
+                    _job_store[matched_key] = {**_job_store.get(matched_key, {}), **evt}
                     log.info("[SSE] Stored result for job=%s", matched_key)
             dead = []
             for q in _sse_clients:
@@ -403,6 +405,15 @@ def _compose_icd(job_data: dict) -> str:
     return "\n".join(lines)
 
 
+def _input_doc_prefix(job_data: dict) -> str:
+    """Short, filename-safe stem of the input document, for prefixing output
+    filenames so multiple runs in one session stay distinguishable."""
+    input_filename = job_data.get("filename") or ""
+    stem = Path(input_filename).stem if input_filename else ""
+    stem = re.sub(r"[^A-Za-z0-9_-]+", "_", stem).strip("_")
+    return stem[:40] or "input"
+
+
 def _extract_docs(job_data: dict) -> list[dict]:
     """Return single consolidated ICD document."""
     result = job_data.get("result", job_data)
@@ -412,12 +423,13 @@ def _extract_docs(job_data: dict) -> list[dict]:
     icd_content = _compose_icd(job_data)
     job_id = result.get("job_id", "unknown")
     date_prefix = datetime.now().strftime("%d%m%Y_%H%M%S")
+    input_prefix = _input_doc_prefix(job_data)
 
     return [{
         "id": "icd",
         "section": "Deliverables",
-        "agent": "Initial Capabilities Document (ICD)",
-        "filename": f"{date_prefix}_{job_id}_ICD.md",
+        "agent": f"Initial Capabilities Document (ICD) — {input_prefix}",
+        "filename": f"{date_prefix}_{input_prefix}_{job_id}_ICD.md",
         "size": len(icd_content),
     }]
 
@@ -461,7 +473,7 @@ async def download_doc(job_id: str, doc_id: str):
                 )
         content = _compose_icd(data)
         date_prefix = datetime.now().strftime("%d%m%Y_%H%M%S")
-        filename = f"{date_prefix}_{job_id}_ICD.md"
+        filename = f"{date_prefix}_{_input_doc_prefix(data)}_{job_id}_ICD.md"
         return Response(
             content=content,
             media_type="text/markdown",

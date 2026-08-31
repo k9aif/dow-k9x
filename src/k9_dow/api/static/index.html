@@ -140,6 +140,7 @@
   <h1>DAS</h1>
   <span class="sub">Defense Acquisition System <span style="color:var(--orange);font-size:9px;font-weight:600;border:1px solid var(--orange);padding:1px 5px;border-radius:3px;margin-left:4px">PROOF OF CONCEPT</span></span>
   <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+    <span id="userChip" style="font-size:10px;font-family:var(--mono);color:var(--text2)"></span>
     <span id="nowClock" style="font-size:10px;font-family:var(--mono);color:var(--text2)"></span>
     <span id="llmInfo" style="font-size:10px;font-family:var(--mono);color:var(--text2)"></span>
     <div class="status-dot ok" id="sseDot" title="SSE connected"></div>
@@ -944,6 +945,8 @@ function doLogin(e) {
   state.sessionId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('mainApp').style.display = 'block';
+  const chip = document.getElementById('userChip');
+  if (chip) chip.textContent = 'User: ' + u.charAt(0).toUpperCase() + u.slice(1);
   connectSSE();
 }
 
