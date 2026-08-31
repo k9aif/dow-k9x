@@ -215,9 +215,17 @@ class JcidsOrchestrator(BaseOrchestrator):
             summary_key = f"{date_prefix}/{job_id}/result.json"
             store.upload(bucket, summary_key, json.dumps(result, indent=2).encode("utf-8"))
 
+            # The reviewer-facing document: same composition function app.py
+            # uses for its on-demand /view and /download endpoints, so HIL
+            # (which will fetch this directly from S3, not call back into
+            # DAS's API) shows the identical document a human would see there.
+            from k9_dow.utils.icd_composer import compose_icd
+            icd_key = f"{date_prefix}/{job_id}/ICD.md"
+            store.upload(bucket, icd_key, compose_icd({"result": result}).encode("utf-8"))
+
             log.info("[JCIDS] Stored results to S3 bucket=%s prefix=%s/%s", bucket, date_prefix, job_id)
             print(f"  ☁ Results stored to S3: {bucket}/{date_prefix}/{job_id}/", flush=True)
-            return store.get_uri(bucket, summary_key)
+            return store.get_uri(bucket, icd_key)
         except Exception as exc:
             log.warning("[JCIDS] S3 storage failed (non-fatal): %s", exc)
             return None
