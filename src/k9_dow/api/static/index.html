@@ -37,6 +37,10 @@
   .pipe-dot.gate.done{background:var(--orange);border-color:var(--orange)}
   .pipe-label{color:var(--text)}
   .pipe-label.gate-label{color:var(--orange)}
+  @keyframes k9spin{to{transform:rotate(360deg)}}
+  .k9-spinner{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,0.35);
+    border-top-color:currentColor;border-radius:50%;animation:k9spin 0.7s linear infinite;
+    vertical-align:-2px;margin-right:6px}
   .pipe-line{width:1px;height:10px;background:var(--border);margin-left:3.5px}
 
   /* Upload form */
@@ -313,7 +317,7 @@ function setJobInProgress(running) {
     btn.disabled = running;
     btn.style.opacity = running ? '0.4' : '1';
     btn.style.cursor = running ? 'not-allowed' : 'pointer';
-    btn.textContent = running ? 'Job Running...' : 'Analyze';
+    btn.innerHTML = running ? '<span class="k9-spinner"></span>Job Running...' : 'Analyze';
   }
   if (demoSel) demoSel.disabled = running;
   if (docType) docType.disabled = running;
