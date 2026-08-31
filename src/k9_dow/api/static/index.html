@@ -952,10 +952,13 @@ function doLogin(e) {
 
 // Live clock in the header — evidence this is a live session, not a static screenshot
 function updateClock() {
+  // Always the viewer's own local time (no timeZone override), and now
+  // self-labels with that timezone's abbreviation so it reads unambiguously
+  // regardless of where the viewer actually is -- not hardcoded to EST.
   const el = document.getElementById('nowClock');
   if (el) el.textContent = new Date().toLocaleString(undefined, {
     weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
+    hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
   });
 }
 updateClock();
