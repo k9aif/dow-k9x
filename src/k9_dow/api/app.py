@@ -112,7 +112,15 @@ async def event_stream():
             if q in _sse_clients:
                 _sse_clients.remove(q)
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 _DEMOS_DIR = Path(__file__).parent / "static" / "demos"
