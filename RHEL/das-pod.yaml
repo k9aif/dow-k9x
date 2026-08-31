@@ -63,7 +63,7 @@ spec:
     - "--port"
     - "8000"
     - "--workers"
-    - "2"
+    - "1"
     - "--log-level"
     - "info"
 
