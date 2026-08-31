@@ -75,7 +75,20 @@ async def main() -> None:
         group_id=GROUP_ID,
     )
 
+    # Tracks the job_id of whichever execute_flow() call is currently in
+    # flight. Safe as plain shared state (not per-task/contextvar) because
+    # K9EventBus.subscribe_async awaits each handle() call to completion
+    # before consuming the next Kafka message -- exactly one job runs at a
+    # time in this process, confirmed by reading that consumer loop directly.
+    _current_job = {"job_id": None}
+
     def _publish_progress(evt: dict) -> None:
+        # Orchestrator _emit() calls (SquadStarted/SquadCompleted/etc.) and
+        # the framework's LLMCall trace hook both funnel through here without
+        # a job_id of their own -- tag it now so session-scoped SSE filtering
+        # in the UI can tell which job's browser tab an event belongs to.
+        if _current_job["job_id"] and "job_id" not in evt:
+            evt = {**evt, "job_id": _current_job["job_id"]}
         try:
             results_bus.publish(evt)
             if results_bus._producer:
@@ -133,6 +146,7 @@ async def main() -> None:
             flush=True,
         )
 
+        _current_job["job_id"] = payload.get("job_id")
         try:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, orch.execute_flow, payload)
@@ -161,6 +175,8 @@ async def main() -> None:
                 "orchestrator": orch_name,
                 "result": {"status": "error", "detail": str(exc)},
             })
+        finally:
+            _current_job["job_id"] = None
 
     log.info(
         "[OrchestratorProcess] Starting K9EventBus async consumer on %d domain topics …",
