@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -256,6 +257,25 @@ async def get_job(job_id: str):
     return {"job_id": job_id, "status": "not_found"}
 
 
+def _strip_json_blocks(text: str) -> str:
+    """Drop fenced ```json code blocks — agents restate their prose answer as
+    a trailing JSON block, which reads as raw tool output in a human-facing
+    document rather than adding new information. Also drops a short
+    "Structured Output" heading/label immediately preceding the block, so no
+    dangling empty header is left behind."""
+    if not text:
+        return text
+    cleaned = re.sub(
+        r"(?:^|\n)\s*(?:#{2,4}\s*Structured[^\n]*|\*\*Structured[^\n]*\*\*:?)\s*\n+```json.*?```",
+        "",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    cleaned = re.sub(r"```json.*?```", "", cleaned, flags=re.DOTALL | re.IGNORECASE)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
+
+
 def _extract_text(obj) -> str:
     """Extract readable text from any agent output structure."""
     if obj is None:
@@ -361,10 +381,10 @@ def _compose_icd(job_data: dict) -> str:
                 if isinstance(agent_output, str) and agent_output.strip():
                     lines.append(f"### {subsection_title}")
                     lines.append("")
-                    lines.append(agent_output.strip())
+                    lines.append(_strip_json_blocks(agent_output.strip()))
                     lines.append("")
                 continue
-            output_text = _extract_text(agent_output) or "*No output generated.*"
+            output_text = _strip_json_blocks(_extract_text(agent_output)) or "*No output generated.*"
             lines.append(f"### {subsection_title}")
             lines.append("")
             lines.append(str(output_text))
