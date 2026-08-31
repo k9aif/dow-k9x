@@ -263,5 +263,6 @@ class JcidsOrchestrator(BaseOrchestrator):
             bus.close()
             log.info("[JCIDS] Published HIL task for job=%s to workflow.hil.das.jroc", job_id)
             print(f"  → HIL task published: workflow.hil.das.jroc (job={job_id})", flush=True)
+            self._emit("HilTaskPublished", job_id=job_id, topic="workflow.hil.das.jroc", artifact=s3_uri)
         except Exception as exc:
             log.warning("[JCIDS] HIL task publish failed (non-fatal): %s", exc)

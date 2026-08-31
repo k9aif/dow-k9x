@@ -287,6 +287,8 @@ function renderJobPanel() {
     if (lastResult.gate_readiness) summary += `── Gate Readiness ──\n${Object.keys(lastResult.gate_readiness).map(k => '  ✓ ' + k).join('\n')}\n\n`;
     if (lastResult.review_package) summary += `── Review Package ──\n${Object.keys(lastResult.review_package).map(k => '  ✓ ' + k).join('\n')}\n\n`;
     summary += `View generated docs in the "Generated Docs" tab.`;
+    const hilEvt = [...state.events].reverse().find(e => (e.type || e.event_type) === 'HilTaskPublished');
+    if (hilEvt) summary += `\n\n→ Sent to HIL for review and approval — message published to '${hilEvt.topic || '?'}'`;
     resultEl.textContent = summary;
     statusEl.innerHTML = '<span class="job-badge complete">' + (lastJobId || '') + ' COMPLETE</span>';
 
@@ -434,6 +436,7 @@ function renderLive() {
     else if (evtType === 'SquadCompleted') { cls = 'squad'; detail = (e.squad||'') + ' done in ' + (e.elapsed_s||'?') + 's'; }
     else if (evtType === 'OrchestratorCompleted') { cls = 'orchestrator'; detail = 'completed in ' + (e.elapsed_s||'?') + 's → gate: ' + (e.gate||''); }
     else if (evtType === 'PipelineComplete') { cls = 'result'; detail = '✓ Processing Complete — ' + (e.orchestrator||'') + ' → ' + (e.gate||''); }
+    else if (evtType === 'HilTaskPublished') { cls = 'gate'; detail = '→ Sent to HIL for review and approval — message published to \'' + (e.topic||'?') + '\''; }
     else if (evtType === 'loop_started') { cls = 'agent'; detail = (e.agent||'?') + ' — ValidationLoop started'; }
     else if (evtType === 'hypothesis_generated') { cls = 'agent'; detail = (e.agent||'?') + ' — iteration ' + (e.iteration||'?') + ' hypothesis'; }
     else if (evtType === 'validation_tool_invoked') { cls = 'llm'; detail = (e.agent||'?') + ' — iteration ' + (e.iteration||'?') + ' LLM validation'; }
