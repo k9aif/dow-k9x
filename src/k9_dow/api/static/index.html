@@ -139,7 +139,7 @@
   </div>
 </div>
 
-<div id="mainApp" style="display:none">
+<div id="mainApp" style="display:none;flex-direction:column;height:100vh;min-height:0;overflow:hidden">
 <div class="header">
   <a href="https://k9x.ai" target="_blank" style="text-decoration:none;color:var(--accent);font-size:15px;font-weight:700">K9X</a>
   <h1>DAS</h1>
@@ -949,7 +949,7 @@ function doLogin(e) {
   }
   state.sessionId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
   document.getElementById('loginOverlay').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('mainApp').style.display = 'flex';
   const chip = document.getElementById('userChip');
   if (chip) chip.textContent = 'User: ' + u.charAt(0).toUpperCase() + u.slice(1);
   connectSSE();
