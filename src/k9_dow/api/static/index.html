@@ -333,7 +333,12 @@ function renderJobPanel() {
     if (lastResult.review_package) summary += `── Review Package ──\n${Object.keys(lastResult.review_package).map(k => '  ✓ ' + k).join('\n')}\n\n`;
     summary += `View generated docs in the "Generated Docs" tab.`;
     const hilEvt = [...state.events].reverse().find(e => (e.type || e.event_type) === 'HilTaskPublished');
-    if (hilEvt) summary += `\n\n→ Sent to HIL for review and approval — message published to '${hilEvt.topic || '?'}'`;
+    if (hilEvt) {
+      summary += `\n\n→ Sent to HIL for review and approval — message published to '${hilEvt.topic || '?'}'`;
+      progressEl.innerHTML += `<div style="margin-top:6px;padding:8px 10px;border-radius:6px;border:1px solid var(--orange);` +
+        `background:rgba(245,158,11,0.1);color:var(--orange);font-weight:600">` +
+        `Job Complete! Document sent to HIL for review</div>`;
+    }
     setJobResultText(summary);
     statusEl.innerHTML = '<span class="job-badge complete">' + (lastJobId || '') + ' COMPLETE</span>';
 
