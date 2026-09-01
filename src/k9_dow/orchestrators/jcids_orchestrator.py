@@ -162,11 +162,14 @@ class JcidsOrchestrator(BaseOrchestrator):
         print(flush=True)
         self._emit("OrchestratorCompleted", job_id=job_id, elapsed_s=round(total_elapsed, 1), gate="JROC-VALIDATION")
 
+        from k9_dow.utils.icd_composer import extract_source_title
+
         result = {
             "job_id": job_id,
             "orchestrator": "jcids",
             "status": "awaiting_gate",
             "gate_id": "JROC-VALIDATION",
+            "document_title": extract_source_title(payload.get("source_markdown", "")),
             "view_generation": view_result,
             "gate_readiness": gate_result,
             "review_package": package_result,

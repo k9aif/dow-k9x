@@ -11,6 +11,24 @@ import re
 from datetime import datetime
 
 
+def extract_source_title(source_markdown: str) -> str:
+    """Pull the input document's own title from its first Markdown heading
+    (e.g. "# CAPABILITY DEVELOPMENT DOCUMENT (CDD) FOR IRONCLAD INCREMENT 1"),
+    so the generated ICD is titled after the document it's actually about
+    instead of a generic label. Returns "" if no heading is found."""
+    if not source_markdown:
+        return ""
+    for line in source_markdown.splitlines():
+        line = line.strip()
+        if line.startswith("# "):
+            return line[2:].strip()
+        if line:
+            # First non-blank line wasn't a heading -- this source doesn't
+            # lead with one, so don't guess by scanning further into the body.
+            break
+    return ""
+
+
 def strip_json_blocks(text: str) -> str:
     """Drop fenced ```json code blocks -- agents restate their prose answer as
     a trailing JSON block, which reads as raw tool output in a human-facing
@@ -84,9 +102,15 @@ def compose_icd(job_data: dict) -> str:
     job_id = result.get("job_id", "unknown")
     gate_id = result.get("gate_id", "")
     date_str = datetime.now().strftime("%d %B %Y")
+    document_title = result.get("document_title") or ""
 
     lines = []
-    lines.append("# Initial Capabilities Document (ICD)")
+    if document_title:
+        lines.append(f"# {document_title}")
+        lines.append("")
+        lines.append("**Initial Capabilities Document (ICD)**")
+    else:
+        lines.append("# Initial Capabilities Document (ICD)")
     lines.append("")
     lines.append("## DRAFT — FOR DEMONSTRATION PURPOSES ONLY")
     lines.append("")
