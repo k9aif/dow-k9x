@@ -213,6 +213,7 @@
       <div class="tab" id="tab-agents" onclick="switchTab('agents')">Agents<span class="count" id="agent-count">0</span></div>
       <div class="tab" id="tab-llm" onclick="switchTab('llm')">LLM Calls<span class="count" id="llm-count">0</span></div>
       <div class="tab" id="tab-docs" onclick="switchTab('docs')">Generated Docs<span class="count" id="docs-count"></span></div>
+      <div class="tab" id="tab-jobresults" onclick="switchTab('jobresults')">Job Results</div>
       <div class="tab" id="tab-arch" onclick="switchTab('arch')">Architecture</div>
       <div style="margin-left:auto;font-size:10px;color:var(--text2);padding:8px 16px;letter-spacing:0.3px">Built on <span style="color:var(--accent);font-weight:600">K9-AIF Framework</span></div>
     </div>
@@ -224,8 +225,6 @@
     <h3>Job Progress</h3>
     <div id="jobStatus"></div>
     <div id="jobProgress" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 12px 12px;font-size:11px;color:var(--text2)">No job running. Select a document and click Analyze.</div>
-    <h3>Job Result</h3>
-    <div class="result-area" id="resultArea">No results yet.</div>
   </div>
 
 </div>
@@ -246,15 +245,31 @@ const state = {
   jobInProgress: false,
   lastCompletedJobId: null,
   jobTimeoutId: null,
+  jobResultText: 'No results yet.', // shown in the Job Results tab, not the right pane
 };
+
+// Job Result now lives in its own tab (Job Progress stays in the right pane) --
+// this updates the stored text and live-refreshes the tab if it's open.
+function setJobResultText(text) {
+  state.jobResultText = text;
+  if (state.activeTab === 'jobresults') renderJobResults();
+}
+
+function renderJobResults() {
+  const area = document.getElementById('feedArea');
+  if (!area) return;
+  // #feedArea (.feed) already scrolls on its own -- no nested scroll box here,
+  // just styled text, same pattern every other tab uses in this container.
+  area.innerHTML = '<pre id="jobResultsBox" style="margin:0;padding:8px 12px;font-family:var(--mono);font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--text2)"></pre>';
+  document.getElementById('jobResultsBox').textContent = state.jobResultText;
+}
 
 const JOB_TIMEOUT_MS = 20 * 60 * 1000; // 20 minutes — generous for a full DAS run
 
 function forceResetJob(reason) {
   if (state.jobTimeoutId) { clearTimeout(state.jobTimeoutId); state.jobTimeoutId = null; }
   setJobInProgress(false);
-  const resultArea = document.getElementById('resultArea');
-  if (resultArea) resultArea.textContent = reason || 'Job tracking reset. You can start another analysis.';
+  setJobResultText(reason || 'Job tracking reset. You can start another analysis.');
 }
 
 // Derives squad/agent progress and the latest final result directly from
@@ -262,9 +277,8 @@ function forceResetJob(reason) {
 // a page reload since only one job runs at a time on this host anyway).
 function renderJobPanel() {
   const progressEl = document.getElementById('jobProgress');
-  const resultEl = document.getElementById('resultArea');
   const statusEl = document.getElementById('jobStatus');
-  if (!progressEl || !resultEl || !statusEl) return;
+  if (!progressEl || !statusEl) return;
 
   const squads = [];
   let currentSquad = null;
@@ -321,7 +335,7 @@ function renderJobPanel() {
     summary += `View generated docs in the "Generated Docs" tab.`;
     const hilEvt = [...state.events].reverse().find(e => (e.type || e.event_type) === 'HilTaskPublished');
     if (hilEvt) summary += `\n\n→ Sent to HIL for review and approval — message published to '${hilEvt.topic || '?'}'`;
-    resultEl.textContent = summary;
+    setJobResultText(summary);
     statusEl.innerHTML = '<span class="job-badge complete">' + (lastJobId || '') + ' COMPLETE</span>';
 
     if (lastJobId && lastJobId !== state.lastCompletedJobId) {
@@ -332,7 +346,7 @@ function renderJobPanel() {
       setTimeout(() => switchTab('docs'), 1500);
     }
   } else if (squads.length > 0) {
-    resultEl.textContent = 'Pipeline running — see Job Progress above.';
+    setJobResultText('Pipeline running — see Job Progress above.');
   }
 }
 
@@ -376,8 +390,8 @@ function connectSSE() {
       const evtType = evt.event_type || evt.type || '';
       const orch = evt.orchestrator || result.orchestrator || '';
 
-      // Pipeline result (final) — resultArea/badge/fetchDocs/tab-switch are
-      // handled by renderJobPanel() below, derived fresh from state.events
+      // Pipeline result (final) — Job Results tab/badge/fetchDocs/tab-switch
+      // are handled by renderJobPanel() below, derived fresh from state.events
       // rather than exact job/correlation-id matching (which breaks across
       // a page reload). This block just adds the Live Feed banner line.
       if (result.status) {
@@ -602,6 +616,7 @@ function switchTab(tab) {
   else if (tab === 'agents') renderAgents();
   else if (tab === 'llm') renderLLM();
   else if (tab === 'docs') renderDocs();
+  else if (tab === 'jobresults') renderJobResults();
   else if (tab === 'arch') renderArch();
 }
 
@@ -896,8 +911,7 @@ async function upload() {
       forceResetJob('No response after 20 minutes — the job may have stalled or failed silently. You can try again.');
     }
   }, JOB_TIMEOUT_MS);
-  const resultArea = document.getElementById('resultArea');
-  resultArea.textContent = 'Submitting to DAS pipeline...';
+  setJobResultText('Submitting to DAS pipeline...');
 
   // Reset
   document.querySelectorAll('.pipe-dot').forEach(d => {
@@ -926,11 +940,11 @@ async function upload() {
     if (data.job_id) state.mySessionJobIds.add(data.job_id);
 
     document.getElementById('jobStatus').innerHTML = '<span class="job-badge submitted">' + data.job_id + ' SUBMITTED</span>';
-    resultArea.textContent = JSON.stringify(data, null, 2) + '\n\nWaiting for pipeline results via SSE...';
+    setJobResultText(JSON.stringify(data, null, 2) + '\n\nWaiting for pipeline results via SSE...');
     document.getElementById('squadList').innerHTML = '<div style="color:var(--text2)">Waiting for pipeline...</div>';
     switchTab('live');
   } catch(err) {
-    resultArea.textContent = 'Error: ' + err.message;
+    setJobResultText('Error: ' + err.message);
     setJobInProgress(false);
   }
 }
@@ -1017,7 +1031,7 @@ fetch('/demos/sample-result').then(r=>r.json()).then(data=>{
   if (r.gate_readiness) summary += `── Gate Readiness ──\n${Object.keys(r.gate_readiness).filter(k=>k!=='status'&&k!=='squad_id').map(k => '  ✓ ' + k).join('\n')}\n\n`;
   if (r.review_package) summary += `── Review Package ──\n${Object.keys(r.review_package).filter(k=>k!=='status'&&k!=='squad_id').map(k => '  ✓ ' + k).join('\n')}\n\n`;
   summary += `View generated docs in the "Generated Docs" tab.`;
-  document.getElementById('resultArea').textContent = summary;
+  setJobResultText(summary);
   document.getElementById('jobStatus').innerHTML = '<span class="job-badge complete">' + data.job_id + ' COMPLETE</span>';
 
   // Light up pipeline dots
