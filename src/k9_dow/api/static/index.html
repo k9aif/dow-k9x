@@ -9,6 +9,11 @@
 <style>
   :root{--bg:#0f172a;--bg2:#1e293b;--bg3:#0d1117;--border:#334155;--text:#e2e8f0;--text2:#94a3b8;--accent:#3b82f6;--green:#22c55e;--orange:#f59e0b;--red:#ef4444;--teal:#14b8a6;--mono:'JetBrains Mono','Fira Code',monospace}
   *{box-sizing:border-box;margin:0;padding:0}
+  *{scrollbar-width:thin;scrollbar-color:#475569 transparent}
+  *::-webkit-scrollbar{width:9px;height:9px}
+  *::-webkit-scrollbar-track{background:transparent}
+  *::-webkit-scrollbar-thumb{background:#475569;border-radius:5px}
+  *::-webkit-scrollbar-thumb:hover{background:#64748b}
   body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
   /* Header */
