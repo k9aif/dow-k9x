@@ -1,7 +1,17 @@
 from __future__ import annotations
 
+import threading
+
 from k9_dow.gates.gate_model import GateDefinition, GateStatus, GateDecision
 from k9_dow.graph.schema import GateType, GateAction
+
+
+class GateAlreadyDecidedError(Exception):
+    """Raised when record_decision() is called on a gate whose state is
+    already "resolved" -- the caller lost a race with another
+    concurrent decision on the same gate. The caller receives this
+    instead of silently overwriting the existing decision."""
+    pass
 
 
 # ─── Non-delegable HITL Gates (minimum set from spec Section 6) ───
@@ -105,6 +115,7 @@ class GateRegistry:
     def __init__(self) -> None:
         self._gates = dict(DAS_GATES)
         self._runtime: dict[str, GateStatus] = {}
+        self._decision_lock = threading.Lock()
 
     def get_gate(self, gate_id: str) -> GateDefinition:
         return self._gates[gate_id]
@@ -133,14 +144,28 @@ class GateRegistry:
         return status
 
     def record_decision(self, gate_id: str, decision: GateDecision) -> GateStatus:
+        """Atomically transition a gate to "resolved". Guarded by a lock
+        plus an explicit state check so two concurrent decisions on the
+        same gate cannot both silently commit: the first to acquire the
+        lock wins, and any later caller sees the gate already resolved
+        and gets GateAlreadyDecidedError rather than overwriting the
+        winning decision. Closes the compare-and-swap gap previously
+        disclosed for this registry."""
         gate_def = self._gates[gate_id]
         if gate_def.non_delegable and not decision.decided_by:
             raise ValueError(f"Gate {gate_id} is non-delegable — requires identified human authority")
 
-        status = self._runtime[gate_id]
-        status.decision = decision
-        status.state = "resolved"
-        return status
+        with self._decision_lock:
+            status = self._runtime[gate_id]
+            if status.state == "resolved":
+                existing_action = status.decision.action if status.decision else "unknown"
+                raise GateAlreadyDecidedError(
+                    f"Gate {gate_id!r} was already resolved (existing decision: "
+                    f"{existing_action}); conflicting decision {decision.action!r} rejected"
+                )
+            status.decision = decision
+            status.state = "resolved"
+            return status
 
     def may_proceed(self, gate_id: str) -> bool:
         status = self._runtime.get(gate_id)
