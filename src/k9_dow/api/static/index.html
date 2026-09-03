@@ -237,7 +237,17 @@ const state = {
   docs: [],
   allRuns: [], // every run this tab has generated docs for this session, newest first
   sessionId: null,
-  mySessionJobIds: new Set(), // job_ids this tab submitted -- SSE filters to these only
+  // job_ids this tab submitted -- SSE filters to these only. Persisted to
+  // sessionStorage (not just an in-memory Set) because `state` here is
+  // redeclared fresh on every page load, and login always calls
+  // connectSSE() again on reload -- without this, refreshing the page
+  // while a job is still running permanently drops every subsequent SSE
+  // event for that job (job_id no longer in the set), even though the
+  // pipeline is still actually running and the SSE connection itself is
+  // fine. Confirmed live 2026-09-03: Live Feed count incremented, Agents
+  // tab stayed at "No agent events yet" for a job that was demonstrably
+  // still executing (GPU active).
+  mySessionJobIds: new Set(JSON.parse(sessionStorage.getItem('k9x_das_job_ids') || '[]')),
   activeTab: 'live',
   jobId: null,
   corrId: null,
@@ -374,7 +384,7 @@ function setJobInProgress(running) {
 // ─── SSE ──────────────────────────────────────────────
 function connectSSE() {
   const dot = document.getElementById('sseDot');
-  const es = new EventSource('/events/stream');
+  const es = new EventSource('/events/stream?session_id=' + encodeURIComponent(state.sessionId || ''));
   es.onmessage = (e) => {
     try {
       const evt = JSON.parse(e.data);
@@ -930,18 +940,23 @@ async function upload() {
 
   try {
     let resp;
+    const sid = encodeURIComponent(state.sessionId || '');
     if (isDemo) {
-      resp = await fetch(`/jobs/demo/${demoSel.value}`, { method: 'POST' });
+      resp = await fetch(`/jobs/demo/${demoSel.value}?session_id=${sid}`, { method: 'POST' });
     } else {
       const fd = new FormData();
       fd.append('file', fi.files[0]);
       fd.append('document_type', dt);
+      fd.append('session_id', state.sessionId || '');
       resp = await fetch('/jobs/upload', { method: 'POST', body: fd });
     }
     const data = await resp.json();
     state.jobId = data.job_id;
     state.corrId = data.correlation_id;
-    if (data.job_id) state.mySessionJobIds.add(data.job_id);
+    if (data.job_id) {
+      state.mySessionJobIds.add(data.job_id);
+      sessionStorage.setItem('k9x_das_job_ids', JSON.stringify([...state.mySessionJobIds]));
+    }
 
     document.getElementById('jobStatus').innerHTML = '<span class="job-badge submitted">' + data.job_id + ' SUBMITTED</span>';
     setJobResultText(JSON.stringify(data, null, 2) + '\n\nWaiting for pipeline results via SSE...');
@@ -965,7 +980,14 @@ function doLogin(e) {
     document.getElementById('loginError').textContent = 'Invalid credentials. Try demo / demo.';
     return;
   }
-  state.sessionId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+  // Persisted, not regenerated on every login -- a page reload always
+  // re-shows this login overlay (see comment at top of doLogin), and a
+  // fresh sessionId on every reload would break the server-side
+  // per-session SSE filtering in app.py (event_session_id would never
+  // match a *new* client_session_id for jobs submitted under the old one).
+  state.sessionId = sessionStorage.getItem('k9x_das_session_id')
+    || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+  sessionStorage.setItem('k9x_das_session_id', state.sessionId);
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('mainApp').style.display = 'flex';
   const chip = document.getElementById('userChip');

@@ -101,7 +101,7 @@ spec:
     - name: OLLAMA_DISPLAY_NAME
       value: "powerAI-5090"
     - name: K9_ENV
-      value: "production"
+      value: "development"
 
     resources:
       requests:
@@ -151,7 +151,7 @@ spec:
     - name: PYTHONPATH
       value: "/app/dow-k9-aif/src:/app/k9-aif-framework"
     - name: K9_ENV
-      value: "production"
+      value: "development"
 
     resources:
       requests:
@@ -199,7 +199,7 @@ spec:
     - name: PYTHONPATH
       value: "/app/dow-k9-aif/src:/app/k9-aif-framework"
     - name: K9_ENV
-      value: "production"
+      value: "development"
 
     resources:
       requests:

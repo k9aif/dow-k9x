@@ -65,43 +65,63 @@ async def _consume_results():
         async for msg in consumer:
             evt = msg.value
             _event_log.append(evt)
-            # Only store final pipeline results (not progress events)
+
+            # Resolve which submitted job this event belongs to for EVERY
+            # event, not just final results -- session-scoped SSE delivery
+            # below needs this for progress events too, not only the final
+            # one. (Previously this lookup only ran inside the "final
+            # result" branch, so progress events were broadcast to every
+            # connected browser tab with no way to attribute them to a
+            # session -- the frontend's own mySessionJobIds filter is only
+            # a display-layer mitigation; the actual event still crossed
+            # the wire to every visitor.)
             evt_result = evt.get("result")
-            if isinstance(evt_result, dict) and evt_result.get("status"):
-                job_id = (
-                    evt.get("job_id")
-                    or evt_result.get("job_id")
-                )
-                corr_id = evt.get("correlation_id", "")
-                matched_key = None
-                if job_id and job_id in _job_store:
-                    matched_key = job_id
-                else:
-                    for k, v in _job_store.items():
-                        if isinstance(v, dict) and v.get("correlation_id") == corr_id:
-                            matched_key = k
-                            break
-                if matched_key:
-                    # Merge, don't replace -- the submission-time entry carries
-                    # filename/document_type/submitted_at that evt doesn't have.
-                    _job_store[matched_key] = {**_job_store.get(matched_key, {}), **evt}
-                    log.info("[SSE] Stored result for job=%s", matched_key)
+            job_id = evt.get("job_id") or (evt_result.get("job_id") if isinstance(evt_result, dict) else None)
+            corr_id = evt.get("correlation_id", "")
+            matched_key = None
+            if job_id and job_id in _job_store:
+                matched_key = job_id
+            else:
+                for k, v in _job_store.items():
+                    if isinstance(v, dict) and v.get("correlation_id") == corr_id:
+                        matched_key = k
+                        break
+
+            # Only store final pipeline results (not progress events)
+            if matched_key and isinstance(evt_result, dict) and evt_result.get("status"):
+                # Merge, don't replace -- the submission-time entry carries
+                # filename/document_type/submitted_at that evt doesn't have.
+                _job_store[matched_key] = {**_job_store.get(matched_key, {}), **evt}
+                log.info("[SSE] Stored result for job=%s", matched_key)
+
+            event_session_id = (
+                _job_store.get(matched_key, {}).get("session_id") if matched_key else None
+            )
             dead = []
-            for q in _sse_clients:
+            for q, client_session_id in _sse_clients:
+                # No session_id on the event (couldn't attribute it to a
+                # known job) or no session_id on the client (older/direct
+                # connection) -- fail open to "deliver it" rather than
+                # silently dropping real events; this only degrades back
+                # to the pre-existing global-broadcast behavior for the
+                # narrow case it can't attribute, not for the common case.
+                if event_session_id and client_session_id and event_session_id != client_session_id:
+                    continue
                 try:
                     q.put_nowait(evt)
                 except asyncio.QueueFull:
-                    dead.append(q)
-            for q in dead:
-                _sse_clients.remove(q)
+                    dead.append((q, client_session_id))
+            for item in dead:
+                _sse_clients.remove(item)
     except Exception as exc:
         log.warning("[SSE] Results consumer failed: %s", exc)
 
 
 @app.get("/events/stream")
-async def event_stream():
+async def event_stream(session_id: str = ""):
     q: asyncio.Queue = asyncio.Queue(maxsize=100)
-    _sse_clients.append(q)
+    client = (q, session_id or None)
+    _sse_clients.append(client)
 
     async def generate():
         try:
@@ -111,8 +131,8 @@ async def event_stream():
         except asyncio.CancelledError:
             pass
         finally:
-            if q in _sse_clients:
-                _sse_clients.remove(q)
+            if client in _sse_clients:
+                _sse_clients.remove(client)
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -197,15 +217,15 @@ async def pipeline_info():
 
 
 @app.post("/jobs/demo/{demo_filename}")
-async def run_demo(demo_filename: str, document_type: str = "capability_gap"):
+async def run_demo(demo_filename: str, document_type: str = "capability_gap", session_id: str = ""):
     demo_path = _DEMOS_DIR / demo_filename
     if not demo_path.exists():
         raise HTTPException(status_code=404, detail="Demo document not found")
     text = demo_path.read_text(encoding="utf-8")
-    return await _submit_job(demo_filename, text, document_type)
+    return await _submit_job(demo_filename, text, document_type, session_id)
 
 
-async def _submit_job(filename: str, text: str, document_type: str):
+async def _submit_job(filename: str, text: str, document_type: str, session_id: str = ""):
     job_id = generate_job_id()
     log.info("[API] Submit: %s (%d bytes) type=%s job=%s", filename, len(text), document_type, job_id)
     try:
@@ -234,6 +254,7 @@ async def _submit_job(filename: str, text: str, document_type: str):
             "job_id": job_id, "status": "submitted", "correlation_id": event["correlation_id"],
             "filename": filename, "document_type": document_type,
             "submitted_at": datetime.now(timezone.utc).isoformat(),
+            "session_id": session_id or None,
         }
         return JSONResponse(content={
             "job_id": job_id, "status": "submitted",
@@ -249,13 +270,14 @@ async def _submit_job(filename: str, text: str, document_type: str):
 async def upload_document(
     file: UploadFile = File(...),
     document_type: str = Form(default="capability_gap"),
+    session_id: str = Form(default=""),
 ):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Empty file")
-    return await _submit_job(file.filename, content.decode("utf-8", errors="ignore"), document_type)
+    return await _submit_job(file.filename, content.decode("utf-8", errors="ignore"), document_type, session_id)
 
 
 @app.get("/jobs/{job_id}")
