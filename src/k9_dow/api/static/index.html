@@ -227,6 +227,9 @@
     <h3>Job Progress</h3>
     <div id="jobStatus"></div>
     <div id="jobProgress" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 12px 12px;font-size:11px;color:var(--text2)">No job running. Select a document and click Analyze.</div>
+
+    <h3 style="border-top:1px solid var(--border)">Job Queue (max 5)</h3>
+    <div id="jobQueueList" style="flex-shrink:0;max-height:150px;overflow-y:auto;overflow-x:hidden;padding:6px 12px 12px;font-size:11px;color:var(--text2)">Loading…</div>
   </div>
 
 </div>
@@ -456,6 +459,45 @@ async function checkLlmHealth() {
 }
 checkLlmHealth();
 setInterval(checkLlmHealth, 30000);
+
+// Shared "Job Queue" panel -- deliberately global, not session-filtered
+// (see /jobs/queue in app.py): a shared demo/demo login means everyone
+// should be able to see what's ahead of their own job, or that recently
+// finished. Simple poll rather than wiring onto the SSE stream -- this
+// only needs to be roughly current, not live-to-the-second.
+function jobQueueStatusIcon(status) {
+  if (status === 'complete') return '✓';
+  if (status === 'error') return '✗';
+  return '…';
+}
+async function refreshJobQueue() {
+  const el = document.getElementById('jobQueueList');
+  if (!el) return;
+  try {
+    const resp = await fetch('/jobs/queue');
+    const data = await resp.json();
+    const jobs = data.jobs || [];
+    if (jobs.length === 0) {
+      el.innerHTML = '<div style="color:var(--text2)">No jobs yet.</div>';
+      return;
+    }
+    el.innerHTML = jobs.map(j => {
+      const done = j.status === 'complete';
+      const failed = j.status === 'error';
+      const color = done ? 'var(--green)' : failed ? 'var(--red)' : 'var(--text2)';
+      const label = done ? 'done' : failed ? 'failed' : 'waiting...';
+      const name = j.filename || j.job_id;
+      return `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">${name}</span>
+        <span style="color:${color};white-space:nowrap;font-weight:600">${jobQueueStatusIcon(j.status)} ${label}</span>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    el.innerHTML = '<div style="color:var(--text2)">Unable to load job queue.</div>';
+  }
+}
+refreshJobQueue();
+setInterval(refreshJobQueue, 5000);
 
 // ─── SSE ──────────────────────────────────────────────
 function connectSSE() {
@@ -1031,6 +1073,15 @@ async function upload() {
       resp = await fetch('/jobs/upload', { method: 'POST', body: fd });
     }
     const data = await resp.json();
+    if (!resp.ok) {
+      // 429 = queue is at MAX_QUEUE_SIZE (app.py); anything else here is
+      // the existing enqueue-failure path -- both previously fell through
+      // into the success branch below with no job_id, showing a
+      // nonsensical "undefined SUBMITTED" badge.
+      setJobResultText('Error: ' + (data.error || 'Submission failed.'));
+      setJobInProgress(false);
+      return;
+    }
     state.jobId = data.job_id;
     state.corrId = data.correlation_id;
     if (data.job_id) {

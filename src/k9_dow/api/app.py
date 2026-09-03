@@ -190,6 +190,18 @@ async def _consume_results():
                 # Merge, don't replace -- the submission-time entry carries
                 # filename/document_type/submitted_at that evt doesn't have.
                 _job_store[matched_key] = {**_job_store.get(matched_key, {}), **evt}
+                # The merge above brings in evt's own top-level keys, but
+                # the pipeline's success/failure verdict only ever lives
+                # nested at evt["result"]["status"] (e.g. "awaiting_gate"
+                # on success, "error" on failure) -- flatten it up to
+                # _job_store's own top-level "status" so this entry stops
+                # reading "queued"/"running" forever. Without this, every
+                # completed job stayed "running" permanently in the queue
+                # -- the 5-job cap would fill up after 5 jobs ever and
+                # never free a slot again.
+                _job_store[matched_key]["status"] = (
+                    "error" if evt_result.get("status") == "error" else "complete"
+                )
                 log.info("[SSE] Stored result for job=%s", matched_key)
                 # Terminal result for the job the dispatcher is currently
                 # tracking -- free it to pull the next queued job. Reuses
@@ -352,7 +364,46 @@ async def run_demo(demo_filename: str, document_type: str = "capability_gap", se
     return await _submit_job(demo_filename, text, document_type, session_id)
 
 
+MAX_QUEUE_SIZE = 5
+_ACTIVE_JOB_STATUSES = {"queued", "running"}
+
+
+def _active_jobs() -> list:
+    """Jobs still queued or running, oldest first -- the actual queue
+    depth/contents, not the full job history that _job_store accumulates."""
+    jobs = [j for j in _job_store.values() if j.get("status") in _ACTIVE_JOB_STATUSES]
+    jobs.sort(key=lambda j: j.get("submitted_at", ""))
+    return jobs
+
+
+@app.get("/jobs/queue")
+def list_job_queue():
+    """Last 5 jobs by submission time, most recent first -- a shared
+    activity view, not just current queue depth. Deliberately unfiltered
+    by session: shared demo/demo login means everyone should be able to
+    see what's ahead of (or has already finished before) their own job."""
+    recent = sorted(_job_store.values(), key=lambda j: j.get("submitted_at", ""), reverse=True)[:MAX_QUEUE_SIZE]
+    return JSONResponse(content={
+        "jobs": [
+            {
+                "job_id": j["job_id"],
+                "filename": j.get("filename"),
+                "document_type": j.get("document_type"),
+                "status": j.get("status"),
+                "submitted_at": j.get("submitted_at"),
+            }
+            for j in recent
+        ],
+        "max_queue_size": MAX_QUEUE_SIZE,
+    })
+
+
 async def _submit_job(filename: str, text: str, document_type: str, session_id: str = ""):
+    if len(_active_jobs()) >= MAX_QUEUE_SIZE:
+        return JSONResponse(status_code=429, content={
+            "status": "rejected",
+            "error": f"Job queue is full ({MAX_QUEUE_SIZE} max) -- try again once a running job finishes.",
+        })
     job_id = generate_job_id()
     log.info("[API] Submit: %s (%d bytes) type=%s job=%s", filename, len(text), document_type, job_id)
     try:
