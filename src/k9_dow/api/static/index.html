@@ -278,9 +278,25 @@ function renderJobResults() {
 
 const JOB_TIMEOUT_MS = 20 * 60 * 1000; // 20 minutes — generous for a full DAS run
 
+// Shared by forceResetJob(), upload() (start of a new job), and doLogin() --
+// one place that clears the *display* of a prior job's activity. Does NOT
+// touch state.sessionId (must survive login/reload for server-side SSE
+// filtering) or state.allRuns (Generated Docs deliberately persists across
+// runs so multiple results stay visible in that tab).
+function resetJobDisplay() {
+  document.querySelectorAll('.pipe-dot').forEach(d => {
+    d.className = d.className.includes('gate') ? 'pipe-dot gate' : 'pipe-dot';
+  });
+  state.events = []; state.agentEvents = []; state.llmEvents = []; state.docs = [];
+  state.lastCompletedJobId = null;
+  renderLive();
+  renderJobPanel();
+}
+
 function forceResetJob(reason) {
   if (state.jobTimeoutId) { clearTimeout(state.jobTimeoutId); state.jobTimeoutId = null; }
   setJobInProgress(false);
+  resetJobDisplay();
   setJobResultText(reason || 'Job tracking reset. You can start another analysis.');
 }
 
@@ -1000,17 +1016,7 @@ async function upload() {
     }
   }, JOB_TIMEOUT_MS);
   setJobResultText('Submitting to DAS pipeline...');
-
-  // Reset
-  document.querySelectorAll('.pipe-dot').forEach(d => {
-    d.className = d.className.includes('gate') ? 'pipe-dot gate' : 'pipe-dot';
-  });
-  // Live Feed/Agents/LLM Calls reset per job -- Generated Docs (state.allRuns)
-  // deliberately does not, so multiple runs stay visible in the same tab.
-  state.events = []; state.agentEvents = []; state.llmEvents = []; state.docs = [];
-  state.lastCompletedJobId = null;
-  renderLive();
-  renderJobPanel();
+  resetJobDisplay();
 
   try {
     let resp;
@@ -1066,6 +1072,18 @@ function doLogin(e) {
   document.getElementById('mainApp').style.display = 'flex';
   const chip = document.getElementById('userChip');
   if (chip) chip.textContent = 'User: ' + u.charAt(0).toUpperCase() + u.slice(1);
+
+  // A fresh login is a natural "start clean" checkpoint -- clears any
+  // job-in-progress lock/timeout and stale Live Feed/Agents/LLM Calls
+  // counts left over from a prior session (e.g. one that died mid-job to
+  // a dropped connection). On a real page reload this is a no-op since
+  // that state is already fresh; it matters if the login overlay is ever
+  // reached without one.
+  if (state.jobTimeoutId) { clearTimeout(state.jobTimeoutId); state.jobTimeoutId = null; }
+  setJobInProgress(false);
+  resetJobDisplay();
+  setJobResultText('No results yet.');
+
   connectSSE();
 }
 

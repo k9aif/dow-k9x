@@ -117,6 +117,13 @@ async def _consume_results():
         log.warning("[SSE] Results consumer failed: %s", exc)
 
 
+SSE_KEEPALIVE_SECONDS = 15  # das.k9x.ai runs through a Cloudflare tunnel, which
+# kills a connection to the origin after ~100s of silence (its 524 timeout).
+# A real DAS run can easily go quiet that long between agent steps, so
+# without this the stream dies mid-job on Cloudflare's side even though
+# both the browser and the backend are still fine -- confirmed 2026-09-03
+# via a live 524 in the browser console during a real stuck-job report.
+
 @app.get("/events/stream")
 async def event_stream(session_id: str = ""):
     q: asyncio.Queue = asyncio.Queue(maxsize=100)
@@ -126,8 +133,14 @@ async def event_stream(session_id: str = ""):
     async def generate():
         try:
             while True:
-                evt = await q.get()
-                yield f"data: {json.dumps(evt)}\n\n"
+                try:
+                    evt = await asyncio.wait_for(q.get(), timeout=SSE_KEEPALIVE_SECONDS)
+                    yield f"data: {json.dumps(evt)}\n\n"
+                except asyncio.TimeoutError:
+                    # SSE comment line (leading ":") -- ignored by EventSource's
+                    # own parsing, but it's real bytes on the wire, which is
+                    # all Cloudflare's idle-timeout cares about.
+                    yield ": keep-alive\n\n"
         except asyncio.CancelledError:
             pass
         finally:
