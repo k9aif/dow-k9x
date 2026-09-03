@@ -468,6 +468,7 @@ setInterval(checkLlmHealth, 30000);
 function jobQueueStatusIcon(status) {
   if (status === 'complete') return '✓';
   if (status === 'error') return '✗';
+  if (status === 'running') return '●';
   return '…';
 }
 async function refreshJobQueue() {
@@ -484,8 +485,9 @@ async function refreshJobQueue() {
     el.innerHTML = jobs.map(j => {
       const done = j.status === 'complete';
       const failed = j.status === 'error';
-      const color = done ? 'var(--green)' : failed ? 'var(--red)' : 'var(--text2)';
-      const label = done ? 'done' : failed ? 'failed' : 'waiting...';
+      const running = j.status === 'running';
+      const color = done ? 'var(--green)' : failed ? 'var(--red)' : running ? 'var(--accent)' : 'var(--text2)';
+      const label = done ? 'done' : failed ? 'failed' : running ? 'Running...' : 'waiting...';
       const name = j.filename || j.job_id;
       return `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
         <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">${name}</span>
