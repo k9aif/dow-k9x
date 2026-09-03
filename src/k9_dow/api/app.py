@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from k9_aif_abb.k9_utils.config_loader import load_yaml
 from k9_dow.config.settings import settings
 from k9_dow.utils.ids import generate_job_id
-from k9_dow.utils.health_check import check_dependencies
+from k9_dow.utils.health_check import check_dependencies, check_ollama_reachable
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -186,7 +186,16 @@ async def index():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "das", "version": "0.2.0"}
+    # Previously hardcoded {"status": "ok"} with no actual check --
+    # the UI had no way to warn before job submission that the backend
+    # LLM was unreachable; it could only find out after a job failed.
+    ollama = check_ollama_reachable(_config)
+    return {
+        "status": "ok" if ollama["reachable"] else "degraded",
+        "service": "das",
+        "version": "0.2.0",
+        "ollama": ollama,
+    }
 
 
 @app.get("/llm")

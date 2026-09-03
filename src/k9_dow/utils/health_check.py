@@ -20,6 +20,29 @@ def _check_tcp(host: str, port: int, label: str, timeout: float = 3.0) -> bool:
         return False
 
 
+def check_ollama_reachable(config: dict) -> dict:
+    """Live, on-demand check -- unlike check_dependencies() below, this
+    returns a real reachable/error pair for an HTTP endpoint to expose,
+    rather than only logging at process startup. /health previously
+    returned a hardcoded {"status": "ok"} with no actual check at all,
+    so the UI had no way to warn a user *before* they submit a job that
+    the backend LLM is currently unreachable -- they'd only find out
+    after waiting for the job to fail."""
+    ollama_url = (
+        config.get("inference", {}).get("llm_factory", {}).get("base_url", "")
+        or os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+    )
+    parsed = urlparse(ollama_url)
+    host = parsed.hostname or "localhost"
+    port = parsed.port or 11434
+    try:
+        sock = socket.create_connection((host, port), timeout=3.0)
+        sock.close()
+        return {"reachable": True, "host": f"{host}:{port}", "error": None}
+    except (socket.timeout, ConnectionRefusedError, OSError) as exc:
+        return {"reachable": False, "host": f"{host}:{port}", "error": str(exc)}
+
+
 def check_dependencies(config: dict, require_kafka: bool = False) -> bool:
     results = []
 

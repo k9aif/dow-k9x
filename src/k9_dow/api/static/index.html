@@ -84,6 +84,7 @@
   .job-badge{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:10px;font-family:var(--mono);margin:8px 12px}
   .job-badge.submitted{border-color:var(--accent);color:var(--accent)}
   .job-badge.complete{border-color:var(--green);color:var(--green)}
+  .job-badge.failed{border-color:var(--red);color:var(--red)}
 
   /* Endpoints */
   .endpoints{padding:12px;border-top:1px solid var(--border);margin-top:auto}
@@ -151,6 +152,8 @@
     <div class="status-dot ok" id="sseDot" title="SSE connected"></div>
   </div>
 </div>
+
+<div id="llmHealthBanner" style="display:none;padding:8px 16px;background:rgba(239,68,68,0.12);border-bottom:1px solid var(--red);color:var(--red);font-family:var(--mono);font-size:11px;font-weight:600"></div>
 
 <div class="panes">
 
@@ -336,7 +339,33 @@ function renderJobPanel() {
     if (r.status) { lastResult = r; lastOrch = e.orchestrator || r.orchestrator || ''; lastJobId = e.job_id || lastJobId; break; }
   }
 
-  if (lastResult) {
+  if (lastResult && lastResult.status === 'error') {
+    // Was previously falling through to the success-shaped summary below,
+    // which only ever checks for view_generation/gate_readiness/
+    // review_package keys -- none of which an error result has -- so the
+    // real failure (lastResult.detail, e.g. the actual "LLM backend
+    // unavailable: ..." exception message from dow_orchestrator_process.py)
+    // was silently dropped. User saw "Status: error" with zero explanation,
+    // then got auto-navigated to an empty Generated Docs tab. Confirmed
+    // live 2026-09-03 against a real Ollama-unavailable failure.
+    const detail = lastResult.detail || '(no error detail provided)';
+    progressEl.innerHTML += `<div style="margin-top:10px;padding:10px 12px;border-radius:6px;border:1px solid var(--red);` +
+      `background:rgba(239,68,68,0.1)">` +
+      `<div style="font-weight:700;color:var(--red);margin-bottom:6px">✗ Backend LLM Error</div>` +
+      `<div style="font-family:var(--mono);font-size:11px;color:var(--text);white-space:pre-wrap;word-break:break-word">${detail}</div>` +
+      `</div>`;
+    setJobResultText(`Job: ${lastJobId || '?'}\nOrchestrator: ${lastOrch}\nStatus: FAILED\n\nError:\n${detail}`);
+    statusEl.innerHTML = '<span class="job-badge failed">' + (lastJobId || '') + ' FAILED</span>';
+
+    if (lastJobId && lastJobId !== state.lastCompletedJobId) {
+      state.lastCompletedJobId = lastJobId;
+      if (state.jobTimeoutId) { clearTimeout(state.jobTimeoutId); state.jobTimeoutId = null; }
+      setJobInProgress(false);
+      // Deliberately no fetchDocs()/switchTab('docs') -- nothing was
+      // generated; navigating there would show an empty tab and bury
+      // the error banner above instead of leaving it in view.
+    }
+  } else if (lastResult) {
     let summary = `Job: ${lastJobId || '?'}\nOrchestrator: ${lastOrch}\nStatus: ${lastResult.status}\nGate: ${lastResult.gate_id || 'N/A'}\n\n`;
     if (lastResult.view_generation) summary += `── View Generation ──\n${Object.keys(lastResult.view_generation).map(k => '  ✓ ' + k).join('\n')}\n\n`;
     if (lastResult.gate_readiness) summary += `── Gate Readiness ──\n${Object.keys(lastResult.gate_readiness).map(k => '  ✓ ' + k).join('\n')}\n\n`;
@@ -380,6 +409,37 @@ function setJobInProgress(running) {
   if (docType) docType.disabled = running;
   if (msg) msg.style.display = running ? 'block' : 'none';
 }
+
+// ─── Backend LLM health ─────────────────────────────────
+// /health previously always returned {"status":"ok"} with no real check
+// -- there was no way to know the backend LLM was down until a job had
+// already been submitted and failed. Polled periodically plus checked
+// once synchronously right before job submission (see upload()).
+async function checkLlmHealth() {
+  const banner = document.getElementById('llmHealthBanner');
+  try {
+    const resp = await fetch('/health');
+    const data = await resp.json();
+    const ollama = data.ollama || {};
+    if (banner) {
+      if (ollama.reachable === false) {
+        banner.style.display = 'block';
+        banner.textContent = `⚠ Backend LLM unreachable (${ollama.host}): ${ollama.error}`;
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+    return data;
+  } catch (err) {
+    if (banner) {
+      banner.style.display = 'block';
+      banner.textContent = '⚠ Unable to reach DAS backend health check.';
+    }
+    return null;
+  }
+}
+checkLlmHealth();
+setInterval(checkLlmHealth, 30000);
 
 // ─── SSE ──────────────────────────────────────────────
 function connectSSE() {
@@ -917,6 +977,20 @@ async function upload() {
   const isDemo = demoSel.value && !fi.files.length;
   const isFile = fi.files.length > 0;
   if (!isDemo && !isFile) { alert('Select a demo document or upload a file'); return; }
+
+  // Pre-flight: check the backend LLM is actually reachable *before*
+  // submitting, rather than letting the user wait through a job that's
+  // already doomed to fail with an Ollama connection error. Non-blocking
+  // (confirm, not a hard stop) -- a transient health-check hiccup
+  // shouldn't prevent a real job that would otherwise succeed.
+  const health = await checkLlmHealth();
+  if (health && health.ollama && !health.ollama.reachable) {
+    const proceed = confirm(
+      `⚠ Backend LLM appears unreachable right now (${health.ollama.host}: ${health.ollama.error}).\n\n` +
+      `Submit anyway?`
+    );
+    if (!proceed) return;
+  }
 
   setJobInProgress(true);
   if (state.jobTimeoutId) clearTimeout(state.jobTimeoutId);
