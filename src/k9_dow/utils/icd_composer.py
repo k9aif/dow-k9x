@@ -6,9 +6,11 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from datetime import datetime
+from typing import Any, Optional
 
 
 def extract_source_title(source_markdown: str) -> str:
@@ -57,12 +59,43 @@ def strip_json_blocks(text: str) -> str:
     return cleaned if cleaned else text.strip()
 
 
+def _try_parse_json_only(text: str) -> Optional[Any]:
+    """Return the parsed value if `text` is ENTIRELY a JSON object/array
+    (optionally wrapped in a single ```json ... ``` fence with nothing
+    else around it). Returns None for real prose, prose+trailing-JSON, or
+    anything that doesn't parse -- callers fall back to the raw text in
+    those cases."""
+    t = text.strip()
+    m = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", t, flags=re.DOTALL | re.IGNORECASE)
+    if m:
+        t = m.group(1).strip()
+    if not t or t[0] not in "{[":
+        return None
+    try:
+        return json.loads(t)
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
 def extract_text(obj) -> str:
     """Extract readable text from any agent output structure."""
     if obj is None:
         return ""
     if isinstance(obj, str):
-        return obj.strip()
+        stripped = obj.strip()
+        # An agent prompted to answer in pure JSON with no prose at all
+        # (ModelExtractorAgent: "Output as structured JSON") lands here as
+        # a raw string. Parse it and re-run it through this same function
+        # so the dict/list branches below turn it into readable markdown
+        # bullets instead of leaving a raw ```json fence in a human-facing
+        # document -- only when it actually produces something, so real
+        # prose (which never parses as bare JSON) is untouched.
+        parsed = _try_parse_json_only(stripped)
+        if parsed is not None:
+            formatted = extract_text(parsed)
+            if formatted:
+                return formatted
+        return stripped
     if isinstance(obj, dict):
         # Try "output" key first (standard agent result)
         if "output" in obj:
