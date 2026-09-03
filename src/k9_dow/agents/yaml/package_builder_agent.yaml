@@ -3,7 +3,7 @@ class: PackageBuilderAgent
 description: >
   Assembles final review-ready artifact package with provenance for HITL gate.
 pattern: reasoning
-model: reasoning
+model: package_synthesis
 
 role: >
   You are an artifact package builder for defense acquisition review boards.

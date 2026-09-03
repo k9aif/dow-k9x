@@ -6,14 +6,53 @@ inference:
     provider: ollama
     base_url: "${OLLAMA_HOST:-http://localhost:11434}"
     models:
+      # think: false on both aliases below -- qwen3.8:27b is a hybrid
+      # reasoning model that can spend its *entire* max_tokens budget on
+      # an invisible "thinking" field before any real "response" text is
+      # produced. Caught live in production: CompletenessCheckerAgent's
+      # call returned "Ollama responded (0 chars)" after a genuine 19s of
+      # GPU work, which llm_invoke correctly turned into a hard
+      # RuntimeError ("LLM backend unavailable ... No response from
+      # model.") and failed the whole job. Confirmed via a direct API
+      # test against the real server: num_predict=15 spent all 15 tokens
+      # on "thinking" and returned an empty response with
+      # done_reason="length"; think: false skips that phase and puts the
+      # full budget into the actual answer instead.
       general:
         model: "qwen3.8:27b"
         temperature: 0.3
         max_tokens: 4096
+        think: false
       reasoning:
         model: "qwen3.8:27b"
         temperature: 0.2
         max_tokens: 4096
+        think: false
+      # PackageBuilderAgent restates/consolidates every prior agent's full
+      # output (readiness assessment, gap analysis, evidence summary, all
+      # in prose) into one final package -- a genuinely larger synthesis
+      # task than the rest of the "reasoning" alias's callers. Sharing the
+      # same 4096-token ceiling truncated it mid-sentence in the final
+      # deliverable handed to the human decision authority (confirmed
+      # 2026-09-03 in a real FIREBIRD run). A dedicated alias with more
+      # headroom on both output length and context window (its prompt is
+      # also the largest of any agent's, containing the full upstream
+      # payload) avoids raising the ceiling for every other reasoning call.
+      #
+      # think: false -- qwen3.8:27b is a hybrid reasoning model that spends
+      # part of num_predict on an invisible "thinking" field before the
+      # real "response" text even starts. Confirmed live against the real
+      # server: num_predict=15 spent all 15 tokens thinking and returned an
+      # EMPTY response with done_reason="length"; the same call with
+      # think: false skipped straight to a complete answer. PackageBuilder
+      # doesn't need visible reasoning, just a complete structured package
+      # within budget, so this gives 100% of max_tokens to the real output.
+      package_synthesis:
+        model: "qwen3.8:27b"
+        temperature: 0.2
+        max_tokens: 8192
+        num_ctx: 16384
+        think: false
       guardian:
         model: "${DAS_GUARDIAN_MODEL:-granite4.1-guardian:8b}"
         temperature: 0.0
@@ -40,6 +79,12 @@ inference:
         llm_ref: reasoning
         capabilities: [reasoning, analysis, extraction]
         latency_tier: interactive
+        cost_tier: standard
+      package_synthesis:
+        provider: ollama
+        llm_ref: package_synthesis
+        capabilities: [package_synthesis]
+        latency_tier: batch
         cost_tier: standard
       guardian:
         provider: ollama

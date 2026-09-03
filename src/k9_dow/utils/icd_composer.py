@@ -45,7 +45,16 @@ def strip_json_blocks(text: str) -> str:
     )
     cleaned = re.sub(r"```json.*?```", "", cleaned, flags=re.DOTALL | re.IGNORECASE)
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
-    return cleaned.strip()
+    cleaned = cleaned.strip()
+    # If stripping the JSON block(s) ate the *entire* output, the agent had
+    # no prose narrative at all -- e.g. ModelExtractorAgent is explicitly
+    # prompted to "Output as structured JSON" with nothing else. Falling
+    # through to an empty string here silently threw away real extracted
+    # data and rendered section 1.1 as "*No output generated.*" even
+    # though every downstream agent proves the extraction succeeded.
+    # Keep the original (still-fenced) text instead -- it renders as a
+    # readable code block rather than vanishing.
+    return cleaned if cleaned else text.strip()
 
 
 def extract_text(obj) -> str:

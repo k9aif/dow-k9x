@@ -39,6 +39,103 @@ _job_store: dict = {}
 _event_log: deque = deque(maxlen=500)
 _sse_clients: list = []
 
+# Single-flight job queue -- confirmed necessary 2026-09-03 via a real
+# concurrent-job test: two browsers submitting at once caused missing
+# SquadStarted events (lost/misattributed progress) and GPU contention
+# that made CompletenessCheckerAgent's Ollama call return an empty
+# response entirely. Jobs now queue through an ElasticMQ/SQS-compatible
+# queue instead of publishing straight to the Router, and only one is
+# ever in flight at a time -- deliberately kept invisible to the UI (no
+# new tab, no cancel) per explicit direction to not complicate this.
+_QUEUE_ENDPOINT = os.environ.get("DAS_QUEUE_ENDPOINT", "http://192.168.1.98:9324")
+_QUEUE_NAME = "das-job-queue"
+_dispatch_state = {"running_job_id": None}
+
+
+def _get_sqs_client():
+    import boto3
+    return boto3.client(
+        "sqs",
+        endpoint_url=_QUEUE_ENDPOINT,
+        region_name="elasticmq",
+        aws_access_key_id="x",
+        aws_secret_access_key="x",
+    )
+
+
+def _get_or_create_queue_url(sqs) -> str:
+    try:
+        return sqs.get_queue_url(QueueName=_QUEUE_NAME)["QueueUrl"]
+    except sqs.exceptions.QueueDoesNotExist:
+        log.info("[Dispatcher] Queue %r doesn't exist yet -- creating it.", _QUEUE_NAME)
+        return sqs.create_queue(QueueName=_QUEUE_NAME)["QueueUrl"]
+
+
+def _publish_to_router(event: dict) -> None:
+    """The actual Router-triggering publish -- previously called directly
+    from _submit_job(); now only ever called from _dispatch_queue() so
+    exactly one job is in flight at a time."""
+    from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
+    broker = _config.get("messaging", {}).get("bootstrap_servers", "localhost:9092")
+    bus = K9EventBus(broker_url=broker, topic="dow.router.in", group_id="das-app")
+    bus.publish(event)
+    if bus._producer:
+        bus._producer.flush()
+    bus.close()
+
+
+async def _dispatch_queue():
+    """Background task: while no job is running, pull one message off the
+    queue and publish it to the Router. Freed to dispatch the next job by
+    _consume_results() when it observes that job's terminal result on
+    das.results -- reuses that existing signal rather than inventing a
+    separate completion-notification mechanism."""
+    sqs = _get_sqs_client()
+    queue_url = _get_or_create_queue_url(sqs)
+    log.info("[Dispatcher] Watching queue: %s", queue_url)
+    loop = asyncio.get_event_loop()
+    while True:
+        if _dispatch_state["running_job_id"] is not None:
+            await asyncio.sleep(1)
+            continue
+        try:
+            resp = await loop.run_in_executor(
+                None,
+                lambda: sqs.receive_message(QueueUrl=queue_url, MaxNumberOfMessages=1, WaitTimeSeconds=10),
+            )
+        except Exception as exc:
+            log.warning("[Dispatcher] Queue receive failed: %s", exc)
+            await asyncio.sleep(5)
+            continue
+
+        messages = resp.get("Messages", [])
+        if not messages:
+            continue
+
+        msg = messages[0]
+        try:
+            event = json.loads(msg["Body"])
+        except Exception as exc:
+            log.error("[Dispatcher] Bad message body, dropping: %s", exc)
+            sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=msg["ReceiptHandle"])
+            continue
+
+        job_id = event.get("job_id")
+        _dispatch_state["running_job_id"] = job_id
+        if job_id in _job_store:
+            _job_store[job_id]["status"] = "running"
+
+        try:
+            _publish_to_router(event)
+            log.info("[Dispatcher] Dispatched job=%s to router", job_id)
+        except Exception as exc:
+            log.error("[Dispatcher] Publish to router failed for job=%s: %s", job_id, exc)
+            if job_id in _job_store:
+                _job_store[job_id]["status"] = "failed"
+            _dispatch_state["running_job_id"] = None
+
+        sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=msg["ReceiptHandle"])
+
 
 @app.on_event("startup")
 async def _startup_checks():
@@ -46,6 +143,7 @@ async def _startup_checks():
     if not check_dependencies(_config):
         log.warning("Some dependencies are unreachable — pipeline calls may fail")
     asyncio.create_task(_consume_results())
+    asyncio.create_task(_dispatch_queue())
 
 
 async def _consume_results():
@@ -93,6 +191,13 @@ async def _consume_results():
                 # filename/document_type/submitted_at that evt doesn't have.
                 _job_store[matched_key] = {**_job_store.get(matched_key, {}), **evt}
                 log.info("[SSE] Stored result for job=%s", matched_key)
+                # Terminal result for the job the dispatcher is currently
+                # tracking -- free it to pull the next queued job. Reuses
+                # this existing signal rather than a separate completion
+                # notification path.
+                if _dispatch_state["running_job_id"] == matched_key:
+                    _dispatch_state["running_job_id"] = None
+                    log.info("[Dispatcher] job=%s complete, freed for next dispatch", matched_key)
 
             event_session_id = (
                 _job_store.get(matched_key, {}).get("session_id") if matched_key else None
@@ -251,9 +356,6 @@ async def _submit_job(filename: str, text: str, document_type: str, session_id: 
     job_id = generate_job_id()
     log.info("[API] Submit: %s (%d bytes) type=%s job=%s", filename, len(text), document_type, job_id)
     try:
-        from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
-        broker = _config.get("messaging", {}).get("bootstrap_servers", "localhost:9092")
-        bus = K9EventBus(broker_url=broker, topic="dow.router.in", group_id="das-app")
         event = {
             "event_type": "capability_gap",
             "document_type": document_type,
@@ -267,24 +369,27 @@ async def _submit_job(filename: str, text: str, document_type: str, session_id: 
                 "version": "1.0",
             },
         }
-        bus.publish(event)
-        if bus._producer:
-            bus._producer.flush()
-        bus.close()
-        log.info("[API] Published to dow.router.in job=%s corr=%s", job_id, event["correlation_id"])
+        # Enqueue rather than publish straight to the Router -- exactly one
+        # job runs at a time (see _dispatch_queue()), so a second reviewer
+        # opening a second tab (or one person double-clicking) can't starve
+        # or corrupt an already-running job's GPU call or event stream.
+        sqs = _get_sqs_client()
+        queue_url = _get_or_create_queue_url(sqs)
+        sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(event))
+        log.info("[API] Enqueued job=%s corr=%s", job_id, event["correlation_id"])
         _job_store[job_id] = {
-            "job_id": job_id, "status": "submitted", "correlation_id": event["correlation_id"],
+            "job_id": job_id, "status": "queued", "correlation_id": event["correlation_id"],
             "filename": filename, "document_type": document_type,
             "submitted_at": datetime.now(timezone.utc).isoformat(),
             "session_id": session_id or None,
         }
         return JSONResponse(content={
-            "job_id": job_id, "status": "submitted",
+            "job_id": job_id, "status": "queued",
             "correlation_id": event["correlation_id"],
-            "message": "Document submitted to DAS pipeline via Kafka",
+            "message": "Document queued for the DAS pipeline",
         })
     except Exception as exc:
-        log.error("[API] Publish failed: %s", exc)
+        log.error("[API] Enqueue failed: %s", exc)
         return JSONResponse(status_code=500, content={"job_id": job_id, "status": "failed", "error": str(exc)})
 
 
