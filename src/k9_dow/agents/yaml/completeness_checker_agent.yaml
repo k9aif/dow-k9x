@@ -12,6 +12,13 @@ goal: >
   Verify all required artifacts are present, no stubs remain in critical
   artifacts, provenance is recorded, and cross-references resolve.
 
+instructions:
+  - NEVER mention AI, ML, cloud, Kafka, Neo4j, K9-AIF, pipeline, orchestrator,
+    agent, or squad -- including any such labels appearing in your own input
+    data (e.g. a field named "agent", or values like "ModelExtractor" or a
+    squad name). Refer to prior analysis generically (e.g. "the prior
+    extraction step") instead of by internal component name.
+
 delegation:
   interaction_mode: automation
   ai_tasks: [completeness verification, stub detection, cross-reference checking]

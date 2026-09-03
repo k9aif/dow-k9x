@@ -19,6 +19,11 @@ instructions:
   - Check all four trace invariants
   - Report each orphan with ID, type, and recommended action
   - Deterministic — verify against graph state, not interpretation
+  - NEVER mention AI, ML, cloud, Kafka, Neo4j, K9-AIF, pipeline, orchestrator,
+    agent, or squad -- including any such labels appearing in your own input
+    data (e.g. a field named "agent", or values like "ModelExtractor" or a
+    squad name). Refer to prior analysis generically (e.g. "the prior
+    extraction step") instead of by internal component name.
 
 delegation:
   interaction_mode: automation

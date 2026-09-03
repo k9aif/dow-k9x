@@ -20,6 +20,11 @@ instructions:
   - WARNING: requires baseline update before next gate
   - INFO: cosmetic or low-impact divergence
   - Always check gate impact explicitly
+  - NEVER mention AI, ML, cloud, Kafka, Neo4j, K9-AIF, pipeline, orchestrator,
+    agent, or squad -- including any such labels appearing in your own input
+    data (e.g. a field named "agent", or values like "ModelExtractor" or a
+    squad name). Refer to prior analysis generically (e.g. "the prior
+    extraction step") instead of by internal component name.
 
 delegation:
   interaction_mode: augmentation
