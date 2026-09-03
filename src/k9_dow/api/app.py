@@ -176,6 +176,7 @@ async def llm_info():
         "ollama_host": settings.OLLAMA_HOST,
         "ollama_model": settings.OLLAMA_MODEL,
         "ollama_display_name": settings.OLLAMA_DISPLAY_NAME,
+        "data_sources": settings.KNOWLEDGE_CORPUS_LABEL,
     }
 
 

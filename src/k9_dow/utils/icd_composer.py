@@ -123,6 +123,8 @@ def compose_icd(job_data: dict) -> str:
         or os.environ.get("OLLAMA_MODEL", "unknown")
     )
     lines.append(f"**LLM Model:** {model_name}")
+    data_sources_label = os.environ.get("KNOWLEDGE_CORPUS_LABEL", "None")
+    lines.append(f"**Data Sources:** {data_sources_label}")
     lines.append("")
     lines.append("---")
     lines.append("")

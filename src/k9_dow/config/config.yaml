@@ -42,9 +42,25 @@ postgres:
   host: "${POSTGRES_HOST:-localhost}"
   port: 5432
   user: "${POSTGRES_USER:-postgres}"
+  password: "${K9_PG_PASSWORD:-postgres}"
   database: "${POSTGRES_DB:-dow}"
   schema: "dow"
   echo: false
+
+# Knowledge-corpus retrieval backend for K9Retriever (ViewGeneratorAgent).
+# Without this section, K9Retriever has no VectorDB configured and its
+# retrieve() calls return nothing (see view_generator_agent.py's fallback
+# fix) -- this deployment seeds it with a synthetic, non-sensitive corpus
+# only (prior-CDD excerpts, DoDAF reference-architecture guidance,
+# acquisition review-package guidance); no real DoD data is stored here.
+# See data/synthetic_corpus/README.md and experiments/seed_synthetic_corpus.py.
+vectordb:
+  provider: pgvector
+  embedding_provider: ollama
+  embedding_model: nomic-embed-text
+  embedding_endpoint: "${OLLAMA_HOST:-http://localhost:11434}"
+  dimension: 768
+  table: dow_knowledge_corpus
 
 governance:
   enabled: false

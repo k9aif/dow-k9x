@@ -24,11 +24,18 @@ class Settings:
     OLLAMA_MODEL = _env("OLLAMA_MODEL", "granite3.3:8b")
     OLLAMA_DISPLAY_NAME = _env("OLLAMA_DISPLAY_NAME", "")
 
+    # Knowledge-corpus disclosure -- surfaced in every generated ICD (see
+    # icd_composer.py) so a reviewer knows whether DoDAF views were enriched
+    # against real reference material or reflect only the input document.
+    KNOWLEDGE_CORPUS_LABEL = _env("KNOWLEDGE_CORPUS_LABEL", "None")
+
     POSTGRES_HOST = _env("POSTGRES_HOST", "localhost")
     POSTGRES_PORT = int(_env("POSTGRES_PORT", "5432"))
     POSTGRES_DB = _env("POSTGRES_DB", "dow")
     POSTGRES_USER = _env("POSTGRES_USER", "postgres")
-    POSTGRES_PASSWORD = _env("POSTGRES_PASSWORD", "")
+    # Actual deployed env var is K9_PG_PASSWORD (see RHEL/das-pod.yaml);
+    # POSTGRES_PASSWORD kept as a fallback for .env.example's naming.
+    POSTGRES_PASSWORD = _env("K9_PG_PASSWORD", _env("POSTGRES_PASSWORD", ""))
 
     NEO4J_URI = _env("NEO4J_URI", "bolt://localhost:7687")
     NEO4J_USER = _env("NEO4J_USER", "neo4j")

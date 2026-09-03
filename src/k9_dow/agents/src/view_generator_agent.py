@@ -36,6 +36,7 @@ class ViewGeneratorAgent(K9ValidationLoopAgent):
         view_type = loop_ctx.payload.get("view_type", "OV-1")
         source = loop_ctx.payload.get("source_markdown", "")
 
+        context_text = ""
         retriever = self._get_retriever()
         if retriever and source:
             chunks = retriever.retrieve(
@@ -44,7 +45,16 @@ class ViewGeneratorAgent(K9ValidationLoopAgent):
                 top_k=10,
             )
             context_text = "\n".join(c["text"] for c in chunks)
-        else:
+
+        # Retrieval finding nothing (no index configured/seeded for this
+        # source, zero matching chunks) is a normal outcome, not an error --
+        # DAS's config.yaml has no retrieval/vector-store settings at all, so
+        # this is the common case here, not an edge case. Previously this
+        # silently left context_text empty even though the full source text
+        # was sitting in `source` unused, causing every DoDAF view field to
+        # come back "NOT PROVIDED IN SOURCE" despite a real, richly-extracted
+        # source document (see ModelExtractorAgent's output in the same run).
+        if not context_text:
             context_text = source[:8000] if source else ""
 
         return {"view_type": view_type, "context": context_text, "iteration": loop_ctx.iteration}
