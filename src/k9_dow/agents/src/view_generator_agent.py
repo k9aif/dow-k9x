@@ -36,26 +36,35 @@ class ViewGeneratorAgent(K9ValidationLoopAgent):
         view_type = loop_ctx.payload.get("view_type", "OV-1")
         source = loop_ctx.payload.get("source_markdown", "")
 
-        context_text = ""
+        # The submitted document is always the primary content -- a
+        # retriever enriches this, it never replaces it. An earlier version
+        # of this method treated retrieval and the raw source as
+        # either/or: once retrieval returned anything, the raw source was
+        # dropped entirely. That is safe only when the retriever indexes
+        # this same source document; against a general reference corpus
+        # (DoDAF authoring guidance, prior unrelated programs) it would
+        # silently swap the submitted program's own content for a
+        # different program's, since the retrieval query below is generic
+        # ("DoDAF {view_type}..."), not specific to this submission.
+        context_text = source[:8000] if source else ""
+
         retriever = self._get_retriever()
         if retriever and source:
             chunks = retriever.retrieve(
                 intent="dodaf_view_generation",
                 query=f"DoDAF {view_type} operational capability system",
-                top_k=10,
+                top_k=5,
             )
-            context_text = "\n".join(c["text"] for c in chunks)
-
-        # Retrieval finding nothing (no index configured/seeded for this
-        # source, zero matching chunks) is a normal outcome, not an error --
-        # DAS's config.yaml has no retrieval/vector-store settings at all, so
-        # this is the common case here, not an edge case. Previously this
-        # silently left context_text empty even though the full source text
-        # was sitting in `source` unused, causing every DoDAF view field to
-        # come back "NOT PROVIDED IN SOURCE" despite a real, richly-extracted
-        # source document (see ModelExtractorAgent's output in the same run).
-        if not context_text:
-            context_text = source[:8000] if source else ""
+            if chunks:
+                reference_text = "\n\n".join(c["text"] for c in chunks)
+                context_text += (
+                    "\n\n---\nSupplementary reference material "
+                    "(general DoDAF/acquisition guidance and precedent "
+                    "programs -- NOT part of the submitted document; use "
+                    "only for authoring guidance and pattern-matching, "
+                    "never as a source of this program's own facts):\n"
+                    f"{reference_text}"
+                )
 
         return {"view_type": view_type, "context": context_text, "iteration": loop_ctx.iteration}
 
@@ -74,7 +83,11 @@ class ViewGeneratorAgent(K9ValidationLoopAgent):
                 f"Source context:\n{hypothesis['context']}\n"
                 f"{prev_attempt}\n\n"
                 "Rules:\n"
-                "- Use ONLY information from source. Mark gaps as NOT PROVIDED IN SOURCE.\n"
+                "- Use ONLY information from the submitted document for this program's own facts.\n"
+                "  Mark gaps as NOT PROVIDED IN SOURCE.\n"
+                "- If a 'Supplementary reference material' section is present, use it only to\n"
+                "  follow correct DoDAF structure/terminology -- never to fill in this program's\n"
+                "  facts, even if it describes a similar-sounding capability or requirement.\n"
                 "- Use DoDAF ID formats (CAP-001, ACT-001, NODE-001).\n"
                 "- Neutral DoD-review-ready tone.\n"
                 "- NEVER mention AI, ML, cloud, Kafka, K9-AIF.\n"
