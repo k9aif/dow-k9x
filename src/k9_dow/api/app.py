@@ -378,11 +378,12 @@ def _active_jobs() -> list:
 
 @app.get("/jobs/queue")
 def list_job_queue():
-    """Last 5 jobs by submission time, most recent first -- a shared
-    activity view, not just current queue depth. Deliberately unfiltered
-    by session: shared demo/demo login means everyone should be able to
-    see what's ahead of (or has already finished before) their own job."""
-    recent = sorted(_job_store.values(), key=lambda j: j.get("submitted_at", ""), reverse=True)[:MAX_QUEUE_SIZE]
+    """Last 5 jobs, oldest first (FIFO order) -- a new job is appended at
+    the bottom, matching how the queue actually drains. A shared activity
+    view, not just current queue depth: deliberately unfiltered by
+    session, since a shared demo/demo login means everyone should be able
+    to see what's ahead of (or has already finished before) their own job."""
+    recent = sorted(_job_store.values(), key=lambda j: j.get("submitted_at", ""))[-MAX_QUEUE_SIZE:]
     return JSONResponse(content={
         "jobs": [
             {
