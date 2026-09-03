@@ -94,6 +94,17 @@ class JcidsOrchestrator(BaseOrchestrator):
         self._progress = progress_callback or (lambda e: None)
         self._monitor = _ProgressMonitor(self._progress) if progress_callback else None
 
+        # Real governance (see governance/guardian_governance.py for the
+        # full rationale) -- orchestrator-level, constructed once here,
+        # not per-agent and not via the shared BaseSquad framework class.
+        # governance.enabled: false in config.yaml falls back to None,
+        # meaning BaseOrchestrator/BaseAgent's own require_governance()
+        # resolves NoopGovernance exactly as before this change.
+        self._governance = None
+        if self.config.get("governance", {}).get("enabled"):
+            from k9_dow.governance.guardian_governance import GuardianGovernance
+            self._governance = GuardianGovernance(self.config)
+
     def _load_squad(self, yaml_filename: str, squad_id: str):
         agent_loader = AgentLoader(self._agents_dir)
         registry = AgentRegistry()
@@ -174,6 +185,14 @@ class JcidsOrchestrator(BaseOrchestrator):
             "gate_readiness": gate_result,
             "review_package": package_result,
         }
+
+        # Real governance check (see __init__ + governance/guardian_governance.py)
+        # -- runs before persistence so the verdict is part of the stored
+        # artifact, not just an in-memory annotation. Attaches result["governance"];
+        # never blocks/raises (see GuardianGovernance.post_process's own docstring
+        # for why this is advisory-to-the-human-reviewer, not an auto-reject).
+        if self._governance is not None:
+            result = self._governance.post_process(result, {"job_id": job_id})
 
         s3_uri = self._store_to_s3(job_id, result)
         self._publish_hil_task(job_id, result, s3_uri)

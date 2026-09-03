@@ -14,6 +14,10 @@ inference:
         model: "qwen3.8:27b"
         temperature: 0.2
         max_tokens: 4096
+      guardian:
+        model: "${DAS_GUARDIAN_MODEL:-granite4.1-guardian:8b}"
+        temperature: 0.0
+        max_tokens: 32
 
   router:
     type: k9_model_router
@@ -37,6 +41,12 @@ inference:
         capabilities: [reasoning, analysis, extraction]
         latency_tier: interactive
         cost_tier: standard
+      guardian:
+        provider: ollama
+        llm_ref: guardian
+        capabilities: [guardrails]
+        latency_tier: interactive
+        cost_tier: minimal
 
 postgres:
   host: "${POSTGRES_HOST:-localhost}"
@@ -62,8 +72,20 @@ vectordb:
   dimension: 768
   table: dow_knowledge_corpus
 
+# Real Guardian-backed governance (orchestrator-level, not per-agent --
+# see project_k9aif_architecture_facts memory, 2026-09-03 decision, for
+# why: touching all 17 agents or the shared BaseSquad framework class
+# was rejected as too broad a change this close to submission).
+# GuardianGovernance.post_process() reviews the assembled JCIDS package
+# content via the guardian model above; the verdict is attached to the
+# result for the human JROC reviewer to see, not used to auto-block the
+# pipeline -- consistent with DAS's own "AI recommends, human decides"
+# design throughout. enabled: false falls back to NoopGovernance exactly
+# as before (K9_ENV=development, no behavior change for anyone not
+# opting in).
 governance:
-  enabled: false
+  enabled: true
+  model_alias: guardian
 
 monitoring:
   console: true
