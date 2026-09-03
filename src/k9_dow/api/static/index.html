@@ -212,6 +212,7 @@
   <!-- CENTER PANE -->
   <div class="pane-center">
     <div class="tab-bar">
+      <div class="tab" id="tab-inputs" onclick="switchTab('inputs')">Input Docs<span class="count" id="inputs-count"></span></div>
       <div class="tab active" id="tab-live" onclick="switchTab('live')">Live Feed<span class="count" id="live-count">0</span></div>
       <div class="tab" id="tab-agents" onclick="switchTab('agents')">Agents<span class="count" id="agent-count">0</span></div>
       <div class="tab" id="tab-llm" onclick="switchTab('llm')">LLM Calls<span class="count" id="llm-count">0</span></div>
@@ -742,11 +743,50 @@ function renderDocs() {
   area.innerHTML = html;
 }
 
+// Source documents the pipeline actually reads from (src/k9_dow/api/static/demos/),
+// not generated output -- lets a reviewer compare input against the ICD the
+// pipeline produced. Browse/Upload are visibly present but disabled: this is a
+// shared demo/demo login, and an open upload would let any visitor feed junk
+// (or hostile) content into a real LLM pipeline everyone else is watching.
+async function renderInputDocs() {
+  const area = document.getElementById('feedArea');
+  if (!state.inputDocs) {
+    try {
+      const resp = await fetch('/demos');
+      const data = await resp.json();
+      state.inputDocs = data.demos || [];
+    } catch (err) {
+      area.innerHTML = '<div style="color:var(--text2);padding:20px">Unable to load input documents.</div>';
+      return;
+    }
+  }
+  const countEl = document.getElementById('inputs-count');
+  if (countEl) countEl.textContent = state.inputDocs.length;
+
+  let html = `<div style="display:flex;align-items:center;gap:10px;margin:16px 0">
+    <button disabled title="Uploading new source documents is disabled in this shared demo" style="opacity:0.4;cursor:not-allowed">Browse...</button>
+    <button disabled title="Uploading new source documents is disabled in this shared demo" style="opacity:0.4;cursor:not-allowed">Upload</button>
+    <span style="font-size:10px;color:var(--text2)">Disabled in shared demo mode</span>
+  </div>`;
+  html += `<div class="doc-section">Demo Documents</div>`;
+  for (const doc of state.inputDocs) {
+    const sizeKb = (doc.size / 1024).toFixed(1);
+    html += `<div class="doc-item">
+      <span class="doc-name">${doc.name}</span>
+      <span class="doc-size">${sizeKb} KB</span>
+      <a class="doc-dl" href="/demos/${encodeURIComponent(doc.filename)}/view" target="_blank" style="background:var(--accent)">View</a>
+      <a class="doc-dl" href="/demos/${encodeURIComponent(doc.filename)}/download" download="${doc.filename}">Download</a>
+    </div>`;
+  }
+  area.innerHTML = html;
+}
+
 function switchTab(tab) {
   state.activeTab = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
-  if (tab === 'live') renderLive();
+  if (tab === 'inputs') renderInputDocs();
+  else if (tab === 'live') renderLive();
   else if (tab === 'agents') renderAgents();
   else if (tab === 'llm') renderLLM();
   else if (tab === 'docs') renderDocs();
@@ -1138,6 +1178,14 @@ function doLogin(e) {
   setJobResultText('No results yet.');
 
   connectSSE();
+
+  // Prefetch just for the tab badge count -- doesn't touch feedArea, so it's
+  // safe to run before the user ever opens the Input Docs tab.
+  fetch('/demos').then(r => r.json()).then(data => {
+    state.inputDocs = data.demos || [];
+    const countEl = document.getElementById('inputs-count');
+    if (countEl) countEl.textContent = state.inputDocs.length;
+  }).catch(() => {});
 }
 
 // ─── Init ─────────────────────────────────────────────

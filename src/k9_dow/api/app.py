@@ -297,8 +297,47 @@ async def list_demos():
     demos = []
     for f in sorted(_DEMOS_DIR.iterdir()):
         if f.is_file() and f.suffix in (".md", ".txt"):
-            demos.append({"name": f.stem.replace("_", " "), "filename": f.name})
+            demos.append({"name": f.stem.replace("_", " "), "filename": f.name, "size": f.stat().st_size})
     return {"demos": demos}
+
+
+def _resolve_demo_path(filename: str) -> Path:
+    """Resolve filename to a real file strictly inside _DEMOS_DIR --
+    Path(filename).name strips any directory components (../, absolute
+    paths) before joining, so this can't be used to read arbitrary files
+    on the host."""
+    path = _DEMOS_DIR / Path(filename).name
+    if not path.is_file() or path.parent != _DEMOS_DIR:
+        raise HTTPException(status_code=404, detail="Input document not found")
+    return path
+
+
+@app.get("/demos/{filename}/download")
+async def download_demo(filename: str):
+    from fastapi.responses import Response
+    path = _resolve_demo_path(filename)
+    return Response(
+        content=path.read_text(encoding="utf-8"),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{path.name}"'},
+    )
+
+
+@app.get("/demos/{filename}/view")
+async def view_demo(filename: str):
+    from fastapi.responses import HTMLResponse
+    import html as html_lib
+    path = _resolve_demo_path(filename)
+    content = path.read_text(encoding="utf-8")
+    return HTMLResponse(f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>{html_lib.escape(path.name)}</title>
+<style>
+  body {{ background:#0b0e14; color:#e2e8f0; font-family:-apple-system,sans-serif; margin:0; padding:32px; }}
+  .doc {{ max-width:840px; margin:0 auto; }}
+  h1 {{ font-size:14px; color:#8b95a5; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:24px; }}
+  pre {{ white-space:pre-wrap; word-break:break-word; font-family:ui-monospace,monospace; font-size:13px; line-height:1.6; background:#141924; border:1px solid #232a3a; border-radius:8px; padding:20px; }}
+</style></head>
+<body><div class="doc"><h1>{html_lib.escape(path.name)}</h1><pre>{html_lib.escape(content)}</pre></div></body></html>""")
 
 
 _STATIC_DIR = Path(__file__).parent / "static"
