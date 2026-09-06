@@ -5,7 +5,7 @@
 # +-- das-router        DasRouter - consumes dow.router.in, routes to das.* topics
 # +-- das-orchestrator  JcidsOrchestrator - consumes das.* topics, runs squads
 #
-# External services (on RHEL host):
+# External services (on the Podman host):
 #   Ollama     -> rhel-host:11434
 #   Kafka      -> rhel-host:9092
 #   PostgreSQL -> rhel-host:5432
@@ -13,10 +13,10 @@
 #   MinIO      -> rhel-host:9000
 #
 # DEPLOY:
-#   podman play kube RHEL/das-pod.yaml --replace
+#   podman play kube ubuntu/das-pod.yaml --replace
 #
 # STOP:
-#   podman play kube RHEL/das-pod.yaml --down
+#   podman play kube ubuntu/das-pod.yaml --down
 #
 # LOGS:
 #   podman logs -f k9-dow-pod-app-backend
@@ -38,7 +38,7 @@ spec:
   restartPolicy: OnFailure
 
   hostAliases:
-  - ip: "192.168.1.98"
+  - ip: "192.168.1.244"
     hostnames:
     - "rhel-host"
 

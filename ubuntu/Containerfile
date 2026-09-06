@@ -6,7 +6,7 @@
 #   ~/dow-k9-aif/
 #
 # Build (from parent directory containing both repos):
-#   podman build -t k9-aif-das:latest -f dow-k9-aif/RHEL/Containerfile .
+#   podman build -t k9-aif-das:latest -f dow-k9-aif/ubuntu/Containerfile .
 
 FROM registry.access.redhat.com/ubi9/python-311:latest
 

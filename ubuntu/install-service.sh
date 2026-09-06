@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run this script on the RHEL box (as root or with sudo) to install
+# Run this script on the Podman host (as root or with sudo) to install
 # and enable the k9-dow-pod systemd service.
 set -euo pipefail
 

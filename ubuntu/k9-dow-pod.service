@@ -10,11 +10,11 @@ RemainAfterExit=yes
 Environment=DAS_DEPLOY_DIR=/home/ravinata/ai/das-dev-pod-deployment
 
 ExecStart=/usr/bin/podman play kube \
-    ${DAS_DEPLOY_DIR}/dow-k9-aif/RHEL/das-pod.yaml \
+    ${DAS_DEPLOY_DIR}/dow-k9-aif/ubuntu/das-pod.yaml \
     --replace
 
 ExecStop=/usr/bin/podman play kube \
-    ${DAS_DEPLOY_DIR}/dow-k9-aif/RHEL/das-pod.yaml \
+    ${DAS_DEPLOY_DIR}/dow-k9-aif/ubuntu/das-pod.yaml \
     --down
 
 Restart=on-failure

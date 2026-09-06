@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # K9-AIF DAS — Podman build and deploy helper
-# Run from any directory on RHEL (no sudo needed — script handles it).
+# Run from any directory on the Podman host (no sudo needed — script handles it).
 #
 # Commands:
 #   clone        — clone both repos from GitHub
@@ -83,7 +83,7 @@ ENVEOF
     echo "Building $IMAGE from $DEPLOY_DIR ..."
     cd "$DEPLOY_DIR"
     sudo podman build -t "$IMAGE" \
-      -f "dow-k9-aif/RHEL/Containerfile" \
+      -f "dow-k9-aif/ubuntu/Containerfile" \
       .
     echo "Build complete: $IMAGE"
     ;;
@@ -115,7 +115,7 @@ ENVEOF
 
   up)
     echo "Deploying pod: $POD_NAME (3 containers) ..."
-    sudo podman play kube "$DEPLOY_DIR/dow-k9-aif/RHEL/das-pod.yaml" --replace
+    sudo podman play kube "$DEPLOY_DIR/dow-k9-aif/ubuntu/das-pod.yaml" --replace
     echo ""
     echo "Pod running. Containers:"
     sudo podman ps --filter "pod=$POD_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Command}}"
@@ -157,7 +157,7 @@ ENVEOF
   down)
     echo "Stopping pod: $POD_NAME ..."
     sudo podman stop das-demo 2>/dev/null || true
-    sudo podman play kube "$DEPLOY_DIR/dow-k9-aif/RHEL/das-pod.yaml" --down || true
+    sudo podman play kube "$DEPLOY_DIR/dow-k9-aif/ubuntu/das-pod.yaml" --down || true
     echo "Pod stopped."
     ;;
 

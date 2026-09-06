@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Run this ON the PowerAI-5090 box (192.168.1.244), NOT on the RHEL host.
+# Run this on the Podman host (same box that runs the DAS pod).
 #
 # Fixes: DAS orchestrator/router health checks fail with
-#   "Ollama 192.168.1.244:11434 - [Errno 111] Connection refused"
+#   "Ollama <host>:11434 - [Errno 111] Connection refused"
 # Root cause: `ollama serve` binds to 127.0.0.1:11434 by default. Any
 # check run locally on this box (ollama ps, curl localhost:11434) still
 # succeeds over loopback, which masks the problem -- only a remote
-# caller (the RHEL-hosted DAS pod) actually sees the refusal.
+# caller (the DAS pod, or any other container) actually sees the refusal.
 #
-# After running this, restart the DAS pod on the RHEL host separately:
-#   podman play kube RHEL/das-pod.yaml --replace
+# After running this, restart the DAS pod separately:
+#   podman play kube ubuntu/das-pod.yaml --replace
 
 set -euo pipefail
 
