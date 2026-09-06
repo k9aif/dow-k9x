@@ -47,27 +47,28 @@ case "$cmd" in
       git clone "$DAS_REPO" dow-k9-aif
     fi
 
-    # Copy .env template if not present
+    # Copy .env template if not present — placeholders only, fill in real
+    # values before running 'secret' or 'up'.
     if [[ ! -f "dow-k9-aif/.env" ]]; then
       cat > "dow-k9-aif/.env" <<'ENVEOF'
 K9_DOW_ENV=production
 K9_ENV=production
-OLLAMA_HOST=http://192.168.1.98:11434
+OLLAMA_HOST=http://your-podman-host:11434
 OLLAMA_MODEL=granite3-dense:2b
-KAFKA_BOOTSTRAP_SERVERS=192.168.1.98:9092
-POSTGRES_HOST=192.168.1.98
+KAFKA_BOOTSTRAP_SERVERS=your-podman-host:9092
+POSTGRES_HOST=your-podman-host
 POSTGRES_PORT=5432
 POSTGRES_USER=postgres
 POSTGRES_DB=dow
-K9_PG_PASSWORD=postgres
-NEO4J_URI=bolt://192.168.1.98:7687
+K9_PG_PASSWORD=change-me
+NEO4J_URI=bolt://your-podman-host:7687
 NEO4J_USER=neo4j
-NEO4J_PASSWORD=neo4j!123
-S3_ENDPOINT_URL=http://192.168.1.98:9000
-AWS_ACCESS_KEY_ID=admin
-AWS_SECRET_ACCESS_KEY=admin123
+NEO4J_PASSWORD=change-me
+S3_ENDPOINT_URL=http://your-podman-host:9000
+AWS_ACCESS_KEY_ID=change-me
+AWS_SECRET_ACCESS_KEY=change-me
 ENVEOF
-      echo "  Created dow-k9-aif/.env — edit if needed"
+      echo "  Created dow-k9-aif/.env with placeholders — fill in real values before 'secret'/'up'"
     fi
 
     # Create volume dirs (same pattern as EOC)
@@ -111,6 +112,29 @@ ENVEOF
     else
       echo "Warning: K9_PG_PASSWORD not found in .env"
     fi
+
+    # S3/MinIO access key + secret key
+    S3_AKID=$(grep -E '^AWS_ACCESS_KEY_ID=' "$ENV_FILE" | cut -d= -f2- | tr -d '[:space:]')
+    if [[ -n "$S3_AKID" ]]; then
+      if sudo podman secret exists das-s3-access-key 2>/dev/null; then
+        sudo podman secret rm das-s3-access-key
+      fi
+      printf '%s' "$S3_AKID" | sudo podman secret create das-s3-access-key -
+      echo "Secret 'das-s3-access-key' stored."
+    else
+      echo "Warning: AWS_ACCESS_KEY_ID not found in .env"
+    fi
+
+    S3_SECRET=$(grep -E '^AWS_SECRET_ACCESS_KEY=' "$ENV_FILE" | cut -d= -f2- | tr -d '[:space:]')
+    if [[ -n "$S3_SECRET" ]]; then
+      if sudo podman secret exists das-s3-secret-key 2>/dev/null; then
+        sudo podman secret rm das-s3-secret-key
+      fi
+      printf '%s' "$S3_SECRET" | sudo podman secret create das-s3-secret-key -
+      echo "Secret 'das-s3-secret-key' stored."
+    else
+      echo "Warning: AWS_SECRET_ACCESS_KEY not found in .env"
+    fi
     ;;
 
   up)
@@ -136,11 +160,12 @@ ENVEOF
   demo)
     ENV_FILE="$DEPLOY_DIR/dow-k9-aif/.env"
     [[ -f "$ENV_FILE" ]] || { echo "Error: $ENV_FILE not found."; exit 1; }
+    PODMAN_HOST_IP="${PODMAN_HOST_IP:-$(hostname -I | awk '{print $1}')}"
     echo "Starting DAS in demo mode (app-backend only, no router/orchestrator) ..."
     sudo podman run -d --rm \
       --name das-demo \
       -p 8000:8000 \
-      --add-host rhel-host:192.168.1.98 \
+      --add-host "rhel-host:${PODMAN_HOST_IP}" \
       --env-file "$ENV_FILE" \
       "$IMAGE" \
       uvicorn k9_dow.api.app:app --host 0.0.0.0 --port 8000 --log-level info

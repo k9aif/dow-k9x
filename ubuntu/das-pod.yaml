@@ -12,6 +12,18 @@
 #   Neo4j      -> rhel-host:7687
 #   MinIO      -> rhel-host:9000
 #
+# SETUP (run once):
+#   # 0. Replace <PODMAN_HOST_IP> in hostAliases and OLLAMA_HOST below with
+#   #    this host's LAN IP
+#   # 1. Build the image
+#   podman build -t k9-aif-das:latest -f ubuntu/Containerfile .
+#
+#   # 2. Store secrets (or just run `./ubuntu/build-run.sh secret`)
+#   podman secret create pg-password <(grep K9_PG_PASSWORD .env | cut -d= -f2-)
+#   podman secret create neo4j-password <(grep NEO4J_PASSWORD .env | cut -d= -f2-)
+#   podman secret create das-s3-access-key <(grep AWS_ACCESS_KEY_ID .env | cut -d= -f2-)
+#   podman secret create das-s3-secret-key <(grep AWS_SECRET_ACCESS_KEY .env | cut -d= -f2-)
+#
 # DEPLOY:
 #   podman play kube ubuntu/das-pod.yaml --replace
 #
@@ -38,7 +50,7 @@ spec:
   restartPolicy: OnFailure
 
   hostAliases:
-  - ip: "192.168.1.244"
+  - ip: "<PODMAN_HOST_IP>"
     hostnames:
     - "rhel-host"
 
@@ -71,7 +83,7 @@ spec:
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: "rhel-host:9092"
     - name: OLLAMA_HOST
-      value: "http://192.168.1.244:11434"
+      value: "http://<PODMAN_HOST_IP>:11434"
     - name: POSTGRES_HOST
       value: "rhel-host"
     - name: POSTGRES_PORT
@@ -81,19 +93,31 @@ spec:
     - name: POSTGRES_USER
       value: "postgres"
     - name: K9_PG_PASSWORD
-      value: "postgres"
+      valueFrom:
+        secretKeyRef:
+          name: pg-password
+          key: pg-password
     - name: NEO4J_URI
       value: "bolt://rhel-host:7687"
     - name: NEO4J_USER
       value: "neo4j"
     - name: NEO4J_PASSWORD
-      value: "neo4j!123"
+      valueFrom:
+        secretKeyRef:
+          name: neo4j-password
+          key: neo4j-password
     - name: S3_ENDPOINT_URL
       value: "http://rhel-host:9000"
     - name: AWS_ACCESS_KEY_ID
-      value: "admin"
+      valueFrom:
+        secretKeyRef:
+          name: das-s3-access-key
+          key: das-s3-access-key
     - name: AWS_SECRET_ACCESS_KEY
-      value: "admin123"
+      valueFrom:
+        secretKeyRef:
+          name: das-s3-secret-key
+          key: das-s3-secret-key
     - name: PYTHONPATH
       value: "/app/dow-k9-aif/src:/app/k9-aif-framework"
     - name: DEMO_MODE
@@ -139,7 +163,7 @@ spec:
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: "rhel-host:9092"
     - name: OLLAMA_HOST
-      value: "http://192.168.1.244:11434"
+      value: "http://<PODMAN_HOST_IP>:11434"
     - name: POSTGRES_HOST
       value: "rhel-host"
     - name: POSTGRES_DB
@@ -147,7 +171,10 @@ spec:
     - name: POSTGRES_USER
       value: "postgres"
     - name: K9_PG_PASSWORD
-      value: "postgres"
+      valueFrom:
+        secretKeyRef:
+          name: pg-password
+          key: pg-password
     - name: PYTHONPATH
       value: "/app/dow-k9-aif/src:/app/k9-aif-framework"
     - name: K9_ENV
@@ -173,7 +200,7 @@ spec:
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: "rhel-host:9092"
     - name: OLLAMA_HOST
-      value: "http://192.168.1.244:11434"
+      value: "http://<PODMAN_HOST_IP>:11434"
     - name: POSTGRES_HOST
       value: "rhel-host"
     - name: POSTGRES_PORT
@@ -183,19 +210,31 @@ spec:
     - name: POSTGRES_USER
       value: "postgres"
     - name: K9_PG_PASSWORD
-      value: "postgres"
+      valueFrom:
+        secretKeyRef:
+          name: pg-password
+          key: pg-password
     - name: NEO4J_URI
       value: "bolt://rhel-host:7687"
     - name: NEO4J_USER
       value: "neo4j"
     - name: NEO4J_PASSWORD
-      value: "neo4j!123"
+      valueFrom:
+        secretKeyRef:
+          name: neo4j-password
+          key: neo4j-password
     - name: S3_ENDPOINT_URL
       value: "http://rhel-host:9000"
     - name: AWS_ACCESS_KEY_ID
-      value: "admin"
+      valueFrom:
+        secretKeyRef:
+          name: das-s3-access-key
+          key: das-s3-access-key
     - name: AWS_SECRET_ACCESS_KEY
-      value: "admin123"
+      valueFrom:
+        secretKeyRef:
+          name: das-s3-secret-key
+          key: das-s3-secret-key
     - name: PYTHONPATH
       value: "/app/dow-k9-aif/src:/app/k9-aif-framework"
     - name: K9_ENV
