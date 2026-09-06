@@ -123,8 +123,8 @@ ENVEOF
     HOST_IP=$(hostname -I | awk '{print $1}')
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  DAS — Defense Acquisition System"
-    echo "  Web UI:  http://${HOST_IP}:8002/"
-    echo "  Health:  http://${HOST_IP}:8002/health"
+    echo "  Web UI:  http://${HOST_IP}:8000/"
+    echo "  Health:  http://${HOST_IP}:8000/health"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "Logs:"
@@ -139,16 +139,16 @@ ENVEOF
     echo "Starting DAS in demo mode (app-backend only, no router/orchestrator) ..."
     sudo podman run -d --rm \
       --name das-demo \
-      -p 8002:8002 \
+      -p 8000:8000 \
       --add-host rhel-host:192.168.1.98 \
       --env-file "$ENV_FILE" \
       "$IMAGE" \
-      uvicorn k9_dow.api.app:app --host 0.0.0.0 --port 8002 --log-level info
+      uvicorn k9_dow.api.app:app --host 0.0.0.0 --port 8000 --log-level info
     HOST_IP=$(hostname -I | awk '{print $1}')
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  DAS — Demo Mode (static sample output)"
-    echo "  Web UI:  http://${HOST_IP}:8002/"
+    echo "  Web UI:  http://${HOST_IP}:8000/"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "  Stop:  sudo podman stop das-demo"
