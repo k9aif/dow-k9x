@@ -1,11 +1,11 @@
 # K9-AIF DAS — Defense Acquisition System
 # RHEL UBI 9 Python 3.11 container image
 #
-# Expects k9-aif-framework to be alongside dow-k9-aif on the host:
-#   ~/k9-aif-framework/
-#   ~/dow-k9-aif/
+# DAS is a K9-AIF SBB — it consumes the framework as the published
+# k9-aif[s3] PyPI package (pinned in requirements.txt), not a local
+# checkout. No sibling k9-aif-framework directory is needed on the host.
 #
-# Build (from parent directory containing both repos):
+# Build (from the directory containing dow-k9-aif):
 #   podman build -t k9-aif-das:latest -f dow-k9-aif/ubuntu/Containerfile .
 
 FROM registry.access.redhat.com/ubi9/python-311:latest
@@ -22,17 +22,10 @@ RUN dnf install -y --nodocs gcc libpq-devel && dnf clean all
 
 WORKDIR /app
 
-# Install K9-AIF framework first
-COPY k9-aif-framework/requirements.txt /tmp/k9-aif-requirements.txt
-RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir -r /tmp/k9-aif-requirements.txt
-
-COPY k9-aif-framework/ /app/k9-aif-framework/
-RUN pip install --no-cache-dir -e /app/k9-aif-framework/
-
-# Install DAS app
+# Install DAS app (pulls k9-aif[s3] from PyPI per requirements.txt)
 COPY ${DAS_SRC_DIR}/requirements.txt /tmp/das-requirements.txt
-RUN pip install --no-cache-dir -r /tmp/das-requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r /tmp/das-requirements.txt
 
 COPY ${DAS_SRC_DIR}/ /app/dow-k9-aif/
 
@@ -46,7 +39,7 @@ RUN chown -R 1001:0 /app/dow-k9-aif && chmod -R g+rwX /app/dow-k9-aif
 
 WORKDIR /app/dow-k9-aif
 
-ENV PYTHONPATH=/app/dow-k9-aif/src:/app/k9-aif-framework \
+ENV PYTHONPATH=/app/dow-k9-aif/src \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     K9_ENV=production

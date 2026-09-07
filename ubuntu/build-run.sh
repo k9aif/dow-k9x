@@ -3,7 +3,7 @@
 # Run from any directory on the Podman host (no sudo needed — script handles it).
 #
 # Commands:
-#   clone        — clone both repos from GitHub
+#   clone        — pull latest on this repo
 #   build        — build the k9-aif-das container image
 #   secret       — store secrets (Neo4j + Postgres passwords)
 #   up           — deploy k9-dow-pod (3 containers)
@@ -41,16 +41,15 @@ create_k8s_secret() {
 
 # Self-locating paths — this script always operates on the repo it's part
 # of, never on a separate hardcoded staging copy. Whatever directory this
-# repo is checked out to (e.g. ~/ai/dow-k9-aif on one machine, ~/ai/das-dev
+# repo is checked out to (e.g. ~/ai/dow-k9-aif on one machine, ~/ai/dow-k9x
 # on another), `build`/`secret`/`up`/`down` all follow it automatically.
-# Set DAS_DEPLOY_DIR only to force a different parent dir (rare — e.g. a
-# staging tree with its own k9-aif-framework checkout).
+# Set DAS_DEPLOY_DIR only to force a different parent dir for the build
+# context (rare).
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DAS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="${DAS_DEPLOY_DIR:-$(cd "$DAS_DIR/.." && pwd)}"
 DAS_DIRNAME="$(basename "$DAS_DIR")"
 VOLUMES_DIR="${HOME}/containers/volumes/dow"
-FRAMEWORK_REPO="https://github.com/k9aif/k9-aif-framework.git"
 IMAGE="k9-aif-das:latest"
 POD_NAME="k9-dow-pod"
 
@@ -59,24 +58,16 @@ cmd="${1:-help}"
 case "$cmd" in
 
   clone)
-    echo "Ensuring sibling repos are current in $REPO_ROOT ..."
-    cd "$REPO_ROOT"
-
-    if [[ -d "k9-aif-framework" ]]; then
-      echo "  k9-aif-framework exists — pulling latest ..."
-      git -C k9-aif-framework pull
-    else
-      git clone "$FRAMEWORK_REPO"
-    fi
-
-    echo "  $DAS_DIRNAME already present at $DAS_DIR — pulling latest ..."
+    # DAS consumes the framework as the k9-aif[s3] PyPI package (see
+    # requirements.txt) — no sibling k9-aif-framework checkout needed for
+    # the build. This just pulls latest on the repo itself.
+    echo "Pulling latest for $DAS_DIRNAME at $DAS_DIR ..."
     git -C "$DAS_DIR" pull
 
     # Create volume dirs (same pattern as EOC)
     mkdir -p "$VOLUMES_DIR"/{config,data,logs,runtime}
     echo ""
-    echo "Clone/pull complete."
-    echo "  $REPO_ROOT/k9-aif-framework/"
+    echo "Pull complete."
     echo "  $DAS_DIR/"
     echo "  $VOLUMES_DIR/ (config, data, logs, runtime)"
     ;;
@@ -208,7 +199,7 @@ case "$cmd" in
     echo "Usage: $0 <command>"
     echo ""
     echo "Commands:"
-    echo "  clone        — clone k9-aif-framework + dow-k9-aif from GitHub"
+    echo "  clone        — pull latest on this repo"
     echo "  build        — build the Podman image ($IMAGE)"
     echo "  secret       — store passwords from .env as Podman secrets"
     echo "  up           — deploy $POD_NAME (3 containers)"
