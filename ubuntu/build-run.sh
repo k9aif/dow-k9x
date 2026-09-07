@@ -119,8 +119,17 @@ case "$cmd" in
     ;;
 
   up)
-    echo "Deploying pod: $POD_NAME (3 containers) ..."
-    sudo podman play kube "$DAS_DIR/ubuntu/das-pod.yaml" --replace
+    # <PODMAN_HOST_IP> is substituted into a throwaway rendered copy on
+    # every deploy, never into the tracked das-pod.yaml — a one-time
+    # manual `sed` on the tracked file is an uncommitted local edit that
+    # a fresh clone/pull/reset can silently wipe out (this bit us
+    # repeatedly). PODMAN_HOST_IP env var overrides auto-detection.
+    PODMAN_HOST_IP="${PODMAN_HOST_IP:-$(hostname -I | awk '{print $1}')}"
+    RENDERED_YAML="$(mktemp /tmp/das-pod.XXXXXX.yaml)"
+    trap 'rm -f "$RENDERED_YAML"' EXIT
+    sed "s/<PODMAN_HOST_IP>/${PODMAN_HOST_IP}/g" "$DAS_DIR/ubuntu/das-pod.yaml" > "$RENDERED_YAML"
+    echo "Deploying pod: $POD_NAME (3 containers, host IP ${PODMAN_HOST_IP}) ..."
+    sudo podman play kube "$RENDERED_YAML" --replace
     echo ""
     echo "Pod running. Containers:"
     sudo podman ps --filter "pod=$POD_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Command}}"
