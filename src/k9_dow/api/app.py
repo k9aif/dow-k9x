@@ -47,7 +47,7 @@ _sse_clients: list = []
 # queue instead of publishing straight to the Router, and only one is
 # ever in flight at a time -- deliberately kept invisible to the UI (no
 # new tab, no cancel) per explicit direction to not complicate this.
-_QUEUE_ENDPOINT = os.environ.get("DAS_QUEUE_ENDPOINT", "http://192.168.1.98:9324")
+_QUEUE_ENDPOINT = os.environ.get("DAS_QUEUE_ENDPOINT", "http://localhost:9324")
 _QUEUE_NAME = "das-job-queue"
 _dispatch_state = {"running_job_id": None}
 
