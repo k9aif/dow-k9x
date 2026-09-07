@@ -11,6 +11,7 @@
 #   PostgreSQL -> rhel-host:5432
 #   Neo4j      -> rhel-host:7687
 #   MinIO      -> rhel-host:9000
+#   ElasticMQ  -> rhel-host:9324 (SQS-compatible job queue, app-backend only)
 #
 # SETUP (run once):
 #   # 0. Replace <PODMAN_HOST_IP> in hostAliases and OLLAMA_HOST below with
@@ -118,8 +119,10 @@ spec:
         secretKeyRef:
           name: das-s3-secret-key
           key: das-s3-secret-key
+    - name: DAS_QUEUE_ENDPOINT
+      value: "http://rhel-host:9324"
     - name: PYTHONPATH
-      value: "/app/dow-k9-aif/src:/app/k9-aif-framework"
+      value: "/app/dow-k9-aif/src"
     - name: DEMO_MODE
       value: "OFF"
     - name: OLLAMA_DISPLAY_NAME
@@ -176,7 +179,7 @@ spec:
           name: pg-password
           key: pg-password
     - name: PYTHONPATH
-      value: "/app/dow-k9-aif/src:/app/k9-aif-framework"
+      value: "/app/dow-k9-aif/src"
     - name: K9_ENV
       value: "development"
 
@@ -236,7 +239,7 @@ spec:
           name: das-s3-secret-key
           key: das-s3-secret-key
     - name: PYTHONPATH
-      value: "/app/dow-k9-aif/src:/app/k9-aif-framework"
+      value: "/app/dow-k9-aif/src"
     - name: K9_ENV
       value: "development"
 
