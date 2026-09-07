@@ -73,9 +73,16 @@ case "$cmd" in
     ;;
 
   build)
-    echo "Building $IMAGE from $REPO_ROOT (context dir: $DAS_DIRNAME) ..."
+    # --no-cache: requirements.txt pins k9-aif[s3] with a floor (>=1.4.0),
+    # not an exact version — an unchanged requirements.txt hashes to the
+    # same cached pip-install layer, so Podman would silently keep
+    # whatever PyPI release was current the *first* time this built,
+    # even after a newer release ships real fixes (bit us for real: the
+    # 1.10.5 llm_invoke retry fix never reached a running container until
+    # a forced rebuild). Slower every time, but correctness > speed here.
+    echo "Building $IMAGE from $REPO_ROOT (context dir: $DAS_DIRNAME, no cache) ..."
     cd "$REPO_ROOT"
-    sudo podman build -t "$IMAGE" \
+    sudo podman build --no-cache -t "$IMAGE" \
       -f "$DAS_DIRNAME/ubuntu/Containerfile" \
       --build-arg "DAS_SRC_DIR=$DAS_DIRNAME" \
       .
