@@ -86,6 +86,7 @@ case "$cmd" in
     cd "$REPO_ROOT"
     sudo podman build -t "$IMAGE" \
       -f "$DAS_DIRNAME/ubuntu/Containerfile" \
+      --build-arg "DAS_SRC_DIR=$DAS_DIRNAME" \
       .
     echo "Build complete: $IMAGE"
     ;;

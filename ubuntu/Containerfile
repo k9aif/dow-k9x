@@ -10,6 +10,12 @@
 
 FROM registry.access.redhat.com/ubi9/python-311:latest
 
+# The DAS repo isn't always checked out under the literal name
+# "dow-k9-aif" (e.g. cloned as "dow-k9x" from its GitHub remote on some
+# hosts) — build-run.sh passes the real directory name here so COPY
+# below works regardless of host-specific clone naming.
+ARG DAS_SRC_DIR=dow-k9-aif
+
 USER root
 
 RUN dnf install -y --nodocs gcc libpq-devel && dnf clean all
@@ -25,10 +31,10 @@ COPY k9-aif-framework/ /app/k9-aif-framework/
 RUN pip install --no-cache-dir -e /app/k9-aif-framework/
 
 # Install DAS app
-COPY dow-k9-aif/requirements.txt /tmp/das-requirements.txt
+COPY ${DAS_SRC_DIR}/requirements.txt /tmp/das-requirements.txt
 RUN pip install --no-cache-dir -r /tmp/das-requirements.txt
 
-COPY dow-k9-aif/ /app/dow-k9-aif/
+COPY ${DAS_SRC_DIR}/ /app/dow-k9-aif/
 
 # COPY runs as root, so anything the app needs to write at runtime (e.g.
 # runtime/k9_aif_state.db, runtime/k9_model_router.db — SQLite persistence
