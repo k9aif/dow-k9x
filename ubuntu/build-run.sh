@@ -128,7 +128,7 @@ case "$cmd" in
 
   up)
     echo "Deploying pod: $POD_NAME (3 containers) ..."
-    sudo podman play kube "$DEPLOY_DIR/dow-k9-aif/ubuntu/das-pod.yaml" --replace
+    sudo podman play kube "$DAS_DIR/ubuntu/das-pod.yaml" --replace
     echo ""
     echo "Pod running. Containers:"
     sudo podman ps --filter "pod=$POD_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Command}}"
@@ -147,7 +147,7 @@ case "$cmd" in
     ;;
 
   demo)
-    ENV_FILE="$DEPLOY_DIR/dow-k9-aif/.env"
+    ENV_FILE="$DAS_DIR/.env"
     [[ -f "$ENV_FILE" ]] || { echo "Error: $ENV_FILE not found."; exit 1; }
     PODMAN_HOST_IP="${PODMAN_HOST_IP:-$(hostname -I | awk '{print $1}')}"
     echo "Starting DAS in demo mode (app-backend only, no router/orchestrator) ..."
@@ -171,7 +171,7 @@ case "$cmd" in
   down)
     echo "Stopping pod: $POD_NAME ..."
     sudo podman stop das-demo 2>/dev/null || true
-    sudo podman play kube "$DEPLOY_DIR/dow-k9-aif/ubuntu/das-pod.yaml" --down || true
+    sudo podman play kube "$DAS_DIR/ubuntu/das-pod.yaml" --down || true
     echo "Pod stopped."
     ;;
 
