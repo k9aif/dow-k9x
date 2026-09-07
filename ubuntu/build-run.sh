@@ -39,82 +39,60 @@ create_k8s_secret() {
     | sudo podman secret create "$name" -
 }
 
-DEPLOY_DIR="${DAS_DEPLOY_DIR:-$HOME/ai/das-dev-pod-deployment}"
+# Self-locating paths — this script always operates on the repo it's part
+# of, never on a separate hardcoded staging copy. Whatever directory this
+# repo is checked out to (e.g. ~/ai/dow-k9-aif on one machine, ~/ai/das-dev
+# on another), `build`/`secret`/`up`/`down` all follow it automatically.
+# Set DAS_DEPLOY_DIR only to force a different parent dir (rare — e.g. a
+# staging tree with its own k9-aif-framework checkout).
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DAS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="${DAS_DEPLOY_DIR:-$(cd "$DAS_DIR/.." && pwd)}"
+DAS_DIRNAME="$(basename "$DAS_DIR")"
 VOLUMES_DIR="${HOME}/containers/volumes/dow"
 FRAMEWORK_REPO="https://github.com/k9aif/k9-aif-framework.git"
-DAS_REPO="https://github.com/k9aif/dow-k9x.git"
 IMAGE="k9-aif-das:latest"
 POD_NAME="k9-dow-pod"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 cmd="${1:-help}"
 
 case "$cmd" in
 
   clone)
-    echo "Cloning repos to $DEPLOY_DIR ..."
-    mkdir -p "$DEPLOY_DIR"
-    cd "$DEPLOY_DIR"
+    echo "Ensuring sibling repos are current in $REPO_ROOT ..."
+    cd "$REPO_ROOT"
 
     if [[ -d "k9-aif-framework" ]]; then
       echo "  k9-aif-framework exists — pulling latest ..."
-      cd k9-aif-framework && git pull && cd ..
+      git -C k9-aif-framework pull
     else
       git clone "$FRAMEWORK_REPO"
     fi
 
-    if [[ -d "dow-k9-aif" ]]; then
-      echo "  dow-k9-aif exists — pulling latest ..."
-      cd dow-k9-aif && git pull && cd ..
-    else
-      git clone "$DAS_REPO" dow-k9-aif
-    fi
-
-    # Copy .env template if not present — placeholders only, fill in real
-    # values before running 'secret' or 'up'.
-    if [[ ! -f "dow-k9-aif/.env" ]]; then
-      cat > "dow-k9-aif/.env" <<'ENVEOF'
-K9_DOW_ENV=production
-K9_ENV=production
-OLLAMA_HOST=http://your-podman-host:11434
-OLLAMA_MODEL=granite3-dense:2b
-KAFKA_BOOTSTRAP_SERVERS=your-podman-host:9092
-POSTGRES_HOST=your-podman-host
-POSTGRES_PORT=5432
-POSTGRES_USER=postgres
-POSTGRES_DB=dow
-K9_PG_PASSWORD=change-me
-NEO4J_URI=bolt://your-podman-host:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=change-me
-S3_ENDPOINT_URL=http://your-podman-host:9000
-AWS_ACCESS_KEY_ID=change-me
-AWS_SECRET_ACCESS_KEY=change-me
-ENVEOF
-      echo "  Created dow-k9-aif/.env with placeholders — fill in real values before 'secret'/'up'"
-    fi
+    echo "  $DAS_DIRNAME already present at $DAS_DIR — pulling latest ..."
+    git -C "$DAS_DIR" pull
 
     # Create volume dirs (same pattern as EOC)
     mkdir -p "$VOLUMES_DIR"/{config,data,logs,runtime}
     echo ""
-    echo "Clone complete."
-    echo "  $DEPLOY_DIR/k9-aif-framework/"
-    echo "  $DEPLOY_DIR/dow-k9-aif/"
+    echo "Clone/pull complete."
+    echo "  $REPO_ROOT/k9-aif-framework/"
+    echo "  $DAS_DIR/"
     echo "  $VOLUMES_DIR/ (config, data, logs, runtime)"
     ;;
 
   build)
-    echo "Building $IMAGE from $DEPLOY_DIR ..."
-    cd "$DEPLOY_DIR"
+    echo "Building $IMAGE from $REPO_ROOT (context dir: $DAS_DIRNAME) ..."
+    cd "$REPO_ROOT"
     sudo podman build -t "$IMAGE" \
-      -f "dow-k9-aif/ubuntu/Containerfile" \
+      -f "$DAS_DIRNAME/ubuntu/Containerfile" \
       .
     echo "Build complete: $IMAGE"
     ;;
 
   secret)
-    ENV_FILE="$DEPLOY_DIR/dow-k9-aif/.env"
-    [[ -f "$ENV_FILE" ]] || { echo "Error: $ENV_FILE not found. Run 'clone' first."; exit 1; }
+    ENV_FILE="$DAS_DIR/.env"
+    [[ -f "$ENV_FILE" ]] || { echo "Error: $ENV_FILE not found."; exit 1; }
 
     # Neo4j password
     NEO4J_PW=$(grep -E '^NEO4J_PASSWORD=' "$ENV_FILE" | cut -d= -f2- | tr -d '[:space:]')
