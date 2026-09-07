@@ -16,6 +16,29 @@
 
 set -euo pipefail
 
+# `podman play kube`'s secretKeyRef resolution reads the Podman secret's
+# raw content and unmarshals it as a full Kubernetes Secret manifest (not
+# a bare value) — a secret created via `podman secret create name -` with
+# just the plaintext password fails at deploy time with "not valid
+# JSON/YAML ... cannot unmarshal string into Go value of type v1.Secret".
+# This builds the actual expected shape instead.
+json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  printf '%s' "$s"
+}
+
+create_k8s_secret() {
+  local name="$1" key="$2" value="$3"
+  if sudo podman secret exists "$name" 2>/dev/null; then
+    sudo podman secret rm "$name"
+  fi
+  printf '{"apiVersion":"v1","kind":"Secret","metadata":{"name":"%s"},"type":"Opaque","stringData":{"%s":"%s"}}' \
+    "$(json_escape "$name")" "$(json_escape "$key")" "$(json_escape "$value")" \
+    | sudo podman secret create "$name" -
+}
+
 DEPLOY_DIR="${DAS_DEPLOY_DIR:-$HOME/ai/das-dev-pod-deployment}"
 VOLUMES_DIR="${HOME}/containers/volumes/dow"
 FRAMEWORK_REPO="https://github.com/k9aif/k9-aif-framework.git"
@@ -95,19 +118,13 @@ ENVEOF
 
     # Neo4j password
     NEO4J_PW=$(grep -E '^NEO4J_PASSWORD=' "$ENV_FILE" | cut -d= -f2- | tr -d '[:space:]')
-    if sudo podman secret exists neo4j-password 2>/dev/null; then
-      sudo podman secret rm neo4j-password
-    fi
-    printf '%s' "$NEO4J_PW" | sudo podman secret create neo4j-password -
+    create_k8s_secret neo4j-password neo4j-password "$NEO4J_PW"
     echo "Secret 'neo4j-password' stored."
 
     # Postgres password
     PG_PW=$(grep -E '^K9_PG_PASSWORD=' "$ENV_FILE" | cut -d= -f2- | tr -d '[:space:]')
     if [[ -n "$PG_PW" ]]; then
-      if sudo podman secret exists pg-password 2>/dev/null; then
-        sudo podman secret rm pg-password
-      fi
-      printf '%s' "$PG_PW" | sudo podman secret create pg-password -
+      create_k8s_secret pg-password pg-password "$PG_PW"
       echo "Secret 'pg-password' stored."
     else
       echo "Warning: K9_PG_PASSWORD not found in .env"
@@ -116,10 +133,7 @@ ENVEOF
     # S3/MinIO access key + secret key
     S3_AKID=$(grep -E '^AWS_ACCESS_KEY_ID=' "$ENV_FILE" | cut -d= -f2- | tr -d '[:space:]')
     if [[ -n "$S3_AKID" ]]; then
-      if sudo podman secret exists das-s3-access-key 2>/dev/null; then
-        sudo podman secret rm das-s3-access-key
-      fi
-      printf '%s' "$S3_AKID" | sudo podman secret create das-s3-access-key -
+      create_k8s_secret das-s3-access-key das-s3-access-key "$S3_AKID"
       echo "Secret 'das-s3-access-key' stored."
     else
       echo "Warning: AWS_ACCESS_KEY_ID not found in .env"
@@ -127,10 +141,7 @@ ENVEOF
 
     S3_SECRET=$(grep -E '^AWS_SECRET_ACCESS_KEY=' "$ENV_FILE" | cut -d= -f2- | tr -d '[:space:]')
     if [[ -n "$S3_SECRET" ]]; then
-      if sudo podman secret exists das-s3-secret-key 2>/dev/null; then
-        sudo podman secret rm das-s3-secret-key
-      fi
-      printf '%s' "$S3_SECRET" | sudo podman secret create das-s3-secret-key -
+      create_k8s_secret das-s3-secret-key das-s3-secret-key "$S3_SECRET"
       echo "Secret 'das-s3-secret-key' stored."
     else
       echo "Warning: AWS_SECRET_ACCESS_KEY not found in .env"
