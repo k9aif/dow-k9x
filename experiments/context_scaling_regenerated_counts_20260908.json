@@ -1,0 +1,80 @@
+{
+  "source_artifact": "context_sample_regenerated.json",
+  "source_commit_sha": "7b1f154fefd859fc7146bfce1277d3855db532ff",
+  "source_generated_at_utc": "2026-09-08T01:32:46.951343+00:00",
+  "source_model": "qwen2.5:32b",
+  "encoding": "tiktoken cl100k_base",
+  "rows": [
+    {
+      "step": 1,
+      "agent_output": "view_generation.model_elements",
+      "own_tokens": 951,
+      "cumulative_tokens": 951
+    },
+    {
+      "step": 2,
+      "agent_output": "view_generation.generated_views",
+      "own_tokens": 2134,
+      "cumulative_tokens": 3085
+    },
+    {
+      "step": 3,
+      "agent_output": "view_generation.consistency_report",
+      "own_tokens": 819,
+      "cumulative_tokens": 3904
+    },
+    {
+      "step": 4,
+      "agent_output": "gate_readiness.criteria",
+      "own_tokens": 41,
+      "cumulative_tokens": 3945
+    },
+    {
+      "step": 5,
+      "agent_output": "gate_readiness.evidence",
+      "own_tokens": 730,
+      "cumulative_tokens": 4675
+    },
+    {
+      "step": 6,
+      "agent_output": "gate_readiness.readiness_score",
+      "own_tokens": 599,
+      "cumulative_tokens": 5274
+    },
+    {
+      "step": 7,
+      "agent_output": "gate_readiness.gap_report",
+      "own_tokens": 971,
+      "cumulative_tokens": 6245
+    },
+    {
+      "step": 8,
+      "agent_output": "review_package.artifact_manifest",
+      "own_tokens": 49,
+      "cumulative_tokens": 6294
+    },
+    {
+      "step": 9,
+      "agent_output": "review_package.completeness_check",
+      "own_tokens": 594,
+      "cumulative_tokens": 6888
+    },
+    {
+      "step": 10,
+      "agent_output": "review_package.review_package",
+      "own_tokens": 1276,
+      "cumulative_tokens": 8164
+    }
+  ],
+  "final_cumulative_tokens": 8164,
+  "mean_marginal_growth_per_agent": 816.4,
+  "extrapolation_agents_at_budget": {
+    "8192": 10,
+    "32768": 40,
+    "131072": 161
+  },
+  "comparison_to_manuscript": {
+    "manuscript_final_cumulative_tokens": 2713,
+    "manuscript_mean_marginal_growth": 271.3
+  }
+}
