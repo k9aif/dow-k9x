@@ -399,7 +399,16 @@ function renderJobPanel() {
     if (lastResult.review_package) summary += `── Review Package ──\n${Object.keys(lastResult.review_package).map(k => '  ✓ ' + k).join('\n')}\n\n`;
     summary += `View generated docs in the "Generated Docs" tab.`;
     const hilEvt = [...state.events].reverse().find(e => (e.type || e.event_type) === 'HilTaskPublished');
-    if (hilEvt) {
+    const laterStage = lastResult.orchestrator === 'acquisition' || lastResult.orchestrator === 'se';
+    if (lastResult.demo_stub) {
+      // SE: reached after the Milestone approval; this deployment stops here.
+      updatePipeline('SeOrchestrator', 'done');
+      summary += `\n\nSystems Engineering reached. The SE pipeline is not implemented yet ` +
+                 `(demonstration endpoint); next review would be ${lastResult.target_review || 'SRR'}.`;
+      progressEl.innerHTML += `<div style="margin-top:6px;padding:8px 10px;border-radius:6px;border:1px solid var(--accent);` +
+        `background:rgba(59,130,246,0.1);color:var(--accent);font-weight:600">` +
+        `SE stage reached — SE pipeline not implemented yet (demonstration endpoint)</div>`;
+    } else if (hilEvt) {
       summary += `\n\n→ Sent to HIL for review and approval — message published to '${hilEvt.topic || '?'}'`;
       progressEl.innerHTML += `<div style="margin-top:6px;padding:8px 10px;border-radius:6px;border:1px solid var(--orange);` +
         `background:rgba(245,158,11,0.1);color:var(--orange);font-weight:600">` +
@@ -412,8 +421,11 @@ function renderJobPanel() {
       state.lastCompletedJobId = lastJobId;
       if (state.jobTimeoutId) { clearTimeout(state.jobTimeoutId); state.jobTimeoutId = null; }
       setJobInProgress(false);
-      fetchDocs(lastJobId);
-      setTimeout(() => switchTab('docs'), 1500);
+      // The generated ICD comes from JCIDS; later stages stay where you are.
+      if (!laterStage) {
+        fetchDocs(lastJobId);
+        setTimeout(() => switchTab('docs'), 1500);
+      }
     }
   } else if (squads.length > 0) {
     setJobResultText('Pipeline running — see Job Progress above.');
