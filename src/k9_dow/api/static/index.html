@@ -504,10 +504,13 @@ async function checkLlmHealth() {
     }
     return data;
   } catch (err) {
+    // No answer at all: usually DAS restarting (a redeploy) or a brief
+    // network/tunnel interruption. Recheck quickly until it is back.
     if (banner) {
       banner.style.display = 'block';
-      banner.textContent = '⚠ Unable to reach DAS backend health check.';
+      banner.textContent = '⚠ DAS is not answering (restarting or a network interruption) — rechecking every few seconds…';
     }
+    setTimeout(checkLlmHealth, 5000);
     return null;
   }
 }
