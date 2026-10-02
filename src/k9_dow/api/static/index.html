@@ -146,7 +146,7 @@
   <h1>DAS</h1>
   <span class="sub">Defense Acquisition System <span style="color:var(--orange);font-size:9px;font-weight:600;border:1px solid var(--orange);padding:1px 5px;border-radius:3px;margin-left:4px">PROOF OF CONCEPT</span> <span style="font-size:10px;color:var(--text2);margin-left:6px">Built on <span style="color:var(--accent);font-weight:600">K9-AIF Framework</span></span></span>
   <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
-    <a href="/" style="font-size:10px;color:var(--text2);text-decoration:none;border:1px solid var(--border);border-radius:4px;padding:2px 7px" title="What this demo is, the flow and the architecture">About this demo</a>
+    <a href="/" target="_blank" rel="noopener" style="font-size:10px;color:var(--text2);text-decoration:none;border:1px solid var(--border);border-radius:4px;padding:2px 7px" title="What this demo is, the flow and the architecture (opens in a new tab)">About this demo ↗</a>
     <span style="position:relative">
       <span id="userChip" onclick="toggleUserMenu(event)" title="Account" style="font-size:10px;font-family:var(--mono);color:var(--text2);cursor:pointer;border:1px solid var(--border);border-radius:4px;padding:2px 7px"></span>
       <div id="userMenu" hidden style="position:absolute;right:0;top:22px;z-index:50;min-width:190px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px;box-shadow:0 6px 18px rgba(0,0,0,.35)">
@@ -227,6 +227,7 @@
       <div class="tab" id="tab-jobresults" onclick="switchTab('jobresults')">Job Results</div>
       <div class="tab" id="tab-jobs" onclick="switchTab('jobs')" title="Every job, the stage it has reached, and the HIL decisions so far (kept across restarts)">Jobs in Pipeline<span class="count" id="jobs-count"></span></div>
       <div class="tab" id="tab-arch" onclick="switchTab('arch')">Architecture</div>
+      <div class="tab" id="tab-acronyms" onclick="switchTab('acronyms')" title="DoW / acquisition / DoDAF / SE acronyms used in DAS">Acronyms</div>
     </div>
     <div class="feed" id="feedArea"></div>
   </div>
@@ -315,6 +316,40 @@ function forceResetJob(reason) {
 // Derives squad/agent progress and the latest final result directly from
 // state.events (not exact job/correlation-id matching, which breaks across
 // a page reload since only one job runs at a time on this host anyway).
+// SE reached: the stage exists in the flow but its pipeline is not built yet.
+// Reviews per the DoD SE Guidebook (2022) ch. 3, from SRR on (ASR precedes the
+// Milestone decision this flow models).
+function seWorkInProgressCard(nextReview) {
+  const reviews = ['SRR', 'SFR', 'PDR', 'CDR', 'SVR/FCA', 'PRR', 'PCA'];
+  const next = String(nextReview).replace('SE-REVIEW-', '');
+  const chips = reviews.map(r => `<span style="display:inline-block;margin:2px 3px 0 0;padding:1px 6px;border-radius:4px;font-size:9.5px;font-family:var(--mono);` +
+    (r === next ? `border:1px solid var(--accent);color:var(--accent);background:rgba(59,130,246,0.15)">${r} · next`
+                : `border:1px dashed var(--border);color:var(--text2)">${r}`) + `</span>`).join('');
+  return `<div style="margin-top:8px;border:1px solid rgba(59,130,246,0.45);border-radius:8px;overflow:hidden;background:linear-gradient(160deg,rgba(59,130,246,0.10),rgba(15,23,42,0.0))">
+    <svg viewBox="0 0 260 92" width="100%" style="display:block" aria-hidden="true">
+      <defs><pattern id="seGrid" width="13" height="13" patternUnits="userSpaceOnUse">
+        <path d="M13 0H0V13" fill="none" stroke="rgba(96,165,250,0.18)" stroke-width="0.6"/></pattern></defs>
+      <rect width="260" height="92" fill="url(#seGrid)"/>
+      <g fill="none" stroke="#60a5fa" stroke-width="2">
+        <g><animateTransform attributeName="transform" type="rotate" from="0 92 46" to="360 92 46" dur="9s" repeatCount="indefinite"/>
+          <circle cx="92" cy="46" r="17"/><circle cx="92" cy="46" r="6"/>
+          ${[0,45,90,135,180,225,270,315].map(d => `<rect x="89" y="22" width="6" height="7" rx="1" fill="#60a5fa" stroke="none" transform="rotate(${d} 92 46)"/>`).join('')}</g>
+        <g><animateTransform attributeName="transform" type="rotate" from="0 130 30" to="-360 130 30" dur="6s" repeatCount="indefinite"/>
+          <circle cx="130" cy="30" r="11" stroke="#2dd4bf"/><circle cx="130" cy="30" r="4" stroke="#2dd4bf"/>
+          ${[0,60,120,180,240,300].map(d => `<rect x="128" y="14" width="4" height="5" rx="1" fill="#2dd4bf" stroke="none" transform="rotate(${d} 130 30)"/>`).join('')}</g>
+      </g>
+      <path d="M150 64 H246" stroke="#60a5fa" stroke-width="1" stroke-dasharray="4 3"/>
+      <text x="150" y="58" fill="#94a3b8" font-size="8.5" font-family="monospace">SE PIPELINE</text>
+      <text x="150" y="78" fill="#60a5fa" font-size="10" font-weight="700" font-family="sans-serif">WORK IN PROGRESS</text>
+    </svg>
+    <div style="padding:8px 10px 10px">
+      <div style="color:var(--accent);font-weight:700;font-size:12px">Systems Engineering — work in progress</div>
+      <div style="color:var(--text2);font-size:10.5px;margin:3px 0 6px">Triggered by the Milestone approval. The SE pipeline is not implemented yet (demonstration endpoint). Planned technical reviews (DoD SE Guidebook):</div>
+      <div>${chips}</div>
+    </div>
+  </div>`;
+}
+
 function renderJobPanel() {
   const progressEl = document.getElementById('jobProgress');
   const statusEl = document.getElementById('jobStatus');
@@ -406,9 +441,7 @@ function renderJobPanel() {
       updatePipeline('SeOrchestrator', 'done');
       summary += `\n\nSystems Engineering reached. The SE pipeline is not implemented yet ` +
                  `(demonstration endpoint); next review would be ${lastResult.target_review || 'SRR'}.`;
-      progressEl.innerHTML += `<div style="margin-top:6px;padding:8px 10px;border-radius:6px;border:1px solid var(--accent);` +
-        `background:rgba(59,130,246,0.1);color:var(--accent);font-weight:600">` +
-        `SE stage reached — SE pipeline not implemented yet (demonstration endpoint)</div>`;
+      progressEl.innerHTML += seWorkInProgressCard(lastResult.target_review || 'SE-REVIEW-SRR');
     } else if (hilEvt) {
       summary += `\n\n→ Sent to HIL for review and approval — message published to '${hilEvt.topic || '?'}'`;
       progressEl.innerHTML += `<div style="margin-top:6px;padding:8px 10px;border-radius:6px;border:1px solid var(--orange);` +
@@ -833,6 +866,34 @@ function switchTab(tab) {
   else if (tab === 'jobresults') renderJobResults();
   else if (tab === 'arch') renderArch();
   else if (tab === 'jobs') renderJobsHistory();
+  else if (tab === 'acronyms') renderAcronyms();
+}
+
+// ─── Acronyms (static/acronyms.json) ───
+let ACRONYMS = null;
+async function renderAcronyms() {
+  const area = document.getElementById('feedArea');
+  if (!ACRONYMS) {
+    try { ACRONYMS = await (await fetch('/static/acronyms.json')).json(); }
+    catch (e) { area.innerHTML = '<div style="padding:24px;color:var(--red)">Acronym list unavailable.</div>'; return; }
+  }
+  area.innerHTML = `<div style="padding:14px 18px;font-size:12px">
+    <input id="acrSearch" placeholder="Search ${ACRONYMS.length} acronyms (e.g. JROC, milestone, DoDAF)…" autocomplete="off"
+      style="width:100%;max-width:520px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:7px 10px;color:var(--text);font-size:12px;margin-bottom:12px">
+    <div id="acrTable"></div></div>`;
+  const draw = () => {
+    const q = (document.getElementById('acrSearch').value || '').trim().toLowerCase();
+    const rows = ACRONYMS.filter(x => !q || x.a.toLowerCase().includes(q) || x.full.toLowerCase().includes(q));
+    const cats = [...new Set(rows.map(x => x.cat))];
+    document.getElementById('acrTable').innerHTML = cats.map(c => `
+      <div style="color:var(--accent);font-weight:700;margin:14px 0 6px">${esc(c)}</div>
+      <table style="border-collapse:collapse;width:100%;max-width:900px">${rows.filter(x => x.cat === c).map(x => `
+        <tr><td style="padding:4px 12px 4px 0;font-family:var(--mono);color:var(--text);white-space:nowrap;vertical-align:top;width:130px">${esc(x.a)}</td>
+            <td style="padding:4px 0;color:var(--text2);border-bottom:1px solid var(--border)">${esc(x.full)}</td></tr>`).join('')}
+      </table>`).join('') || '<div style="color:var(--text2)">No match.</div>';
+  };
+  document.getElementById('acrSearch').addEventListener('input', draw);
+  draw();
 }
 
 // ─── Jobs: every run, its stages and HIL decisions (from storage) ───
@@ -1311,7 +1372,7 @@ document.addEventListener('click', () => { const m = document.getElementById('us
 function signOut(switchUser) {
   document.getElementById('userMenu').hidden = true;
   state.authToken = null; state.role = null;
-  try { sessionStorage.removeItem('k9x_das_auth'); } catch (_) {}
+  try { sessionStorage.removeItem('k9x_das_auth'); sessionStorage.removeItem('k9x_das_user'); } catch (_) {}
   document.getElementById('loginUser').value = '';
   document.getElementById('loginPass').value = '';
   document.getElementById('loginError').textContent = switchUser ? 'Sign in with another account (e.g. admin).' : '';
@@ -1320,6 +1381,22 @@ function signOut(switchUser) {
   document.getElementById('loginOverlay').style.display = 'flex';
   document.getElementById('loginUser').focus();
 }
+
+// Reload / back button: if this tab already has a valid session, go straight
+// into the app instead of showing the sign-in page again.
+(function restoreSession() {
+  if (new URLSearchParams(location.search).get('start') === 'demo') return;
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem('k9x_das_auth') || 'null'); } catch (_) {}
+  if (!saved || !saved.token) return;
+  fetch('/auth/me', {headers: {'Authorization': 'Bearer ' + saved.token}})
+    .then(r => r.ok ? r.json() : null)
+    .then(me => {
+      if (!me) { try { sessionStorage.removeItem('k9x_das_auth'); } catch (_) {} return; }
+      state.authToken = saved.token; state.role = me.role;
+      enterApp(me.user, {token: saved.token, role: me.role});
+    }).catch(() => {});
+})();
 
 // /app?start=demo (Start Demo on the landing page): sign in as the demo user.
 (function autoStartDemo() {
@@ -1351,6 +1428,12 @@ async function doLogin(e) {
   }
   state.authToken = auth.token; state.role = auth.role;
   sessionStorage.setItem('k9x_das_auth', JSON.stringify({token: auth.token, role: auth.role}));
+  sessionStorage.setItem('k9x_das_user', u);
+  enterApp(u, auth);
+}
+
+// Everything after a successful sign-in; also used to restore a saved session on reload.
+function enterApp(u, auth) {
   // Persisted, not regenerated on every login -- a page reload always
   // re-shows this login overlay (see comment at top of doLogin), and a
   // fresh sessionId on every reload would break the server-side

@@ -1,0 +1,427 @@
+[
+ {
+  "a": "DoW",
+  "full": "Department of War (secondary name of the U.S. Department of Defense since 2025)",
+  "cat": "Organizations"
+ },
+ {
+  "a": "DoD",
+  "full": "Department of Defense",
+  "cat": "Organizations"
+ },
+ {
+  "a": "JROC",
+  "full": "Joint Requirements Oversight Council",
+  "cat": "Organizations"
+ },
+ {
+  "a": "OUSD(A&S)",
+  "full": "Office of the Under Secretary of Defense for Acquisition and Sustainment",
+  "cat": "Organizations"
+ },
+ {
+  "a": "OUSD(R&E)",
+  "full": "Office of the Under Secretary of Defense for Research and Engineering",
+  "cat": "Organizations"
+ },
+ {
+  "a": "PEO",
+  "full": "Program Executive Officer",
+  "cat": "Organizations"
+ },
+ {
+  "a": "PM",
+  "full": "Program Manager",
+  "cat": "Organizations"
+ },
+ {
+  "a": "MDA",
+  "full": "Milestone Decision Authority",
+  "cat": "Organizations"
+ },
+ {
+  "a": "DAU",
+  "full": "Defense Acquisition University",
+  "cat": "Organizations"
+ },
+ {
+  "a": "DAS",
+  "full": "Defense Acquisition System (this demonstration's name for the pipeline)",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "AAF",
+  "full": "Adaptive Acquisition Framework",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "MTA",
+  "full": "Middle Tier of Acquisition",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "PPBE",
+  "full": "Planning, Programming, Budgeting, and Execution",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "MDD",
+  "full": "Materiel Development Decision",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "AoA",
+  "full": "Analysis of Alternatives",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "APB",
+  "full": "Acquisition Program Baseline",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "LRIP",
+  "full": "Low-Rate Initial Production",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "FRP",
+  "full": "Full-Rate Production",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "IOC",
+  "full": "Initial Operational Capability",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "FOC",
+  "full": "Full Operational Capability",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "RFP",
+  "full": "Request for Proposal",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "JCIDS",
+  "full": "Joint Capabilities Integration and Development System",
+  "cat": "Requirements (JCIDS)"
+ },
+ {
+  "a": "ICD",
+  "full": "Initial Capabilities Document",
+  "cat": "Requirements (JCIDS)"
+ },
+ {
+  "a": "CDD",
+  "full": "Capability Development Document",
+  "cat": "Requirements (JCIDS)"
+ },
+ {
+  "a": "CPD",
+  "full": "Capability Production Document",
+  "cat": "Requirements (JCIDS)"
+ },
+ {
+  "a": "CONOPS",
+  "full": "Concept of Operations",
+  "cat": "Requirements (JCIDS)"
+ },
+ {
+  "a": "KPP",
+  "full": "Key Performance Parameter",
+  "cat": "Requirements (JCIDS)"
+ },
+ {
+  "a": "KSA",
+  "full": "Key System Attribute",
+  "cat": "Requirements (JCIDS)"
+ },
+ {
+  "a": "DOTMLPF-P",
+  "full": "Doctrine, Organization, Training, Materiel, Leadership and Education, Personnel, Facilities, and Policy",
+  "cat": "Requirements (JCIDS)"
+ },
+ {
+  "a": "DoDAF",
+  "full": "DoD Architecture Framework",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "DM2",
+  "full": "DoDAF Meta-Model",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "AV-1",
+  "full": "All Viewpoint: Overview and Summary Information",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "CV",
+  "full": "Capability Viewpoint (CV-1 to CV-7)",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "OV-1",
+  "full": "Operational Viewpoint 1: High-Level Operational Concept Graphic",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "OV-2",
+  "full": "Operational Viewpoint 2: Operational Resource Flow Description",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "OV-3",
+  "full": "Operational Viewpoint 3: Operational Resource Flow Matrix",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "OV-5",
+  "full": "Operational Viewpoint 5: Operational Activity Decomposition / Model",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "SV-1",
+  "full": "Systems Viewpoint 1: Systems Interface Description",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "SV-2",
+  "full": "Systems Viewpoint 2: Systems Resource Flow Description",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "SvcV-1",
+  "full": "Services Viewpoint 1: Services Context Description",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "TV-1",
+  "full": "Technical Standards Profile (DoDAF 1.5 name; StdV-1 in DoDAF 2.0)",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "StdV-1",
+  "full": "Standards Viewpoint 1: Standards Profile (DoDAF 2.0; was TV-1)",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "CV-2",
+  "full": "Capability Viewpoint 2: Capability Taxonomy",
+  "cat": "Architecture (DoDAF)"
+ },
+ {
+  "a": "SE",
+  "full": "Systems Engineering",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "SEP",
+  "full": "Systems Engineering Plan",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "ASR",
+  "full": "Alternative Systems Review",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "SRR",
+  "full": "System Requirements Review",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "SFR",
+  "full": "System Functional Review",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "PDR",
+  "full": "Preliminary Design Review",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "CDR",
+  "full": "Critical Design Review",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "TRR",
+  "full": "Test Readiness Review",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "SVR",
+  "full": "System Verification Review",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "FCA",
+  "full": "Functional Configuration Audit",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "PRR",
+  "full": "Production Readiness Review",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "PCA",
+  "full": "Physical Configuration Audit",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "SRD",
+  "full": "System Requirements Document",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "SPS",
+  "full": "System Performance Specification",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "V&V",
+  "full": "Verification and Validation",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "R&M",
+  "full": "Reliability and Maintainability",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "HSI",
+  "full": "Human Systems Integration",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "SoS",
+  "full": "System of Systems",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "FoS",
+  "full": "Family of Systems",
+  "cat": "Systems engineering"
+ },
+ {
+  "a": "T&E",
+  "full": "Test and Evaluation",
+  "cat": "Test and evaluation"
+ },
+ {
+  "a": "TEMP",
+  "full": "Test and Evaluation Master Plan",
+  "cat": "Test and evaluation"
+ },
+ {
+  "a": "DT&E",
+  "full": "Developmental Test and Evaluation",
+  "cat": "Test and evaluation"
+ },
+ {
+  "a": "OT&E",
+  "full": "Operational Test and Evaluation",
+  "cat": "Test and evaluation"
+ },
+ {
+  "a": "MIL-STD",
+  "full": "Military Standard",
+  "cat": "Systems and standards (in demo documents)"
+ },
+ {
+  "a": "MIL-STD-1760",
+  "full": "Aircraft/Store Electrical Interconnection System (standard interface between aircraft and stores)",
+  "cat": "Systems and standards (in demo documents)"
+ },
+ {
+  "a": "EW",
+  "full": "Electronic Warfare",
+  "cat": "Systems and standards (in demo documents)"
+ },
+ {
+  "a": "SMS",
+  "full": "Stores Management System",
+  "cat": "Systems and standards (in demo documents)"
+ },
+ {
+  "a": "VMS",
+  "full": "Vehicle Management System",
+  "cat": "Systems and standards (in demo documents)"
+ },
+ {
+  "a": "PTMS",
+  "full": "Power and Thermal Management System",
+  "cat": "Systems and standards (in demo documents)"
+ },
+ {
+  "a": "MDF",
+  "full": "Mission Data File",
+  "cat": "Systems and standards (in demo documents)"
+ },
+ {
+  "a": "MCS",
+  "full": "Maintenance Control System (as named in the F-22 demo request)",
+  "cat": "Systems and standards (in demo documents)"
+ },
+ {
+  "a": "UAV",
+  "full": "Unmanned Aerial Vehicle",
+  "cat": "Systems and standards (in demo documents)"
+ },
+ {
+  "a": "STIG",
+  "full": "Security Technical Implementation Guide",
+  "cat": "Systems and standards (in demo documents)"
+ },
+ {
+  "a": "ATO",
+  "full": "Authority to Operate",
+  "cat": "Systems and standards (in demo documents)"
+ },
+ {
+  "a": "K9-AIF",
+  "full": "K9 Agentic Integration Framework (the open-source framework DAS is built on)",
+  "cat": "K9X / this demo"
+ },
+ {
+  "a": "K9X",
+  "full": "The ecosystem of products built on K9-AIF (HIL, Studio, Continuum, Shield, Sentinel, …)",
+  "cat": "K9X / this demo"
+ },
+ {
+  "a": "HIL",
+  "full": "Human-in-the-Loop (K9X HIL: where review tasks are decided by people)",
+  "cat": "K9X / this demo"
+ },
+ {
+  "a": "ABB",
+  "full": "Architecture Building Block (TOGAF): the framework's abstract contracts",
+  "cat": "K9X / this demo"
+ },
+ {
+  "a": "SBB",
+  "full": "Solution Building Block (TOGAF): concrete components that implement ABBs, e.g. DAS agents",
+  "cat": "K9X / this demo"
+ },
+ {
+  "a": "TOGAF",
+  "full": "The Open Group Architecture Framework",
+  "cat": "K9X / this demo"
+ },
+ {
+  "a": "LLM",
+  "full": "Large Language Model",
+  "cat": "K9X / this demo"
+ },
+ {
+  "a": "POC",
+  "full": "Proof of Concept",
+  "cat": "K9X / this demo"
+ }
+]

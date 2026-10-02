@@ -17,7 +17,7 @@ import uuid
 from typing import Optional
 from collections import deque
 
-from fastapi import Depends, FastAPI, File, Form, UploadFile, HTTPException
+from fastapi import Depends, FastAPI, File, Form, Header, UploadFile, HTTPException
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -568,6 +568,16 @@ async def auth_login(req: LoginReq):
     if not result:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return result
+
+
+@app.get("/auth/me")
+async def auth_me(authorization: str = Header(default="")):
+    """Who this session token belongs to (used to restore a session on reload)."""
+    from k9_dow.api.auth import verify
+    data = verify(authorization.removeprefix("Bearer ").strip()) if authorization else None
+    if not data:
+        raise HTTPException(status_code=401, detail="Not signed in")
+    return {"user": data["u"], "role": data["r"]}
 
 
 @app.get("/auth/public")

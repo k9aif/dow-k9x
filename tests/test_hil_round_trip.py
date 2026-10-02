@@ -229,3 +229,39 @@ def test_package_agents_build_on_each_other(monkeypatch):
     pb = next(p for a, p in prompts.items() if "Builder" in a or "Package" in a)
     assert "Artifact Fetcher" in cc
     assert "Completeness Checker" in pb and "output>" in pb
+
+
+def test_view_consistency_checker_sees_generated_views(monkeypatch):
+    from types import SimpleNamespace
+    from k9_dow.agents.src import view_consistency_checker_agent as vcc
+    seen = {}
+    monkeypatch.setattr(vcc, "llm_invoke", lambda cfg, req: seen.setdefault("p", req.prompt) and SimpleNamespace(output="ok"))
+    agent = vcc.ViewConsistencyCheckerAgent(config={})
+    agent.execute({"job_id": "j",                                  # first stage: no prior_outputs
+                   "model_elements": {"agent": "X", "output": "CN-001 capability"},
+                   "generated_views": {"agent": "Y", "output": "OV-1 Capability Map CAP-001"}})
+    assert "OV-1 Capability Map" in seen["p"] and "CN-001" in seen["p"] and "{}" not in seen["p"]
+
+
+def test_artifact_fetcher_counts_agent_records():
+    from k9_dow.agents.src.artifact_fetcher_agent import ArtifactFetcherAgent
+    out = ArtifactFetcherAgent(config={}).execute({"gate_id": "JROC-VALIDATION", "prior_outputs": {
+        "generated_views": {"agent": "Y", "output": "x" * 200},
+        "consistency_report": {"agent": "Z", "output": "y" * 120},
+        "status": "completed"}})
+    assert out["artifacts_found"] == 2 and "Fetched 2 artifacts" in out["output"]
+
+
+def test_auth_me_restores_session(monkeypatch):
+    import asyncio, importlib
+    from fastapi import HTTPException
+    monkeypatch.setenv("DAS_ADMIN_PASSWORD", "s3cret")
+    from k9_dow.api import auth
+    importlib.reload(auth)
+    from k9_dow.api import app as app_mod
+    tok = auth.login("admin", "s3cret")["token"]
+    me = asyncio.run(app_mod.auth_me(authorization="Bearer " + tok))
+    assert me == {"user": "admin", "role": "admin"}
+    with pytest.raises(HTTPException) as e:
+        asyncio.run(app_mod.auth_me(authorization="Bearer bad.token"))
+    assert e.value.status_code == 401

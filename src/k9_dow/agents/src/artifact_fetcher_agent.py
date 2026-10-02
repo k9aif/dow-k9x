@@ -16,10 +16,14 @@ class ArtifactFetcherAgent(BaseAgent):
         prior = payload.get("prior_outputs", {})
         gate_id = payload.get("gate_id", "")
 
+        # Prior-stage results arrive as agent records ({"agent", "output", ...})
+        # or plain text; count either when it carries real content.
         artifacts = {}
         for key, value in prior.items():
-            if isinstance(value, str) and len(value) > 50:
-                artifacts[key] = {"content_length": len(value), "available": True}
+            text = value.get("output") if isinstance(value, dict) else value
+            if isinstance(text, str) and len(text) > 50:
+                artifacts[key] = {"content_length": len(text), "available": True,
+                                  "agent": value.get("agent") if isinstance(value, dict) else None}
 
         self.publish_event({"type": "AgentCompleted", "agent": self.layer})
         return {

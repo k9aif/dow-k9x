@@ -3,6 +3,7 @@ from __future__ import annotations
 from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
+from k9_dow.agents.src.squad_context import step_output
 
 
 class ViewConsistencyCheckerAgent(BaseAgent):
@@ -16,14 +17,18 @@ class ViewConsistencyCheckerAgent(BaseAgent):
         super().__init__(config or {}, monitor=monitor, **kwargs)
 
     def execute(self, payload: dict) -> dict:
-        prior = payload.get("prior_outputs", {})
+        # The views and model elements produced earlier in this squad (not
+        # prior_outputs: JCIDS is the first stage, so that is always empty).
+        views = step_output(payload, "generated_views")
+        elements = step_output(payload, "model_elements")
 
         req = InferenceRequest(
             prompt=(
                 f"Role: {self.config.get('role', 'DoDAF View Consistency Analyst')}\n"
                 f"Goal: {self.config.get('goal', 'Check cross-view consistency')}\n\n"
                 f"Instructions: {self.config.get('instructions', '')}\n\n"
-                f"Generated views:\n{prior}\n\n"
+                f"Generated views (from the View Generator):\n{views or 'NONE GENERATED'}\n\n"
+                f"Model elements (from the Model Extractor):\n{elements or 'NONE EXTRACTED'}\n\n"
                 "Check for incoherence across view families:\n"
                 "1. Entities in OV views must appear in corresponding SV views\n"
                 "2. Capabilities in CV views must trace to operational activities\n"
