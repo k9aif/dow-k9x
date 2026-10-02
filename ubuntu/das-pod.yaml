@@ -167,6 +167,21 @@ spec:
     env:
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: "rhel-host:9092"
+    # The router resumes a job after a HIL decision only if the previous
+    # stage's package is in object storage (gates/hil_gateway.py), so it
+    # needs the same S3 access as the orchestrator.
+    - name: S3_ENDPOINT_URL
+      value: "http://rhel-host:9000"
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: das-s3-access-key
+          key: das-s3-access-key
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: das-s3-secret-key
+          key: das-s3-secret-key
     - name: OLLAMA_HOST
       value: "http://<PODMAN_HOST_IP>:11434"
     - name: POSTGRES_HOST
