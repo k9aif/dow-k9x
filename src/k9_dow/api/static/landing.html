@@ -12,6 +12,7 @@
     --mono: ui-monospace, Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--text);
          font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
   a { color: var(--amber); }
@@ -85,7 +86,7 @@
       <a href="#flow">Flow</a>
       <a href="#architecture">Architecture</a>
       <a href="#limits">Scope</a>
-      <a href="/app">Sign in</a>
+      <a href="/app?start=admin">Admin</a>
     </nav>
   </div>
 </header>
@@ -104,7 +105,7 @@
     </p>
     <div class="cta">
       <button class="btn btn-primary" id="startDemo">Start Demo →</button>
-      <a class="btn btn-ghost" href="/app">Sign in (admin)</a>
+      <button class="btn btn-ghost" id="startAdmin" title="Signs in as the DAS admin, who also starts the next stage after a HIL approval">Start as DAS admin</button>
       <span id="startErr"></span>
     </div>
     <div class="logins" id="logins">Public demonstration · demo login: <b>demo / demo</b></div>
@@ -187,6 +188,7 @@
     const L = d.logins || {}; const parts = [];
     if (L.demo) parts.push(`demo login: <b>${esc(L.demo.user)} / ${esc(L.demo.password)}</b>`);
     if (L.admin) parts.push(`admin (starts the next stage): <b>${esc(L.admin.user)} / ${esc(L.admin.password)}</b>`);
+    else document.getElementById('startAdmin').hidden = true;   // no public admin login
     if (parts.length) document.getElementById('logins').innerHTML = 'Public demonstration · ' + parts.join(' · ');
   }).catch(() => {});
   fetch('/llm').then(r => r.json()).then(d => {
@@ -194,6 +196,7 @@
   }).catch(() => {});
   // Start Demo: open the app signed in as the demo user
   document.getElementById('startDemo').addEventListener('click', () => { location.href = '/app?start=demo'; });
+  document.getElementById('startAdmin').addEventListener('click', () => { location.href = '/app?start=admin'; });
 </script>
 </body>
 </html>

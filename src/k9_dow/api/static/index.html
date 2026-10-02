@@ -1388,7 +1388,7 @@ function signOut(switchUser) {
 // Reload / back button: if this tab already has a valid session, go straight
 // into the app instead of showing the sign-in page again.
 (function restoreSession() {
-  if (new URLSearchParams(location.search).get('start') === 'demo') return;
+  if (['demo', 'admin'].includes(new URLSearchParams(location.search).get('start'))) return;
   let saved = null;
   try { saved = JSON.parse(sessionStorage.getItem('k9x_das_auth') || 'null'); } catch (_) {}
   if (!saved || !saved.token) return;
@@ -1401,15 +1401,17 @@ function signOut(switchUser) {
     }).catch(() => {});
 })();
 
-// /app?start=demo (Start Demo on the landing page): sign in as the demo user.
-(function autoStartDemo() {
-  const params = new URLSearchParams(location.search);
-  if (params.get('start') !== 'demo') return;
+// /app?start=demo | admin (landing page buttons): sign in as that public
+// demonstration login. Falls back to the sign-in page if it isn't offered.
+(function autoStart() {
+  const role = new URLSearchParams(location.search).get('start');
+  if (role !== 'demo' && role !== 'admin') return;
   history.replaceState(null, '', '/app');
   fetch('/auth/public').then(r => r.json()).then(d => {
-    const demo = (d.logins || {}).demo || {user: 'demo', password: 'demo'};
-    document.getElementById('loginUser').value = demo.user;
-    document.getElementById('loginPass').value = demo.password;
+    const login = (d.logins || {})[role];
+    if (!login) return;                      // e.g. no public admin: show sign-in
+    document.getElementById('loginUser').value = login.user;
+    document.getElementById('loginPass').value = login.password;
     doLogin({preventDefault() {}});
   }).catch(() => {});
 })();
