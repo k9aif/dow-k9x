@@ -135,10 +135,12 @@ case "$cmd" in
     RENDERED_YAML="$(mktemp /tmp/das-pod.XXXXXX.yaml)"
     trap 'rm -f "$RENDERED_YAML"' EXIT
     # OLLAMA_MODEL: the model every DAS agent uses (and the UI/ICD report), from .env (default qwen3.8:27b)
-    OLLAMA_MODEL="${OLLAMA_MODEL:-$(grep -E '^OLLAMA_MODEL=' "$DAS_DIR/.env" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]"'"'"'')}"
+    # Missing keys fall back to defaults: `|| true` keeps grep's "no match"
+    # exit status from stopping the script under `set -euo pipefail`.
+    envval() { { grep -E "^$1=" "$DAS_DIR/.env" 2>/dev/null || true; } | tail -1 | cut -d= -f2- | sed -e 's/^["'"'"']//' -e 's/["'"'"']$//'; }
+    OLLAMA_MODEL="${OLLAMA_MODEL:-$(envval OLLAMA_MODEL)}"
     OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3.8:27b}"
     # Login + resume settings from .env (src/k9_dow/api/auth.py, gates/hil_gateway.py)
-    envval() { grep -E "^$1=" "$DAS_DIR/.env" 2>/dev/null | tail -1 | cut -d= -f2- | sed -e 's/^["'"'"']//' -e 's/["'"'"']$//'; }
     DAS_RESUME_MODE="$(envval DAS_RESUME_MODE)"; DAS_RESUME_MODE="${DAS_RESUME_MODE:-manual}"
     DAS_ADMIN_USER="$(envval DAS_ADMIN_USER)"; DAS_ADMIN_USER="${DAS_ADMIN_USER:-admin}"
     DAS_ADMIN_PASSWORD="$(envval DAS_ADMIN_PASSWORD)"
