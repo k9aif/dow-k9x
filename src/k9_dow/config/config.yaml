@@ -1,17 +1,22 @@
 # K9-AIF Standard Config — DoW Architecture Workbench
 
 inference:
+  # DAS_LLM_MODEL (.env) sets the model for every DAS agent alias below
+  # (default qwen3.8:27b). think: false -- qwen3.x is a hybrid reasoning
+  # model and can return an empty answer if its thinking budget runs out.
   llm_factory:
     backend: ollama
     provider: ollama
     base_url: "${OLLAMA_HOST:-http://localhost:11434}"
     models:
       general:
-        model: "qwen2.5:32b"
+        model: "${DAS_LLM_MODEL:-qwen3.8:27b}"
+        think: false
         temperature: 0.3
         max_tokens: 4096
       reasoning:
-        model: "qwen2.5:32b"
+        model: "${DAS_LLM_MODEL:-qwen3.8:27b}"
+        think: false
         temperature: 0.2
         max_tokens: 4096
       # PackageBuilderAgent restates/consolidates every prior agent's full
@@ -25,7 +30,8 @@ inference:
       # also the largest of any agent's, containing the full upstream
       # payload) avoids raising the ceiling for every other reasoning call.
       package_synthesis:
-        model: "qwen2.5:32b"
+        model: "${DAS_LLM_MODEL:-qwen3.8:27b}"
+        think: false
         temperature: 0.2
         max_tokens: 8192
         num_ctx: 16384

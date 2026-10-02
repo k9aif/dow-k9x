@@ -134,8 +134,12 @@ case "$cmd" in
     PODMAN_HOST_IP="${PODMAN_HOST_IP:-$(hostname -I | awk '{print $1}')}"
     RENDERED_YAML="$(mktemp /tmp/das-pod.XXXXXX.yaml)"
     trap 'rm -f "$RENDERED_YAML"' EXIT
-    sed "s/<PODMAN_HOST_IP>/${PODMAN_HOST_IP}/g" "$DAS_DIR/ubuntu/das-pod.yaml" > "$RENDERED_YAML"
-    echo "Deploying pod: $POD_NAME (3 containers, host IP ${PODMAN_HOST_IP}) ..."
+    # DAS_LLM_MODEL: the model every DAS agent uses, from .env (default qwen3.8:27b)
+    DAS_LLM_MODEL="${DAS_LLM_MODEL:-$(grep -E '^DAS_LLM_MODEL=' "$DAS_DIR/.env" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]"'"'"'')}"
+    DAS_LLM_MODEL="${DAS_LLM_MODEL:-qwen3.8:27b}"
+    sed -e "s/<PODMAN_HOST_IP>/${PODMAN_HOST_IP}/g" -e "s|<DAS_LLM_MODEL>|${DAS_LLM_MODEL}|g" \
+      "$DAS_DIR/ubuntu/das-pod.yaml" > "$RENDERED_YAML"
+    echo "Deploying pod: $POD_NAME (3 containers, host IP ${PODMAN_HOST_IP}, model ${DAS_LLM_MODEL}) ..."
     sudo podman play kube "$RENDERED_YAML" --replace
     echo ""
     echo "Pod running. Containers:"
