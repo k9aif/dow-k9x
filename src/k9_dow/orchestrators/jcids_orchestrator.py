@@ -253,61 +253,42 @@ class JcidsOrchestrator(BaseOrchestrator):
             return None
 
     def _publish_hil_task(self, job_id: str, result: dict, s3_uri: Optional[str]):
-        """Publish a HIL task for the JROC-VALIDATION gate to Kafka.
+        """Publish the JROC-VALIDATION HIL task. K9X HIL publishes the decision
+        to das.jroc.replies; the DAS Router process turns an approval into
+        gate_approved, which resumes the pipeline at Acquisition
+        (gates/hil_gateway.py)."""
+        from k9_dow.gates.hil_gateway import publish_gate_task, save_stage_result
 
-        This is a fire-and-forget publish only: DAS does not consume a
-        reply topic, and no downstream orchestrator resumes automatically
-        on approval. That loop is a disclosed, unimplemented POC gap —
-        this method's only job is to make the pending decision visible
-        and actionable in K9X HIL.
-        """
-        try:
-            from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
+        # Acquisition loads this when the decision arrives (possibly days later).
+        save_stage_result(self.config, job_id, "jcids", result)
 
-            broker = self.config.get("messaging", {}).get("bootstrap_servers", "localhost:9092")
-            # Keyed by the squad's own result_key (readiness_score/gap_report),
-            # not the agent class name -- matches app.py's _compose_icd(),
-            # which navigates the same gate_readiness dict the same way.
-            gap_report = result.get("gate_readiness", {}).get("gap_report", {})
-            readiness = result.get("gate_readiness", {}).get("readiness_score", {})
-
-            task = {
-                "title": f"JROC-VALIDATION review — {job_id}",
-                "description": "DAS JCIDS pipeline complete; program manager or JROC "
-                               "representative review requested before proceeding to Acquisition.",
-                "source_orchestrator": "JcidsOrchestrator",
-                "source_topic": "das.jcids",
-                "reply_to": "das.jroc.replies",
-                "correlation_id": job_id,
-                "priority": "high",
-                "payload": {
-                    "job_id": job_id,
-                    "gate_id": result.get("gate_id", "JROC-VALIDATION"),
-                    "readiness_score": readiness.get("output") if isinstance(readiness, dict) else None,
-                    "gap_summary": gap_report.get("output") if isinstance(gap_report, dict) else None,
-                },
-                # DAS's own /view/icd endpoint renders on demand from
-                # _job_store, independent of whether S3 storage succeeded --
-                # always include it so an approver always has something
-                # clickable to actually review, even if s3_uri is None.
-                "artifacts": [
-                    u for u in (
-                        f"{os.environ.get('DAS_PUBLIC_URL', 'https://das.k9x.ai').rstrip('/')}/jobs/{job_id}/view/icd",
-                        s3_uri,
-                    ) if u
-                ],
-                "pii": False,
-                "ttl_hours": 168,
-                "ttl_action": "reject",
-            }
-
-            bus = K9EventBus(broker_url=broker, topic="workflow.hil.das.jroc", group_id="das-jcids")
-            bus.publish(task)
-            if bus._producer:
-                bus._producer.flush()
-            bus.close()
-            log.info("[JCIDS] Published HIL task for job=%s to workflow.hil.das.jroc", job_id)
+        # Keyed by the squad's own result_key (readiness_score/gap_report),
+        # not the agent class name -- matches app.py's _compose_icd(),
+        # which navigates the same gate_readiness dict the same way.
+        gap_report = result.get("gate_readiness", {}).get("gap_report", {})
+        readiness = result.get("gate_readiness", {}).get("readiness_score", {})
+        published = publish_gate_task(
+            self.config, "JROC-VALIDATION", job_id,
+            title=f"JROC-VALIDATION review — {job_id}",
+            description="DAS JCIDS pipeline complete; program manager or JROC "
+                        "representative review requested. Approval resumes the "
+                        "pipeline at Acquisition.",
+            source_orchestrator="JcidsOrchestrator",
+            source_topic="das.jcids",
+            payload={
+                "readiness_score": readiness.get("output") if isinstance(readiness, dict) else None,
+                "gap_summary": gap_report.get("output") if isinstance(gap_report, dict) else None,
+            },
+            # DAS's own /view/icd endpoint renders on demand from
+            # _job_store, independent of whether S3 storage succeeded --
+            # always include it so an approver always has something
+            # clickable to actually review, even if s3_uri is None.
+            artifacts=[
+                f"{os.environ.get('DAS_PUBLIC_URL', 'https://das.k9x.ai').rstrip('/')}/jobs/{job_id}/view/icd",
+                s3_uri,
+            ],
+        )
+        if published:
             print(f"  → HIL task published: workflow.hil.das.jroc (job={job_id})", flush=True)
-            self._emit("HilTaskPublished", job_id=job_id, topic="workflow.hil.das.jroc", artifact=s3_uri)
-        except Exception as exc:
-            log.warning("[JCIDS] HIL task publish failed (non-fatal): %s", exc)
+            self._emit("HilTaskPublished", job_id=job_id, topic="workflow.hil.das.jroc",
+                       gate_id="JROC-VALIDATION", artifact=s3_uri)

@@ -108,6 +108,12 @@ governance:
   enabled: true
   model_alias: guardian
 
+# Systems Engineering stage (reached after the PATHWAY-MILESTONE approval).
+# demo_stub: true = demonstration endpoint: SE is triggered and records the
+# next review (SRR) but its review squads are not run.
+se:
+  demo_stub: true
+
 monitoring:
   console: true
   log_level: INFO

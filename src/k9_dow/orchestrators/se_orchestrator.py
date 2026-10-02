@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from k9_aif_abb.k9_agents.registry.agent_registry import AgentRegistry
 from k9_aif_abb.k9_core.orchestration.base_orchestrator import BaseOrchestrator
@@ -39,14 +40,28 @@ class SeOrchestrator(BaseOrchestrator):
     Runs INSIDE the acquisition pathway — activates after the iterative
     requirements/funding loop stabilizes (SWP cut).
     Gates: SRR, SFR, PDR, CDR, TRR (all non-delegable).
+
+    Starts when DasRouter routes a ``gate_approved`` PATHWAY-MILESTONE event
+    here (the human decision made in K9X HIL). In the reference deployment
+    the SE stage is a **demonstration endpoint** (``se.demo_stub``, default
+    true): it records that SE has been triggered and which review is next
+    (SRR), and ends the pipeline without running the review squads. Set
+    ``se.demo_stub: false`` to run the Gate Readiness / Package Assembly
+    squads for the target review.
     """
 
     layer = "DAS SE Orchestrator"
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs) -> None:
+    def __init__(self, config: Optional[Dict[str, Any]] = None,
+                 progress_callback: Optional[Callable[[dict], None]] = None, **kwargs) -> None:
         super().__init__(config=config or {}, **kwargs)
         self._squads_dir = Path(__file__).resolve().parent.parent / "squads" / "yaml"
         self._agents_dir = Path(__file__).resolve().parent.parent / "agents" / "yaml"
+        self._progress = progress_callback or (lambda e: None)
+        self._demo_stub = bool((self.config.get("se") or {}).get("demo_stub", True))
+
+    def _emit(self, event_type: str, **kwargs):
+        self._progress({"type": event_type, "orchestrator": "SeOrchestrator", **kwargs})
 
     def _load_squad(self, yaml_filename: str, squad_id: str):
         agent_loader = AgentLoader(self._agents_dir)
@@ -62,7 +77,29 @@ class SeOrchestrator(BaseOrchestrator):
     def execute_flow(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         job_id = payload.get("job_id", "unknown")
         target_review = payload.get("target_review", "SE-REVIEW-SRR")
+        decision = payload.get("decision") or {}
         log.info("[SE] Starting review %s for job=%s", target_review, job_id)
+        t0 = time.monotonic()
+        self._emit("OrchestratorStarted", job_id=job_id, after_gate="PATHWAY-MILESTONE",
+                   approved_by=decision.get("actor"), target_review=target_review)
+
+        if self._demo_stub:
+            note = (f"Systems Engineering triggered by the PATHWAY-MILESTONE approval. "
+                    f"Next review: {target_review}. SE review squads are not executed in "
+                    f"the reference deployment (demonstration endpoint).")
+            print(f"  ✓ SE stage reached for job={job_id} (demonstration endpoint, next review {target_review})",
+                  flush=True)
+            self._emit("OrchestratorCompleted", job_id=job_id, elapsed_s=round(time.monotonic() - t0, 1),
+                       gate=target_review, demo_stub=True)
+            return {
+                "job_id": job_id,
+                "orchestrator": "se",
+                "status": "pipeline_complete",
+                "demo_stub": True,
+                "target_review": target_review,
+                "milestone_decision": decision,
+                "note": note,
+            }
 
         gate_squad = self._load_squad("gate_readiness_squad.yaml", "GateReadinessSquad")
         package_squad = self._load_squad("package_assembly_squad.yaml", "PackageAssemblySquad")

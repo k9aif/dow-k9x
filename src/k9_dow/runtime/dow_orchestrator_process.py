@@ -101,8 +101,8 @@ async def main() -> None:
     register_trace_callback(_publish_progress)
 
     jcids_orch = JcidsOrchestrator(config=config, progress_callback=_publish_progress)
-    acq_orch = AcquisitionOrchestrator(config=config)
-    se_orch = SeOrchestrator(config=config)
+    acq_orch = AcquisitionOrchestrator(config=config, progress_callback=_publish_progress)
+    se_orch = SeOrchestrator(config=config, progress_callback=_publish_progress)
     trace_orch = TraceabilityOrchestrator(config=config)
 
     handlers = {
@@ -128,6 +128,8 @@ async def main() -> None:
         corr = payload.get("correlation_id", "")
         topic = payload.get("_topic", "")
 
+        # `_topic` is stamped by the DAS Router process (the stage it routed to);
+        # gate_approved events resume a later stage, so event_type alone can't pick it.
         orch = None
         for topic_prefix, orchestrator in handlers.items():
             if topic == topic_prefix or event_type.startswith(topic_prefix.split(".")[-1]):

@@ -4,6 +4,12 @@
 # Async Kafka consumer that routes events from dow.router.in
 # to the correct pipeline topic via DasRouter.
 #
+# Also consumes the HIL gate reply topics (das.jroc.replies,
+# das.pathway.replies): K9X HIL publishes each human decision there, and an
+# approval becomes a gate_approved event that DasRouter routes to the next
+# stage (JROC → Acquisition, PATHWAY-MILESTONE → SE). Keeps the K9-AIF rule
+# that only the Router publishes to domain topics. See gates/hil_gateway.py.
+#
 # Usage:
 #   python -m k9_dow.runtime.dow_router_process
 
@@ -21,6 +27,8 @@ except ImportError:
 from k9_aif_abb.k9_utils.config_loader import load_yaml
 from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
 from k9_dow.routers.das_router import DasRouter, DAS_TOPICS
+from k9_dow.gates.hil_gateway import (GATE_INPUT_STAGE, GATE_TOPICS, approvers,
+                                      gate_approved_event, stage_result_exists)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -85,6 +93,9 @@ async def main() -> None:
 
             bus = outbound_buses.get(route_to)
             if bus:
+                # The orchestrator process picks the stage by this tag
+                # (the bus callback only sees the message value, not its topic).
+                payload = {**payload, "_topic": route_to}
                 bus.publish(payload)
                 if bus._producer:
                     bus._producer.flush()
@@ -97,10 +108,68 @@ async def main() -> None:
         except Exception as exc:
             log.error("[RouterProcess] Routing failed: %s", exc, exc_info=True)
 
-    log.info("[RouterProcess] Starting K9EventBus async consumer …")
+    results_bus = outbound_buses[DAS_TOPICS["results"]]
+    seen_decisions: set = set()  # (job_id, gate_id): HIL's outbox is at-least-once
+
+    def _result_event(evt: dict) -> None:
+        results_bus.publish(evt)
+        if results_bus._producer:
+            results_bus._producer.flush()
+
+    def make_reply_handler(gate_id: str):
+        async def handle_reply(reply: dict) -> None:
+            job_id = reply.get("correlation_id", "")
+            action = (reply.get("action") or "").lower()
+            actor = (reply.get("actor") or "").lower()
+            if not job_id or (job_id, gate_id) in seen_decisions:
+                return
+            seen_decisions.add((job_id, gate_id))
+            loop = asyncio.get_event_loop()
+            if not await loop.run_in_executor(
+                    None, stage_result_exists, config, job_id, GATE_INPUT_STAGE[gate_id]):
+                log.info("[RouterProcess] HIL decision gate=%s job=%s: no stored %s package, nothing to resume",
+                         gate_id, job_id, GATE_INPUT_STAGE[gate_id])
+                return
+            allowed = approvers()
+            accepted = allowed is None or actor in allowed
+            log.info("[RouterProcess] HIL decision gate=%s job=%s action=%s actor=%s accepted=%s",
+                     gate_id, job_id, action, actor, accepted)
+            _result_event({
+                "type": "GateDecision", "job_id": job_id, "gate_id": gate_id,
+                "action": action, "actor": reply.get("actor"), "comment": reply.get("comment"),
+                "decided_at": reply.get("decided_at"), "accepted": accepted,
+            })
+            if not accepted:
+                return
+            if action == "complete":
+                print(f"\n  ✔ HIL  {gate_id} approved by {reply.get('actor')}  job={job_id}  → resuming\n",
+                      flush=True)
+                await handle(gate_approved_event(gate_id, reply))
+            else:
+                # reject / expire: the pipeline stops at this gate
+                _result_event({
+                    "event_type": "gate_decision", "job_id": job_id, "correlation_id": job_id,
+                    "orchestrator": "DasRouter",
+                    "result": {"status": "stopped_at_gate", "gate_id": gate_id, "action": action,
+                               "actor": reply.get("actor"), "orchestrator": "router"},
+                })
+        return handle_reply
+
+    reply_buses = [
+        (K9EventBus(broker_url=broker, topic=t["reply_topic"], group_id=f"dow-router-hil-{gate_id.lower()}"), gate_id)
+        for gate_id, t in GATE_TOPICS.items()
+    ]
+
+    log.info("[RouterProcess] Starting K9EventBus async consumers (router.in + %d HIL reply topics) …",
+             len(reply_buses))
     try:
-        await inbound_bus.subscribe_async(handle)
+        await asyncio.gather(
+            inbound_bus.subscribe_async(handle),
+            *(bus.subscribe_async(make_reply_handler(gate_id)) for bus, gate_id in reply_buses),
+        )
     finally:
+        for bus, _ in reply_buses:
+            bus.close()
         for bus in outbound_buses.values():
             bus.close()
         log.info("[RouterProcess] Shutdown complete.")

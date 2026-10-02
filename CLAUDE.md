@@ -73,6 +73,26 @@ Document Upload (user selects document type = deterministic intent)
       → SRD, SPS, TEMP, V&V matrix
 ```
 
+### Reference deployment: HIL round trip (implemented 2026-10-02)
+
+```
+JcidsOrchestrator ─▶ JROC-VALIDATION task ─▶ workflow.hil.das.jroc ─▶ K9X HIL
+K9X HIL decision ─▶ das.jroc.replies ─▶ Router process ─▶ gate_approved ─▶ das.acquisition
+AcquisitionOrchestrator ─▶ PATHWAY-MILESTONE task ─▶ workflow.hil.das.pathway ─▶ K9X HIL
+K9X HIL decision ─▶ das.pathway.replies ─▶ Router process ─▶ gate_approved ─▶ das.se
+SeOrchestrator ─▶ demonstration endpoint (se.demo_stub: true): records next review (SRR), ends
+```
+
+- `gates/hil_gateway.py` owns gate topics, task publishing, and stage results
+  stored by job id (`jcids-output/by-job/<job>/<stage>.json`).
+- Only the Router process publishes to domain topics; it stamps `_topic` so the
+  orchestrator process picks the right stage.
+- A decision resumes a job only if the previous stage's package is stored
+  (reply topics are read from the earliest offset). `DAS_HIL_APPROVERS` (optional)
+  restricts whose decisions count.
+- Reject / expire stops the pipeline at that gate (`stopped_at_gate`).
+- Tests: `tests/test_hil_round_trip.py`.
+
 ---
 
 ## Agent Pattern (from SKILLS.md Skill 1)

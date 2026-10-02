@@ -167,11 +167,11 @@
       <div class="pipe-line"></div>
       <div class="pipe-step"><div class="pipe-dot gate" id="dot-jroc"></div><span class="pipe-label gate-label">JROC Gate</span></div>
       <div class="pipe-line"></div>
-      <div class="pipe-step" style="opacity:0.45" title="Scaffolded, not exercised by this demo's JCIDS-only run"><div class="pipe-dot" id="dot-acq"></div><span class="pipe-label">Acquisition</span></div>
+      <div class="pipe-step"><div class="pipe-dot" id="dot-acq"></div><span class="pipe-label">Acquisition</span></div>
       <div class="pipe-line"></div>
-      <div class="pipe-step" style="opacity:0.45" title="Scaffolded, not exercised by this demo's JCIDS-only run"><div class="pipe-dot gate" id="dot-milestone"></div><span class="pipe-label gate-label">Milestone Gate</span></div>
+      <div class="pipe-step"><div class="pipe-dot gate" id="dot-milestone"></div><span class="pipe-label gate-label">Milestone Gate</span></div>
       <div class="pipe-line"></div>
-      <div class="pipe-step" style="opacity:0.45" title="Scaffolded, not exercised by this demo's JCIDS-only run"><div class="pipe-dot" id="dot-se"></div><span class="pipe-label">SE Pipeline</span></div>
+      <div class="pipe-step"><div class="pipe-dot" id="dot-se"></div><span class="pipe-label" title="Demonstration endpoint: SE is triggered; its review squads are not run">SE Pipeline (demo)</span></div>
     </div>
 
     <div class="section">
@@ -543,7 +543,7 @@ function connectSSE() {
 
       // Progress events — update squad list
       if (evtType === 'OrchestratorStarted') {
-        updatePipeline('JcidsOrchestrator', 'active');
+        updatePipeline(evt.orchestrator || 'JcidsOrchestrator', 'active');
         const sl = document.getElementById('squadList');
         if (sl) sl.innerHTML = '<div style="color:var(--accent)">Pipeline started...</div>';
       }
@@ -557,7 +557,13 @@ function connectSSE() {
         if (sl) sl.innerHTML += '<div style="color:var(--text2);margin-left:10px">✓ done (' + (evt.elapsed_s||'?') + 's)</div>';
       }
       if (evtType === 'OrchestratorCompleted') {
-        updatePipeline('JcidsOrchestrator', 'done');
+        updatePipeline(evt.orchestrator || 'JcidsOrchestrator', 'done');
+      }
+      // Human decision from K9X HIL, consumed by the DAS Router process
+      if (evtType === 'GateDecision') {
+        const gateDot = {'JROC-VALIDATION': 'dot-jroc', 'PATHWAY-MILESTONE': 'dot-milestone'}[evt.gate_id];
+        const el = gateDot && document.getElementById(gateDot);
+        if (el && evt.accepted && evt.action === 'complete') el.className = 'pipe-dot gate done';
       }
 
       // LLM calls
@@ -597,7 +603,8 @@ function updatePipeline(orch, status) {
   const dotId = map[orch];
   if (dotId) {
     const el = document.getElementById(dotId);
-    if (el) el.className = status === 'error' ? 'pipe-dot' : 'pipe-dot done';
+    if (el) el.className = status === 'error' ? 'pipe-dot'
+                         : status === 'active' ? 'pipe-dot active' : 'pipe-dot done';
   }
 }
 
@@ -621,7 +628,13 @@ function renderLive() {
     const status = (e.result||{}).status || '';
     let cls = 'result';
     let detail = '';
-    if (evtType === 'OrchestratorStarted') { cls = 'orchestrator'; detail = (e.filename||'') + ' → ' + (e.document_type||''); }
+    if (evtType === 'OrchestratorStarted') { cls = 'orchestrator'; detail = e.after_gate
+        ? (orch + ' resumed after ' + e.after_gate + ' (approved by ' + (e.approved_by||'?') + ')')
+        : (e.filename||'') + ' → ' + (e.document_type||''); }
+    else if (evtType === 'GateDecision') { cls = 'gate'; detail = (e.gate_id||'?') + ' ' +
+        (e.action === 'complete' ? 'APPROVED' : (e.action||'?').toUpperCase()) + ' by ' + (e.actor||'?') + ' in K9X HIL' +
+        (e.accepted === false ? ' (not an authorized approver: ignored)'
+          : e.action === 'complete' ? ' → resuming pipeline' : ' → pipeline stops at this gate'); }
     else if (evtType === 'SquadStarted') { cls = 'squad'; detail = (e.squad||'') + ' (' + (e.total||'?') + ' agents: ' + (e.agents||[]).join(', ') + ')'; }
     else if (evtType === 'SquadCompleted') { cls = 'squad'; detail = (e.squad||'') + ' done in ' + (e.elapsed_s||'?') + 's'; }
     else if (evtType === 'OrchestratorCompleted') { cls = 'orchestrator'; detail = 'completed in ' + (e.elapsed_s||'?') + 's → gate: ' + (e.gate||''); }
@@ -637,6 +650,7 @@ function renderLive() {
     else if (evtType === 'AgentCompleted') { cls = 'agent'; detail = (e.agent||'?') + ' — done'; }
     else if (evtType.includes('Route')) { cls = 'router'; detail = orch; }
     else if (evtType === 'LLMCall') { cls = 'llm'; detail = (e.agent||'?') + ' → ' + (e.model||'?') + ' (' + (e.latency_ms||'?') + 'ms)'; }
+    else if ((e.result||{}).demo_stub) { cls = 'result'; detail = '✓ ' + (e.result.note || 'SE stage reached'); }
     else { detail = (orch ? orch+' ' : '') + status; }
     return `<div class="feed-entry"><span class="feed-ts">${t}</span><span class="feed-type ${cls}">${evtType}</span><span class="feed-detail">${detail}</span></div>`;
   }).join('');

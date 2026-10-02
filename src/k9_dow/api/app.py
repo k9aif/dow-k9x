@@ -185,8 +185,20 @@ async def _consume_results():
                         matched_key = k
                         break
 
+            # Stages resumed after a HIL gate (Acquisition, SE) and gate
+            # outcomes are kept per stage; the JCIDS result stays the job's
+            # "result" (the ICD view and /docs read it).
+            later_stage = evt_result.get("orchestrator") if isinstance(evt_result, dict) else None
+            if matched_key and (evt.get("type") or evt.get("event_type")) == "GateDecision":
+                _job_store[matched_key].setdefault("gates", {})[evt.get("gate_id", "?")] = {
+                    k: evt.get(k) for k in ("action", "actor", "comment", "decided_at", "accepted")}
+            elif matched_key and isinstance(evt_result, dict) and evt_result.get("status") \
+                    and later_stage in ("acquisition", "se", "router"):
+                _job_store[matched_key].setdefault("stages", {})[later_stage] = evt_result
+                _job_store[matched_key]["pipeline_status"] = evt_result.get("status")
+                log.info("[SSE] Stored %s stage result for job=%s", later_stage, matched_key)
             # Only store final pipeline results (not progress events)
-            if matched_key and isinstance(evt_result, dict) and evt_result.get("status"):
+            elif matched_key and isinstance(evt_result, dict) and evt_result.get("status"):
                 # Merge, don't replace -- the submission-time entry carries
                 # filename/document_type/submitted_at that evt doesn't have.
                 _job_store[matched_key] = {**_job_store.get(matched_key, {}), **evt}
