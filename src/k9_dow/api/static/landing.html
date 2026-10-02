@@ -157,6 +157,8 @@
         <p>Each stage's result and each HIL decision is stored in object storage by job id, so Jobs in Pipeline survives restarts and a decision days later still resumes the right job.</p></div>
       <div class="card"><h3>Models, local</h3>
         <p>Agents run on <b id="model">a local model</b> through Ollama on a single workstation GPU; Granite Guardian adds an advisory safety check on the assembled package. No cloud model is used.</p></div>
+      <div class="card"><h3>Knowledge corpus</h3>
+        <p>Agents always work from the submitted document. A retriever adds reference passages from a <b>synthetic, fictional corpus</b> (prior CDDs for made-up programs, DoDAF and acquisition-package guidance), stored as vectors in <b>PostgreSQL (pgvector)</b>. In a real deployment it would point at authoritative DoD enterprise sources instead. <i>Not yet loaded in this hosted demo.</i></p></div>
       <div class="card"><h3>Roles</h3>
         <p><b>demo</b> runs jobs and watches. <b>admin</b> also starts the next stage after a HIL approval: the analyst who runs a job is not the person who moves the program forward.</p></div>
     </div>
@@ -167,6 +169,7 @@
       <h2 style="margin-bottom:4px">Scope of this demonstration</h2>
       <ul>
         <li>Input documents are <b>synthetic</b> and fictional (no real program or DoD data); outputs have not been reviewed by acquisition experts.</li>
+        <li>The reference knowledge corpus is synthetic as well, and is <b>not yet loaded</b> here: ICDs currently reflect the submitted document alone.</li>
         <li>Systems Engineering is a <b>demonstration endpoint</b>; its review squads are not implemented.</li>
         <li>The review loop (request changes, revise the document, re-review) is <b>designed, not built</b>.</li>
         <li>This is a public demonstration: the logins above are shared, and runs are visible to the operator.</li>
