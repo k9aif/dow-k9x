@@ -85,6 +85,7 @@
       <a href="#steps">What you'll see</a>
       <a href="#flow">Flow</a>
       <a href="#architecture">Architecture</a>
+      <a href="#knowledge">Knowledge</a>
       <a href="#limits">Scope</a>
       <a href="/app?start=admin">Admin</a>
     </nav>
@@ -158,10 +159,30 @@
       <div class="card"><h3>Models, local</h3>
         <p>Agents run on <b id="model">a local model</b> through Ollama on a single workstation GPU; Granite Guardian adds an advisory safety check on the assembled package. No cloud model is used.</p></div>
       <div class="card"><h3>Knowledge corpus</h3>
-        <p>Agents always work from the submitted document. A retriever adds reference passages from a <b>synthetic, fictional corpus</b> (prior CDDs for made-up programs, DoDAF and acquisition-package guidance), stored as vectors in <b>PostgreSQL (pgvector)</b>. In a real deployment it would point at authoritative DoD enterprise sources instead. <i>Not yet loaded in this hosted demo.</i></p></div>
+        <p>Reference passages come from a vector store in PostgreSQL (pgvector): synthetic here, authoritative DoW sources in a real deployment. See <a href="#knowledge">Knowledge corpus</a> below.</p></div>
       <div class="card"><h3>Roles</h3>
         <p><b>demo</b> runs jobs and watches. <b>admin</b> also starts the next stage after a HIL approval: the analyst who runs a job is not the person who moves the program forward.</p></div>
     </div>
+  </section>
+
+  <section id="knowledge">
+    <h2>Knowledge corpus</h2>
+    <p class="sub">An ICD is stronger when it relates a new capability need to precedent programs and reference architectures, not just restates the input. DAS does this with retrieval, kept strictly separate from the submitted document's own facts.</p>
+    <div class="grid">
+      <div class="card"><h3><span class="num">1</span>What is in it</h3>
+        <p>In this demonstration, a <b>synthetic, fictional corpus</b> (<code>data/synthetic_corpus/</code>): three prior CDDs for made-up programs (TALON, MERIDIAN, GRIFFON), DoDAF 2.0 operational and systems/capability view authoring references, and a JROC / Milestone review-package reference. No real program or DoD data.</p></div>
+      <div class="card"><h3><span class="num">2</span>How it is built</h3>
+        <p>Each document is split into sections, each section is embedded with <code>nomic-embed-text</code> (768-dimension vectors, run locally through Ollama), and stored with its text and source in PostgreSQL.</p></div>
+      <div class="card"><h3><span class="num">3</span>Where it is stored</h3>
+        <p><b>PostgreSQL with the pgvector extension</b>: table <code>dow_knowledge_corpus</code> in the <code>dow</code> database. Vectors live next to ordinary tables, under the same backups and access control; no separate vector database to run.</p></div>
+      <div class="card"><h3><span class="num">4</span>How agents use it</h3>
+        <p>The View Generator (and the Traceability squad's Link Proposer) ask the retriever for the closest passages (top 5) to the view being written. They are added to the prompt as <b>supplementary reference</b>, labelled as not part of the submitted document and never to be used as this program's facts. The submitted document always goes in directly.</p></div>
+    </div>
+    <div class="card" style="margin-top:14px;border-color:var(--amber)">
+      <h3 style="color:var(--amber)">In a real deployment: a DowRetriever</h3>
+      <p>DAS uses <code>K9Retriever</code>, the framework's general retriever (it extends the <code>BaseRetriever</code> building block). A DoW deployment would add a <b>DowRetriever</b>: another <code>BaseRetriever</code> extension, plugged in the same way through configuration, pointed at <b>authoritative DoW knowledge sources</b> such as prior CDDs and ICDs from program repositories, DoDAF reference architectures, JCIDS and acquisition policy and regulations, and lessons learned. It would respect each source's classification and access rules, and its passages could be graphed alongside the ICD's own entities to show how a new need relates to precedent programs. The agents, squads and gates do not change; only the retriever's sources do. The DowRetriever is a design, not part of this demo.</p>
+    </div>
+    <p class="caption">Status in this hosted demonstration: the corpus and the pgvector table are configured but <b>not yet loaded</b>, so ICDs currently reflect the submitted document alone.</p>
   </section>
 
   <section id="limits">
