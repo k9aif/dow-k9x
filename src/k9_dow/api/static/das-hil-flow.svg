@@ -22,52 +22,68 @@
 
   <!-- 1 DAS: JCIDS -->
   <rect x="12" y="46" width="96" height="80" rx="5" fill="#eff6ff" stroke="#2563eb" stroke-width="1.4"/>
-  <text class="sys" x="60" y="63" text-anchor="middle" fill="#2563eb">DAS</text>
+  <text class="sys" x="68" y="63" text-anchor="middle" fill="#2563eb">DAS</text>
   <text class="t" x="60" y="85" text-anchor="middle">JCIDS</text>
   <text class="s" x="60" y="102" text-anchor="middle">ICD, DoDAF</text>
   <text class="s" x="60" y="117" text-anchor="middle">views</text>
 
   <!-- 2 HIL: JROC review -->
   <rect x="142" y="46" width="96" height="80" rx="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.4"/>
-  <text class="sys" x="190" y="63" text-anchor="middle" fill="#ea580c">K9X HIL</text>
+  <text class="sys" x="198" y="63" text-anchor="middle" fill="#ea580c">K9X HIL</text>
   <text class="t" x="190" y="85" text-anchor="middle">JROC</text>
   <text class="t" x="190" y="102" text-anchor="middle">review</text>
   <text class="s" x="190" y="117" text-anchor="middle">human decides</text>
 
   <!-- 3 DAS: Jobs in Pipeline -->
   <rect x="272" y="46" width="96" height="80" rx="5" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.4"/>
-  <text class="sys" x="320" y="63" text-anchor="middle" fill="#7c3aed">DAS</text>
+  <text class="sys" x="328" y="63" text-anchor="middle" fill="#7c3aed">DAS</text>
   <text class="t" x="320" y="85" text-anchor="middle">Jobs in</text>
   <text class="t" x="320" y="102" text-anchor="middle">Pipeline</text>
   <text class="s" x="320" y="117" text-anchor="middle">admin starts</text>
 
   <!-- 4 DAS: Acquisition -->
   <rect x="402" y="46" width="96" height="80" rx="5" fill="#eff6ff" stroke="#2563eb" stroke-width="1.4"/>
-  <text class="sys" x="450" y="63" text-anchor="middle" fill="#2563eb">DAS</text>
+  <text class="sys" x="458" y="63" text-anchor="middle" fill="#2563eb">DAS</text>
   <text class="t" x="450" y="85" text-anchor="middle">Acquisition</text>
   <text class="s" x="450" y="102" text-anchor="middle">milestone</text>
   <text class="s" x="450" y="117" text-anchor="middle">readiness</text>
 
   <!-- 5 HIL: Milestone review -->
   <rect x="532" y="46" width="96" height="80" rx="5" fill="#fff7ed" stroke="#ea580c" stroke-width="1.4"/>
-  <text class="sys" x="580" y="63" text-anchor="middle" fill="#ea580c">K9X HIL</text>
+  <text class="sys" x="588" y="63" text-anchor="middle" fill="#ea580c">K9X HIL</text>
   <text class="t" x="580" y="85" text-anchor="middle">Milestone</text>
   <text class="t" x="580" y="102" text-anchor="middle">review</text>
   <text class="s" x="580" y="117" text-anchor="middle">human decides</text>
 
   <!-- 6 DAS: Jobs in Pipeline -->
   <rect x="662" y="46" width="96" height="80" rx="5" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.4"/>
-  <text class="sys" x="710" y="63" text-anchor="middle" fill="#7c3aed">DAS</text>
+  <text class="sys" x="718" y="63" text-anchor="middle" fill="#7c3aed">DAS</text>
   <text class="t" x="710" y="85" text-anchor="middle">Jobs in</text>
   <text class="t" x="710" y="102" text-anchor="middle">Pipeline</text>
   <text class="s" x="710" y="117" text-anchor="middle">admin starts</text>
 
   <!-- 7 DAS: SE (demonstration endpoint) -->
   <rect x="792" y="46" width="96" height="80" rx="5" fill="#eff6ff" stroke="#2563eb" stroke-width="1.4"/>
-  <text class="sys" x="840" y="63" text-anchor="middle" fill="#2563eb">DAS</text>
+  <text class="sys" x="848" y="63" text-anchor="middle" fill="#2563eb">DAS</text>
   <text class="t" x="840" y="85" text-anchor="middle">SE</text>
   <text class="s" x="840" y="102" text-anchor="middle">demonstration</text>
   <text class="s" x="840" y="117" text-anchor="middle">endpoint (SRR)</text>
+
+  <!-- step numbers (refer to steps as 1-7) -->
+  <circle cx="24" cy="58" r="9" fill="#111827"/>
+  <text x="24" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff">1</text>
+  <circle cx="154" cy="58" r="9" fill="#111827"/>
+  <text x="154" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff">2</text>
+  <circle cx="284" cy="58" r="9" fill="#111827"/>
+  <text x="284" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff">3</text>
+  <circle cx="414" cy="58" r="9" fill="#111827"/>
+  <text x="414" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff">4</text>
+  <circle cx="544" cy="58" r="9" fill="#111827"/>
+  <text x="544" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff">5</text>
+  <circle cx="674" cy="58" r="9" fill="#111827"/>
+  <text x="674" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff">6</text>
+  <circle cx="804" cy="58" r="9" fill="#111827"/>
+  <text x="804" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff">7</text>
 
   <!-- flow arrows (implemented) with labels above -->
   <line x1="108" y1="86" x2="139" y2="86" stroke="#1f2937" stroke-width="1.6" marker-end="url(#a)"/>
