@@ -185,3 +185,47 @@ def test_advance_starts_next_stage_once(monkeypatch):
     with pytest.raises(HTTPException) as e:                # already started
         asyncio.run(app_mod.advance_job("job-9", admin={"u": "admin", "r": "admin"}))
     assert e.value.status_code == 409
+
+
+# ── Context enrichment inside the readiness and package squads ──
+
+def _run_squad_with_fake_llm(monkeypatch, yaml_file, squad_id, payload):
+    """Real SquadLoader + BaseSquad + DAS agents; only the model is faked."""
+    from types import SimpleNamespace
+    from k9_dow.orchestrators import acquisition_orchestrator as acq
+    prompts = {}
+    def fake(cfg, req):
+        agent = req.metadata.get("agent", "?")
+        prompts[agent] = req.prompt
+        return SimpleNamespace(output=f"<{agent} output>")
+    for mod in ("evidence_collector_agent", "readiness_scorer_agent", "gap_reporter_agent",
+                "completeness_checker_agent", "package_builder_agent", "artifact_fetcher_agent"):
+        m = __import__(f"k9_dow.agents.src.{mod}", fromlist=["x"])
+        if hasattr(m, "llm_invoke"):
+            monkeypatch.setattr(m, "llm_invoke", fake)
+    orch = acq.AcquisitionOrchestrator(config={"emit_icd_docx": False})
+    squad = orch._load_squad(yaml_file, squad_id)
+    return squad.execute(payload), prompts
+
+
+def test_gate_readiness_agents_build_on_each_other(monkeypatch):
+    from k9_dow.gates.gate_registry import DAS_GATES
+    crit = DAS_GATES["PATHWAY-MILESTONE"].entry_criteria
+    result, prompts = _run_squad_with_fake_llm(monkeypatch, "gate_readiness_squad.yaml", "GateReadinessSquad",
+        {"job_id": "j", "gate_id": "PATHWAY-MILESTONE", "gate_criteria": crit,
+         "prior_outputs": {"criteria": {"criteria": []}, "icd": "prior-stage text"}})
+    ev = next(p for a, p in prompts.items() if "Evidence" in a)
+    sc = next(p for a, p in prompts.items() if "Scorer" in a or "Readiness" in a)
+    gp = next(p for a, p in prompts.items() if "Gap" in a)
+    assert "Funding line identified" in ev                       # loaded criteria, not the prior stage's empty list
+    assert "Funding line identified" in sc and "Evidence Collector" in sc and "output>" in sc
+    assert "Readiness Scorer" in gp and "output>" in gp
+
+
+def test_package_agents_build_on_each_other(monkeypatch):
+    result, prompts = _run_squad_with_fake_llm(monkeypatch, "package_assembly_squad.yaml", "PackageAssemblySquad",
+        {"job_id": "j", "gate_id": "PATHWAY-MILESTONE", "prior_outputs": {"readiness_score": {"output": "45/100"}}})
+    cc = next(p for a, p in prompts.items() if "Completeness" in a)
+    pb = next(p for a, p in prompts.items() if "Builder" in a or "Package" in a)
+    assert "Artifact Fetcher" in cc
+    assert "Completeness Checker" in pb and "output>" in pb

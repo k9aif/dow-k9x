@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 import asyncio
 import os
 import uuid
+from typing import Optional
 from collections import deque
 
 from fastapi import Depends, FastAPI, File, Form, UploadFile, HTTPException
@@ -568,8 +569,12 @@ async def auth_public():
     return {"logins": public_logins(), "resume_mode": resume_mode()}
 
 
+class AdvanceReq(BaseModel):
+    session_id: str = ""
+
+
 @app.post("/jobs/{job_id}/advance")
-async def advance_job(job_id: str, admin: dict = Depends(require_admin)):
+async def advance_job(job_id: str, req: Optional[AdvanceReq] = None, admin: dict = Depends(require_admin)):
     """DAS admin starts the next stage of a job whose gate K9X HIL approved.
     Refuses unless an approval is on record and that stage hasn't started."""
     from k9_dow.gates.hil_gateway import (gate_approved_event, job_history, load_stage_result,
@@ -585,6 +590,10 @@ async def advance_job(job_id: str, admin: dict = Depends(require_admin)):
     event = gate_approved_event(nxt["gate"], reply)
     event["decision"]["started_by"] = admin["u"]
     await loop.run_in_executor(None, mark_started, _config, job_id, nxt["stage"], admin["u"])
+    # Live events for this stage go to the admin's browser session (the job
+    # may have been submitted from another session, or before a restart).
+    if req and req.session_id:
+        _job_store.setdefault(job_id, {"job_id": job_id})["session_id"] = req.session_id
     _publish_to_router(event)
     log.info("[API] %s started %s for job=%s (approved at %s by %s)",
              admin["u"], nxt["stage"], job_id, nxt["gate"], gate.get("actor"))
@@ -707,11 +716,54 @@ async def view_doc(job_id: str, doc_id: str):
     if not data:
         raise HTTPException(status_code=404, detail="Job not found", headers={"Cache-Control": "no-store"})
 
+    if doc_id == "milestone":
+        md = _compose_milestone_package(job_id)
+        if md is None:
+            raise HTTPException(status_code=404, detail="Acquisition has not run for this job")
+        return _render_icd_html(job_id, md)
+
     if doc_id != "icd":
         raise HTTPException(status_code=404, detail="Document not found")
 
     md_content = _compose_icd(data)
     return _render_icd_html(job_id, md_content)
+
+
+def _compose_milestone_package(job_id: str) -> Optional[str]:
+    """Stage 2 (Acquisition) output as a readable document: the JROC decision
+    it started from, the PATHWAY-MILESTONE criteria, and each agent's findings."""
+    from k9_dow.gates.gate_registry import DAS_GATES
+    from k9_dow.gates.hil_gateway import load_stage_result
+    from k9_dow.utils.icd_composer import extract_text
+    acq = load_stage_result(_config, job_id, "acquisition")
+    if not acq:
+        return None
+    d = acq.get("jroc_decision") or {}
+    lines = [f"# Milestone Review Package — {acq.get('document_title') or job_id}", "",
+             f"**Job ID:** {job_id}",
+             f"**Gate:** PATHWAY-MILESTONE (Acquisition Pathway / Milestone Decision)",
+             f"**Started after:** JROC-VALIDATION approved by {d.get('actor') or '?'}"
+             f"{' on ' + d['decided_at'][:19].replace('T', ' ') + ' UTC' if d.get('decided_at') else ''}",
+             f"**Status:** Awaiting HIL Review (PATHWAY-MILESTONE)",
+             "**Classification:** UNCLASSIFIED — PROOF OF CONCEPT", ""]
+    if d.get("comment"):
+        lines += [f"> JROC reviewer comment: {d['comment']}", ""]
+    lines += ["## Entry criteria", ""] + [f"- {c}" for c in DAS_GATES["PATHWAY-MILESTONE"].entry_criteria] + [""]
+    titles = {"criteria": "Criteria loaded", "evidence": "Evidence", "readiness_score": "Readiness assessment",
+              "gap_report": "Gaps", "artifact_manifest": "Artifacts", "completeness_check": "Completeness check",
+              "review_package": "Milestone review package"}
+    for section, heading in (("gate_readiness", "Gate readiness"), ("review_package", "Review package")):
+        part = acq.get(section) or {}
+        if not part:
+            continue
+        lines += [f"## {heading}", ""]
+        for key, val in part.items():
+            if not isinstance(val, dict):      # squad bookkeeping (status, squad_id)
+                continue
+            text = extract_text(val.get("output", val))
+            if text and text.strip():
+                lines += [f"### {titles.get(key, key.replace('_', ' ').capitalize())}", "", text.strip(), ""]
+    return "\n".join(lines)
 
 
 def _render_icd_html(job_id: str, md_content: str):

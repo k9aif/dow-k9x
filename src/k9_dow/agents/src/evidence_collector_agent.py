@@ -3,6 +3,7 @@ from __future__ import annotations
 from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
+from k9_dow.agents.src.squad_context import gate_criteria, step_output
 
 
 class EvidenceCollectorAgent(BaseAgent):
@@ -18,7 +19,7 @@ class EvidenceCollectorAgent(BaseAgent):
     def execute(self, payload: dict) -> dict:
         prior = payload.get("prior_outputs", {})
         gate_id = payload.get("gate_id", "")
-        criteria = prior.get("criteria", [])
+        criteria = gate_criteria(payload)   # loaded by CriteriaLoaderAgent in this squad
 
         req = InferenceRequest(
             prompt=(

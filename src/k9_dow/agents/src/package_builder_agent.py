@@ -3,6 +3,7 @@ from __future__ import annotations
 from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
+from k9_dow.agents.src.squad_context import gate_criteria, step_output
 
 
 class PackageBuilderAgent(BaseAgent):
@@ -26,6 +27,7 @@ class PackageBuilderAgent(BaseAgent):
                 f"Instructions: {self.config.get('instructions', '')}\n\n"
                 f"Gate: {gate_id}\n"
                 f"Artifacts and assessments:\n{prior}\n\n"
+                f"Completeness check (from the Completeness Checker):\n{step_output(payload, 'completeness_check')}\n\n"
                 "Assemble the final package:\n"
                 "1. Executive summary of readiness state\n"
                 "2. Evidence manifest with provenance\n"

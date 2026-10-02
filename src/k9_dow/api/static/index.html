@@ -884,6 +884,8 @@ async function renderJobsHistory(quiet) {
         <span style="color:var(--accent);font-family:var(--mono)">${esc(j.job_id)}</span>
         <span style="color:var(--text)">${esc(j.document_title || j.filename || '')}</span>
         <a href="/jobs/${encodeURIComponent(j.job_id)}/view/icd" target="_blank" rel="noopener" style="margin-left:auto;color:var(--accent)">View ICD</a>
+        ${(j.steps || []).some(st => st.step === 'acquisition' && st.state === 'done')
+          ? `<a href="/jobs/${encodeURIComponent(j.job_id)}/view/milestone" target="_blank" rel="noopener" style="color:var(--accent)">View Milestone package</a>` : ''}
       </div>
       <div style="margin-top:6px">${(j.steps || []).map(st => jobStepChip(st, data.hil_url)).join('<span style="color:var(--text2)">→ </span>')}</div>
       ${j.next_action ? nextActionHtml(j) : ''}
@@ -901,15 +903,31 @@ function nextActionHtml(j) {
 }
 async function advanceJob(jobId, btn) {
   btn.disabled = true; btn.textContent = 'Starting…';
-  let msg = '';
+  let msg = '', d = {};
   try {
     const r = await fetch('/jobs/' + encodeURIComponent(jobId) + '/advance', {method: 'POST',
-      headers: {'Authorization': 'Bearer ' + (state.authToken || '')}});
-    const d = await r.json().catch(() => ({}));
+      headers: {'Authorization': 'Bearer ' + (state.authToken || ''), 'Content-Type': 'application/json'},
+      body: JSON.stringify({session_id: state.sessionId || ''})});
+    d = await r.json().catch(() => ({}));
     msg = r.ok ? '' : (d.detail || ('HTTP ' + r.status));
   } catch (e) { msg = 'Could not reach DAS.'; }
   if (msg) { btn.disabled = false; btn.textContent = 'Retry'; btn.insertAdjacentHTML('afterend', `<span style="color:var(--red);font-size:11px">${esc(msg)}</span>`); return; }
-  renderJobsHistory();
+  followStartedStage(jobId, d.started);
+}
+
+// After Start <stage>: this browser follows that job (its live events are no
+// longer filtered out), earlier steps show as done, and the Live Feed opens.
+function followStartedStage(jobId, stage) {
+  state.mySessionJobIds.add(jobId);
+  try { sessionStorage.setItem('k9x_das_job_ids', JSON.stringify([...state.mySessionJobIds])); } catch (_) {}
+  resetJobDisplay();
+  state.jobId = jobId;
+  const done = (id, gate) => { const el = document.getElementById(id); if (el) el.className = gate ? 'pipe-dot gate done' : 'pipe-dot done'; };
+  done('dot-router'); done('dot-jcids'); done('dot-jroc', true);
+  if (stage === 'se') { done('dot-acq'); done('dot-milestone', true); }
+  const sl = document.getElementById('squadList');
+  if (sl) sl.innerHTML = `<div style="color:var(--accent)">${esc(STEP_LABEL[stage] || stage)} started for ${esc(jobId)}…</div>`;
+  switchTab('live');
 }
 
 function renderArch() {

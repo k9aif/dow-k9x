@@ -159,10 +159,14 @@ class JcidsOrchestrator(BaseOrchestrator):
 
         view_result = self._run_squad(view_gen_squad, "ViewGenerationSquad", payload)
 
-        gate_payload = {**payload, "prior_outputs": view_result, "gate_id": "JROC-VALIDATION"}
+        from k9_dow.gates.gate_registry import DAS_GATES
+        jroc_criteria = DAS_GATES["JROC-VALIDATION"].entry_criteria
+        gate_payload = {**payload, "prior_outputs": view_result, "gate_id": "JROC-VALIDATION",
+                        "gate_criteria": jroc_criteria}
         gate_result = self._run_squad(gate_squad, "GateReadinessSquad", gate_payload)
 
-        package_payload = {**payload, "prior_outputs": {**view_result, **gate_result}, "gate_id": "JROC-VALIDATION"}
+        package_payload = {**payload, "prior_outputs": {**view_result, **gate_result}, "gate_id": "JROC-VALIDATION",
+                           "gate_criteria": jroc_criteria}
         package_result = self._run_squad(package_squad, "PackageAssemblySquad", package_payload)
 
         total_elapsed = time.monotonic() - flow_t0
