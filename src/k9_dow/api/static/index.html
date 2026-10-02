@@ -849,8 +849,9 @@ async function renderJobsHistory() {
   if (!jobs.length) { area.innerHTML = '<div style="padding:24px;color:var(--text2);font-size:12px">No jobs yet.</div>'; return; }
   area.innerHTML = `<div style="padding:14px 18px;font-size:12px">
     <div style="color:var(--text2);margin-bottom:10px">Each run with its stages and the human decisions made in K9X HIL.
-      A pending gate links to <a href="${esc(data.hil_url)}" target="_blank" rel="noopener" style="color:var(--accent)">K9X HIL</a>;
-      approving there resumes the job at the next stage.</div>` +
+      A pending gate links to <a href="${esc(data.hil_url)}" target="_blank" rel="noopener" style="color:var(--accent)">K9X HIL</a>.
+      ${data.resume_mode === 'auto' ? 'Approving there starts the next stage automatically.'
+        : 'After an approval there, the DAS admin starts the next stage here.'}</div>` +
     jobs.map(j => `<div style="border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px">
       <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">
         <span style="color:var(--accent);font-family:var(--mono)">${esc(j.job_id)}</span>

@@ -540,7 +540,9 @@ async def jobs_history(limit: int = 30):
     jobs = []
     for jid in newest:
         jobs.append(await loop.run_in_executor(None, job_history, _config, jid, ids[jid]))
-    return JSONResponse({"jobs": jobs, "hil_url": os.environ.get("HIL_PUBLIC_URL", "https://hil.k9x.ai")},
+    from k9_dow.gates.hil_gateway import resume_mode
+    return JSONResponse({"jobs": jobs, "hil_url": os.environ.get("HIL_PUBLIC_URL", "https://hil.k9x.ai"),
+                         "resume_mode": resume_mode()},
                         headers={"Cache-Control": "no-store"})
 
 
