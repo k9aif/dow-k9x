@@ -87,8 +87,8 @@ spec:
       value: "rhel-host:9092"
     - name: OLLAMA_HOST
       value: "http://<PODMAN_HOST_IP>:11434"
-    - name: DAS_LLM_MODEL
-      value: "<DAS_LLM_MODEL>"
+    - name: OLLAMA_MODEL
+      value: "<OLLAMA_MODEL>"
     - name: POSTGRES_HOST
       value: "rhel-host"
     - name: POSTGRES_PORT
@@ -186,8 +186,8 @@ spec:
           key: das-s3-secret-key
     - name: OLLAMA_HOST
       value: "http://<PODMAN_HOST_IP>:11434"
-    - name: DAS_LLM_MODEL
-      value: "<DAS_LLM_MODEL>"
+    - name: OLLAMA_MODEL
+      value: "<OLLAMA_MODEL>"
     - name: POSTGRES_HOST
       value: "rhel-host"
     - name: POSTGRES_DB
@@ -225,8 +225,8 @@ spec:
       value: "rhel-host:9092"
     - name: OLLAMA_HOST
       value: "http://<PODMAN_HOST_IP>:11434"
-    - name: DAS_LLM_MODEL
-      value: "<DAS_LLM_MODEL>"
+    - name: OLLAMA_MODEL
+      value: "<OLLAMA_MODEL>"
     - name: POSTGRES_HOST
       value: "rhel-host"
     - name: POSTGRES_PORT

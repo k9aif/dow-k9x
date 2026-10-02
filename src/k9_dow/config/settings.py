@@ -21,7 +21,7 @@ class Settings:
     ACTIVE_LLM = _env("K9_DOW_ACTIVE_LLM", "ollama")
 
     OLLAMA_HOST = _env("OLLAMA_HOST", "http://localhost:11434")
-    OLLAMA_MODEL = _env("OLLAMA_MODEL", "granite3.3:8b")
+    OLLAMA_MODEL = _env("OLLAMA_MODEL", "qwen3.8:27b")  # same default as config.yaml
     OLLAMA_DISPLAY_NAME = _env("OLLAMA_DISPLAY_NAME", "")
 
     # Knowledge-corpus disclosure -- surfaced in every generated ICD (see
