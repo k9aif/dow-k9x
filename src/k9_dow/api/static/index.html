@@ -837,9 +837,13 @@ function jobStepChip(st, hilUrl) {
     ? `<a href="${esc(hilUrl)}" target="_blank" rel="noopener" style="text-decoration:none">${chip}</a>` : chip;
 }
 function esc(v) { return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-async function renderJobsHistory() {
+// Refresh Jobs in Pipeline every 15 s while it is the open tab (HIL decisions
+// and stage results arrive from other systems; no click needed).
+setInterval(() => { if (state.activeTab === 'jobs' && !document.hidden) renderJobsHistory(true); }, 15000);
+
+async function renderJobsHistory(quiet) {
   const area = document.getElementById('feedArea');
-  area.innerHTML = '<div style="padding:24px;color:var(--text2);font-size:12px">Loading jobs…</div>';
+  if (!quiet) area.innerHTML = '<div style="padding:24px;color:var(--text2);font-size:12px">Loading jobs…</div>';
   let data;
   try { data = await (await fetch('/jobs/history', {cache: 'no-store'})).json(); }
   catch (e) { area.innerHTML = '<div style="padding:24px;color:var(--red)">Job history unavailable.</div>'; return; }
