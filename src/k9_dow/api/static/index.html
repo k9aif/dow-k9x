@@ -218,6 +218,7 @@
       <div class="tab" id="tab-llm" onclick="switchTab('llm')">LLM Calls<span class="count" id="llm-count">0</span></div>
       <div class="tab" id="tab-docs" onclick="switchTab('docs')">Generated Docs<span class="count" id="docs-count"></span></div>
       <div class="tab" id="tab-jobresults" onclick="switchTab('jobresults')">Job Results</div>
+      <div class="tab" id="tab-jobs" onclick="switchTab('jobs')" title="Every run and its HIL decisions, kept across restarts">Jobs<span class="count" id="jobs-count"></span></div>
       <div class="tab" id="tab-arch" onclick="switchTab('arch')">Architecture</div>
     </div>
     <div class="feed" id="feedArea"></div>
@@ -806,6 +807,54 @@ function switchTab(tab) {
   else if (tab === 'docs') renderDocs();
   else if (tab === 'jobresults') renderJobResults();
   else if (tab === 'arch') renderArch();
+  else if (tab === 'jobs') renderJobsHistory();
+}
+
+// ─── Jobs: every run, its stages and HIL decisions (from storage) ───
+const STEP_LABEL = {
+  'jcids': 'JCIDS', 'JROC-VALIDATION': 'JROC gate', 'acquisition': 'Acquisition',
+  'PATHWAY-MILESTONE': 'Milestone gate', 'se': 'SE',
+};
+function jobStepChip(st, hilUrl) {
+  const label = STEP_LABEL[st.step] || st.step;
+  const colors = {done: 'var(--green)', approved: 'var(--green)', pending: 'var(--orange)',
+                  error: 'var(--red)', reject: 'var(--red)', expire: 'var(--red)', ignored: 'var(--text2)',
+                  not_reached: 'var(--border)'};
+  const c = colors[st.state] || 'var(--text2)';
+  let text = label;
+  if (st.kind === 'gate') {
+    if (st.state === 'approved') text += ' ✓ ' + esc(st.actor || '');
+    else if (st.state === 'pending') text += ' — awaiting decision';
+    else if (st.state !== 'not_reached') text += ' — ' + esc(st.state) + (st.actor ? ' by ' + esc(st.actor) : '');
+  } else if (st.state === 'done') text += st.demo ? ' ✓ (demo)' : ' ✓';
+  const when = st.decided_at ? ` title="${esc(new Date(st.decided_at).toLocaleString())}${st.comment ? ' — ' + esc(st.comment) : ''}"` : '';
+  const chip = `<span${when} style="display:inline-block;border:1px solid ${c};color:${st.state==='not_reached'?'var(--text2)':c};border-radius:4px;padding:2px 7px;margin:2px 3px 2px 0;font-size:11px;opacity:${st.state==='not_reached'?0.5:1}">${text}</span>`;
+  return st.kind === 'gate' && st.state === 'pending'
+    ? `<a href="${esc(hilUrl)}" target="_blank" rel="noopener" style="text-decoration:none">${chip}</a>` : chip;
+}
+function esc(v) { return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function renderJobsHistory() {
+  const area = document.getElementById('feedArea');
+  area.innerHTML = '<div style="padding:24px;color:var(--text2);font-size:12px">Loading jobs…</div>';
+  let data;
+  try { data = await (await fetch('/jobs/history', {cache: 'no-store'})).json(); }
+  catch (e) { area.innerHTML = '<div style="padding:24px;color:var(--red)">Job history unavailable.</div>'; return; }
+  if (state.activeTab !== 'jobs') return;
+  const jobs = data.jobs || [];
+  document.getElementById('jobs-count').textContent = jobs.length || '';
+  if (!jobs.length) { area.innerHTML = '<div style="padding:24px;color:var(--text2);font-size:12px">No jobs yet.</div>'; return; }
+  area.innerHTML = `<div style="padding:14px 18px;font-size:12px">
+    <div style="color:var(--text2);margin-bottom:10px">Each run with its stages and the human decisions made in K9X HIL.
+      A pending gate links to <a href="${esc(data.hil_url)}" target="_blank" rel="noopener" style="color:var(--accent)">K9X HIL</a>;
+      approving there resumes the job at the next stage.</div>` +
+    jobs.map(j => `<div style="border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">
+        <span style="color:var(--accent);font-family:var(--mono)">${esc(j.job_id)}</span>
+        <span style="color:var(--text)">${esc(j.document_title || j.filename || '')}</span>
+        <a href="/jobs/${encodeURIComponent(j.job_id)}/view/icd" target="_blank" rel="noopener" style="margin-left:auto;color:var(--accent)">View ICD</a>
+      </div>
+      <div style="margin-top:6px">${(j.steps || []).map(st => jobStepChip(st, data.hil_url)).join('<span style="color:var(--text2)">→ </span>')}</div>
+    </div>`).join('') + '</div>';
 }
 
 function renderArch() {

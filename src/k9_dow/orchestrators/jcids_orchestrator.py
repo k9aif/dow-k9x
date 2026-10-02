@@ -181,6 +181,8 @@ class JcidsOrchestrator(BaseOrchestrator):
             "status": "awaiting_gate",
             "gate_id": "JROC-VALIDATION",
             "document_title": extract_source_title(payload.get("source_markdown", "")),
+            "filename": filename,
+            "document_type": doc_type,
             "view_generation": view_result,
             "gate_readiness": gate_result,
             "review_package": package_result,

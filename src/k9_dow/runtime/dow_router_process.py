@@ -28,7 +28,7 @@ from k9_aif_abb.k9_utils.config_loader import load_yaml
 from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
 from k9_dow.routers.das_router import DasRouter, DAS_TOPICS
 from k9_dow.gates.hil_gateway import (GATE_INPUT_STAGE, GATE_TOPICS, approvers,
-                                      gate_approved_event, stage_result_exists)
+                                      gate_approved_event, save_gate_decision, stage_result_exists)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -132,6 +132,9 @@ async def main() -> None:
                 return
             allowed = approvers()
             accepted = allowed is None or actor in allowed
+            await loop.run_in_executor(None, save_gate_decision, config, job_id, gate_id, {
+                **{k: reply.get(k) for k in ("action", "actor", "comment", "decided_at", "status")},
+                "gate_id": gate_id, "accepted": accepted})
             log.info("[RouterProcess] HIL decision gate=%s job=%s action=%s actor=%s accepted=%s",
                      gate_id, job_id, action, actor, accepted)
             _result_event({

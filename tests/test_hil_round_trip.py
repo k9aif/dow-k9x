@@ -79,8 +79,10 @@ def test_acquisition_resumes_from_stored_jcids_and_raises_its_gate(monkeypatch):
     assert all(e["orchestrator"] == "AcquisitionOrchestrator" for e in events)
 
 
-def test_se_is_a_labelled_demonstration_endpoint():
+def test_se_is_a_labelled_demonstration_endpoint(monkeypatch):
     from k9_dow.orchestrators.se_orchestrator import SeOrchestrator
+    saved = {}
+    monkeypatch.setattr(hil_gateway, "save_stage_result", lambda cfg, job, stage, res: saved.update({stage: res}))
     events = []
     result = SeOrchestrator(config={}, progress_callback=events.append).execute_flow(
         gate_approved_event("PATHWAY-MILESTONE", hil_reply("job-7", actor="mda@k9x.ai")))
@@ -88,3 +90,36 @@ def test_se_is_a_labelled_demonstration_endpoint():
     assert result["target_review"] == "SE-REVIEW-SRR"
     assert result["milestone_decision"]["actor"] == "mda@k9x.ai"
     assert [e["type"] for e in events] == ["OrchestratorStarted", "OrchestratorCompleted"]
+    assert saved["se"]["demo_stub"] is True
+
+
+def _history(monkeypatch, stored):
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: stored.get(stage))
+    h = hil_gateway.job_history({}, "job-9", list(stored))
+    return [(s["step"], s["state"], s.get("actor")) for s in h["steps"]]
+
+
+def test_history_pending_jroc(monkeypatch):
+    assert _history(monkeypatch, {"jcids": {"status": "awaiting_gate"}})[:3] == [
+        ("jcids", "done", None), ("JROC-VALIDATION", "pending", None), ("acquisition", "not_reached", None)]
+
+
+def test_history_uses_decision_file_or_next_stage(monkeypatch):
+    # Decision recorded only inside the next stage (decided before decision files existed)
+    steps = _history(monkeypatch, {"jcids": {"status": "awaiting_gate"},
+                                   "acquisition": {"status": "awaiting_gate",
+                                                   "jroc_decision": {"action": "complete", "actor": "a@k9x.ai"}}})
+    assert steps[1] == ("JROC-VALIDATION", "approved", "a@k9x.ai")
+    assert steps[3] == ("PATHWAY-MILESTONE", "pending", None)
+    # Rejection kept by the Router's decision file
+    steps = _history(monkeypatch, {"jcids": {"status": "awaiting_gate"},
+                                   "gate-JROC-VALIDATION": {"action": "reject", "actor": "b@k9x.ai", "accepted": True}})
+    assert steps[1] == ("JROC-VALIDATION", "reject", "b@k9x.ai") and steps[2][1] == "not_reached"
+
+
+def test_history_full_run_marks_se_demo(monkeypatch):
+    steps = _history(monkeypatch, {"jcids": {"status": "awaiting_gate"}, "acquisition": {"status": "awaiting_gate"},
+                                   "gate-JROC-VALIDATION": {"action": "complete", "actor": "a@k9x.ai"},
+                                   "gate-PATHWAY-MILESTONE": {"action": "complete", "actor": "m@k9x.ai"},
+                                   "se": {"status": "pipeline_complete", "demo_stub": True}})
+    assert [s[1] for s in steps] == ["done", "approved", "done", "approved", "done"]

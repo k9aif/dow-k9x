@@ -510,10 +510,43 @@ async def upload_document(
     return await _submit_job(file.filename, content.decode("utf-8", errors="ignore"), document_type, session_id)
 
 
-@app.get("/jobs/{job_id}")
-async def get_job(job_id: str):
+def _get_job(job_id: str) -> Optional[dict]:
+    """In-memory job, else rebuilt from the stage results kept in object
+    storage (survives app restarts and closed browser windows)."""
     if job_id in _job_store:
         return _job_store[job_id]
+    from k9_dow.gates.hil_gateway import load_stage_result
+    jcids = load_stage_result(_config, job_id, "jcids")
+    if not jcids:
+        return None
+    return {"job_id": job_id, "status": "complete", "result": jcids,
+            "filename": jcids.get("filename") or "", "document_type": jcids.get("document_type") or "",
+            "from_storage": True}
+
+
+@app.get("/jobs/history")
+async def jobs_history(limit: int = 30):
+    """Every job with a stored stage result, newest first: stages run, each
+    HIL gate's decision (who, when) or pending, from object storage."""
+    from k9_dow.gates.hil_gateway import job_history, list_job_ids
+    loop = asyncio.get_event_loop()
+    try:
+        ids = await loop.run_in_executor(None, list_job_ids, _config)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Job history unavailable: {exc}")
+    newest = sorted(ids, reverse=True)[:max(1, min(limit, 100))]   # JOB-YYYYMMDD-… sorts by date
+    jobs = []
+    for jid in newest:
+        jobs.append(await loop.run_in_executor(None, job_history, _config, jid, ids[jid]))
+    return JSONResponse({"jobs": jobs, "hil_url": os.environ.get("HIL_PUBLIC_URL", "https://hil.k9x.ai")},
+                        headers={"Cache-Control": "no-store"})
+
+
+@app.get("/jobs/{job_id}")
+async def get_job(job_id: str):
+    data = _get_job(job_id)
+    if data:
+        return data
     return {"job_id": job_id, "status": "not_found"}
 
 
@@ -559,7 +592,7 @@ def _extract_docs(job_data: dict) -> list[dict]:
 
 @app.get("/jobs/{job_id}/docs")
 async def list_docs(job_id: str):
-    data = _job_store.get(job_id)
+    data = _get_job(job_id)
     if not data:
         log.warning("[API] /docs: job %s not found in store. Keys: %s", job_id, list(_job_store.keys()))
         raise HTTPException(status_code=404, detail="Job not found", headers={"Cache-Control": "no-store"})
@@ -579,7 +612,7 @@ async def list_docs(job_id: str):
 async def download_doc(job_id: str, doc_id: str):
     from fastapi.responses import Response
 
-    data = _job_store.get(job_id)
+    data = _get_job(job_id)
     if not data:
         raise HTTPException(status_code=404, detail="Job not found", headers={"Cache-Control": "no-store"})
 
@@ -620,7 +653,7 @@ async def view_doc(job_id: str, doc_id: str):
             md_content = sample_md.read_text(encoding="utf-8")
             return _render_icd_html(job_id, md_content)
 
-    data = _job_store.get(job_id)
+    data = _get_job(job_id)
     if not data:
         raise HTTPException(status_code=404, detail="Job not found", headers={"Cache-Control": "no-store"})
 

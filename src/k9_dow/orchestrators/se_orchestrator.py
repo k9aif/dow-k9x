@@ -91,7 +91,7 @@ class SeOrchestrator(BaseOrchestrator):
                   flush=True)
             self._emit("OrchestratorCompleted", job_id=job_id, elapsed_s=round(time.monotonic() - t0, 1),
                        gate=target_review, demo_stub=True)
-            return {
+            result = {
                 "job_id": job_id,
                 "orchestrator": "se",
                 "status": "pipeline_complete",
@@ -100,6 +100,9 @@ class SeOrchestrator(BaseOrchestrator):
                 "milestone_decision": decision,
                 "note": note,
             }
+            from k9_dow.gates.hil_gateway import save_stage_result
+            save_stage_result(self.config, job_id, "se", result)   # Jobs tab history
+            return result
 
         gate_squad = self._load_squad("gate_readiness_squad.yaml", "GateReadinessSquad")
         package_squad = self._load_squad("package_assembly_squad.yaml", "PackageAssemblySquad")

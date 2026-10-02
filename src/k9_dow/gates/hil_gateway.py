@@ -151,3 +151,65 @@ def load_stage_result(config: Dict[str, Any], job_id: str, stage: str) -> Option
     except Exception as exc:
         log.warning("[HILGateway] loading %s result for job=%s failed: %s", stage, job_id, exc)
         return None
+
+
+# ── Job history (survives app restarts; read by the UI's Jobs tab) ──
+
+STAGE_ORDER = ["jcids", "gate-JROC-VALIDATION", "acquisition", "gate-PATHWAY-MILESTONE", "se"]
+
+
+def save_gate_decision(config: Dict[str, Any], job_id: str, gate_id: str, decision: Dict[str, Any]) -> None:
+    """Every HIL decision the Router receives (approve, reject, expire; accepted or not)."""
+    save_stage_result(config, job_id, f"gate-{gate_id}", decision)
+
+
+def list_job_ids(config: Dict[str, Any]) -> Dict[str, List[str]]:
+    """job id → stored stage names, from object storage."""
+    from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
+    store = ObjectStorageFactory.create(config)
+    jobs: Dict[str, List[str]] = {}
+    for key in store.list_objects(STAGE_BUCKET, prefix="by-job/") or []:
+        parts = key.split("/")
+        if len(parts) == 3 and parts[2].endswith(".json"):
+            jobs.setdefault(parts[1], []).append(parts[2][:-5])
+    return jobs
+
+
+def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Stage-by-stage view of one job: what ran, what each gate decided, what's pending."""
+    stages = stages if stages is not None else list_job_ids(config).get(job_id, [])
+    data = {name: load_stage_result(config, job_id, name) for name in stages}
+    jcids = data.get("jcids") or {}
+    steps = []
+    for name in STAGE_ORDER:
+        rec = data.get(name)
+        if name.startswith("gate-"):
+            gate_id = name[5:]
+            if not rec:
+                # Decided before the Router kept decision files: the next stage
+                # records the approval that started it.
+                nxt, key = {"JROC-VALIDATION": ("acquisition", "jroc_decision"),
+                            "PATHWAY-MILESTONE": ("se", "milestone_decision")}[gate_id]
+                rec = (data.get(nxt) or {}).get(key) or None
+            if rec:
+                state = ("approved" if rec.get("action") == "complete" and rec.get("accepted", True)
+                         else "ignored" if not rec.get("accepted", True) else rec.get("action") or "decided")
+                steps.append({"step": gate_id, "kind": "gate", "state": state, "actor": rec.get("actor"),
+                              "comment": rec.get("comment"), "decided_at": rec.get("decided_at")})
+            elif data.get(GATE_INPUT_STAGE[gate_id]):
+                steps.append({"step": gate_id, "kind": "gate", "state": "pending"})
+            else:
+                steps.append({"step": gate_id, "kind": "gate", "state": "not_reached"})
+        else:
+            state = ("done" if rec and rec.get("status") not in (None, "error") else
+                     "error" if rec else "not_reached")
+            step = {"step": name, "kind": "stage", "state": state}
+            if rec and rec.get("demo_stub"):
+                step["demo"] = True
+            steps.append(step)
+    return {
+        "job_id": job_id,
+        "document_title": jcids.get("document_title"),
+        "filename": jcids.get("filename"),
+        "steps": steps,
+    }
