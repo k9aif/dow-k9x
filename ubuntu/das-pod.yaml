@@ -48,7 +48,9 @@ metadata:
     description: "K9-AIF Defense Acquisition System — 3-container pod"
 
 spec:
-  restartPolicy: OnFailure
+  # Always: podman-restart.service brings back restart-policy=always
+  # containers at boot (OnFailure pods stayed down after every reboot).
+  restartPolicy: Always
 
   hostAliases:
   - ip: "<PODMAN_HOST_IP>"
