@@ -115,6 +115,30 @@ governance:
   enabled: true
   model_alias: guardian
 
+# k9x_Shield for every DAS agent. With k9-aif >= 1.15 (governance by
+# construction) BaseAgent builds ShieldGovernance from this block and runs it
+# around every agent's execute(); on earlier versions it is inert.
+# Profile verified 2026-10-02 by replaying 51 real agent steps from three
+# jobs (JOB-20261002-667CC0 / -49169D / -3C5946): 0 false blocks; a prompt
+# injection inside a document is blocked.
+# - InputSizeCheck 250k: later agents receive earlier agents' results
+#   (a JCIDS result is ~62 KB); the 32k framework default blocked them.
+# - Egress PII only: DAS agents call no tools, and the tool-oriented egress
+#   checks misfired on DoDAF output (SemanticDriftCheck "loop trap" on
+#   repetitive tables x3, ToolArgumentCheck "SQL injection" on view text x1).
+security:
+  shield:
+    enabled: true
+    strict: false
+    fail_open: true
+    ingress:
+      checks: [InputSizeCheck, PromptInjectionCheck, PIIBoundaryCheck]
+    egress:
+      checks: [PIIBoundaryCheck]
+    check_config:
+      InputSizeCheck:
+        max_chars: 250000
+
 # Systems Engineering stage (reached after the PATHWAY-MILESTONE approval).
 # demo_stub: true = demonstration endpoint: SE is triggered and records the
 # next review (SRR) but its review squads are not run.
