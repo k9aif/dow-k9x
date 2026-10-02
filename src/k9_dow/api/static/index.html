@@ -997,6 +997,9 @@ function followStartedStage(jobId, stage) {
 
 function renderArch() {
   const area = document.getElementById('feedArea');
+  fetch('/llm').then(r => r.json()).then(d => {
+    if (d.ollama_model) document.querySelectorAll('.arch-model').forEach(el => el.textContent = d.ollama_model);
+  }).catch(() => {});
   area.innerHTML = `
 <div style="padding:20px 24px;line-height:1.7;color:var(--text2);font-size:12px;max-width:960px">
   <div style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:8px">How a job flows</div>
@@ -1077,28 +1080,32 @@ function renderArch() {
   <div style="margin-top:16px;padding:12px 16px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px">
     <div style="font-size:12px;font-weight:600;color:var(--orange);margin-bottom:6px">About This Proof of Concept</div>
     <p style="margin:0">
-      This demonstration runs a locally-hosted <span style="color:var(--text)">32B-parameter LLM (Qwen 2.5 32B)</span>
-      on dedicated on-premise GPU hardware. The output quality — depth of analysis, specificity of
-      DoDAF views, and richness of requirements traceability — is a function of the model's capacity, whatever
-      model is configured.
+      This demonstration runs a locally hosted model, <span class="arch-model" style="color:var(--text)">qwen3.8:27b</span>,
+      through Ollama on a single on-premise GPU (NVIDIA RTX 5090). The model is set in DAS's <code>.env</code>
+      (<code>OLLAMA_MODEL</code>) and applies to every agent after the containers are restarted
+      (<code>./ubuntu/build-run.sh up</code>). Granite Guardian adds an advisory safety check on the assembled
+      package. No cloud model is used.
     </p>
     <p style="margin:8px 0 0">
-      A larger or provider-hosted LLM such as
-      <span style="color:var(--text)">Anthropic Claude Opus, IBM Granite 34B, Meta Llama 70B,</span> or equivalent
-      could be substituted for even richer results.
-      The pipeline architecture, governance model, HITL gates, and document structure remain
-      <span style="color:var(--text)">identical</span> — only the model configuration changes. The framework is the constant;
-      the LLM is a pluggable variable.
+      Output quality (depth of analysis, specificity of DoDAF views, richness of traceability) depends on the
+      configured model. A larger or provider-hosted model (Anthropic Claude, IBM Granite, Meta Llama, or equivalent)
+      can be substituted; the pipeline, governance, HIL gates and document structure stay
+      <span style="color:var(--text)">identical</span>. The framework is the constant; the model is a pluggable variable.
     </p>
     <p style="margin:8px 0 0">
-      In a production deployment, a <span style="color:var(--text)">Domain Retriever</span> would also be configured —
-      a K9Retriever-pattern extension pointing at an organization's own DoW knowledge corpus (prior CDDs and ICDs,
-      DoDAF reference architectures, acquisition regulations) rather than only the submitted source document.
-      Retrieved passages would be graphed in Neo4j alongside the generated ICD's own entities, surfacing how a
-      new capability need relates to precedent programs. This is essential to producing a rich output document —
-      one that shows relationships to prior programs and organizational knowledge, not just a restatement of the
-      input document. <span style="color:var(--text)">This demo has no such data sources configured</span>, so the
-      generated ICD reflects only the input document.
+      <span style="color:var(--text)">Knowledge corpus.</span> Agents always work from the submitted document. A retriever
+      (K9Retriever) adds supplementary reference passages from a <span style="color:var(--text)">synthetic,
+      fictional corpus</span> (prior CDDs for made-up programs, DoDAF and acquisition-package guidance), embedded with
+      <code>nomic-embed-text</code> and stored as vectors in <span style="color:var(--text)">PostgreSQL (pgvector)</span>.
+      Retrieved passages are reference only, never treated as facts about the submitted program.
+      <span style="color:var(--text)">In this hosted deployment the corpus is not yet loaded</span>, so ICDs currently
+      reflect the submitted document alone.
+    </p>
+    <p style="margin:8px 0 0">
+      In a real deployment the same retriever would point at <span style="color:var(--text)">authoritative DoD
+      enterprise data sources</span> (prior CDDs and ICDs, DoDAF reference architectures, acquisition regulations)
+      instead of a synthetic corpus, with retrieved passages graphed alongside the ICD's own entities to show how a
+      new capability need relates to precedent programs.
     </p>
   </div>
 
