@@ -560,6 +560,11 @@ function connectSSE() {
       if (evtType === 'OrchestratorCompleted') {
         updatePipeline(evt.orchestrator || 'JcidsOrchestrator', 'done');
       }
+      // Jobs in Pipeline: reload as soon as a HIL decision or a stage result
+      // arrives on the live stream (the 15 s refresh is only the fallback).
+      if (state.activeTab === 'jobs' && (evtType === 'GateDecision' || (evt.result || {}).status)) {
+        renderJobsHistory(true);
+      }
       // Human decision from K9X HIL, consumed by the DAS Router process
       if (evtType === 'GateDecision') {
         const gateDot = {'JROC-VALIDATION': 'dot-jroc', 'PATHWAY-MILESTONE': 'dot-milestone'}[evt.gate_id];
