@@ -44,6 +44,13 @@
   .btn-ghost:hover { border-color: var(--amber); color: var(--amber); }
   .logins { font: 12.5px var(--mono); color: var(--muted); margin-top: 14px; }
   .readfirst { color: var(--teal); font-size: 14px; margin: 0 0 14px; }
+  .loop { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top: 6px; }
+  .loop .step { background: var(--card); border: 1px solid var(--border); border-top: 3px solid var(--teal); border-radius: 10px; padding: 14px 14px 12px; position: relative; }
+  .loop .step b { display: block; color: var(--text); margin-bottom: 4px; }
+  .loop .step span { color: var(--muted); font-size: 13.5px; }
+  .loop .step i { font-style: normal; font: 800 11px var(--mono); color: var(--teal); }
+  .proof { margin-top: 14px; color: var(--muted); font-size: 14px; }
+  .proof b { color: var(--text); }
   .built-on { border: 1px solid var(--amber); border-radius: 12px; padding: 22px 24px; background:
       linear-gradient(160deg, rgba(242,179,61,0.07), rgba(20,32,58,0.6)); }
   .built-on h2 { color: var(--amber); }
@@ -92,6 +99,7 @@
     <span class="poc">PROOF OF CONCEPT</span>
     <nav>
       <a href="#steps">What you'll see</a>
+      <a href="#current">Staying current</a>
       <a href="#flow">Flow</a>
       <a href="#architecture">Architecture</a>
       <a href="#knowledge">Knowledge</a>
@@ -146,6 +154,20 @@
       <div class="card"><h3><span class="num">7</span>Systems Engineering<span class="tag das">DAS</span></h3>
         <p>SE is reached and the job completes. In this deployment SE is a demonstration endpoint: it records the next technical review (SRR); the SE review squads are not implemented yet.</p></div>
     </div>
+  </section>
+
+  <section id="current">
+    <div class="eyebrow">Why it stays secure</div>
+    <h2>The framework keeps itself current: K9X Sentinel</h2>
+    <p class="sub">New attacks on AI agents are published every week. K9-AIF does not wait for an incident: K9X Sentinel watches for them every day and turns the ones that matter into framework checks, which every solution built on K9-AIF, including DAS, inherits on upgrade.</p>
+    <div class="loop">
+      <div class="step"><i>1 · WATCH</i><b>Read new research daily</b><span>Threat reports and advisories (e.g. Zscaler ThreatLabz, OWASP GenAI / LLM Top 10, MITRE ATLAS, CISA KEV) plus a dependency audit against the OSV vulnerability database.</span></div>
+      <div class="step"><i>2 · COMPARE</i><b>Check against the framework</b><span>Each new attack is assessed against K9-AIF's security capability catalog (mapped to the OWASP LLM and Agentic Top 10): covered, partially covered, or a gap.</span></div>
+      <div class="step"><i>3 · DECIDE</i><b>A person reviews every gap</b><span>Gaps go to K9X HIL as review tasks, the same human-in-the-loop system that runs the gates in this demo. Nothing changes without a decision.</span></div>
+      <div class="step"><i>4 · STRENGTHEN</i><b>New checks ship in the framework</b><span>Approved gaps become new or stronger checks in a framework release, each one recorded in the capability catalog.</span></div>
+      <div class="step"><i>5 · INHERIT</i><b>Every solution is protected</b><span>Solutions extend the framework's building blocks, so they pick up the new checks on upgrade, without rewriting their own agents.</span></div>
+    </div>
+    <p class="proof">In practice: <b>K9-AIF 1.14</b> closed gaps identified from the ThreatLabz 2026 report (signed agent identity, screening of tool results for injected instructions, a check for deceptive outbound links); <b>1.14.1</b> raised dependency floors after Sentinel's vulnerability audit. See <a href="https://sentinel.k9x.ai" target="_blank" rel="noopener">sentinel.k9x.ai</a> (read-only demo login; open gaps are redacted).</p>
   </section>
 
   <section id="flow">
@@ -216,6 +238,7 @@
       <div class="chips">
         <a class="chip" href="https://k9x.ai" target="_blank" rel="noopener">k9x.ai ↗</a>
         <a class="chip" href="https://hil.k9x.ai" target="_blank" rel="noopener">K9X HIL ↗</a>
+        <a class="chip" href="https://sentinel.k9x.ai" target="_blank" rel="noopener">K9X Sentinel ↗</a>
         <a class="chip" href="https://satan.k9x.ai" target="_blank" rel="noopener">K9X Satan ↗</a>
         <a class="chip" href="https://github.com/k9aif/k9-aif-framework" target="_blank" rel="noopener">Framework source ↗</a>
       </div>
