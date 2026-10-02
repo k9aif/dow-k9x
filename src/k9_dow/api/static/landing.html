@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K9X DAS — Defense Acquisition System</title>
+<style>
+  :root {
+    --bg: #0b1220; --bg2: #111a2e; --card: #14203a; --border: #24324f;
+    --text: #e6ebf5; --muted: #9aa8c3; --amber: #f2b33d; --amber-d: #d99a1e;
+    --teal: #2dd4bf; --orange: #fb923c; --blue: #60a5fa; --green: #4ade80;
+    --mono: ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: var(--amber); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 22px; }
+  header.top { border-bottom: 1px solid var(--border); background: var(--bg2); }
+  header.top .wrap { display: flex; align-items: center; gap: 14px; padding-block: 12px; flex-wrap: wrap; }
+  .logo { font-weight: 800; letter-spacing: -.3px; font-size: 18px; }
+  .logo span { color: var(--amber); }
+  .poc { font: 700 10.5px var(--mono); color: var(--amber); border: 1px solid var(--amber); border-radius: 4px; padding: 2px 6px; }
+  header.top nav { margin-left: auto; display: flex; gap: 16px; font-size: 13px; }
+  header.top nav a { color: var(--muted); text-decoration: none; }
+  header.top nav a:hover { color: var(--text); }
+
+  .hero { padding: 56px 0 34px; }
+  .eyebrow { font: 700 12px var(--mono); color: var(--teal); letter-spacing: .08em; text-transform: uppercase; }
+  h1 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.12; margin: 10px 0 14px; letter-spacing: -.8px; }
+  h1 em { font-style: normal; color: var(--amber); }
+  .lede { font-size: 17px; color: var(--muted); max-width: 780px; margin: 0 0 26px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 8px; padding: 12px 22px;
+         font-weight: 700; font-size: 15px; cursor: pointer; border: 1px solid transparent; text-decoration: none; }
+  .btn-primary { background: var(--amber); color: #1a1205; }
+  .btn-primary:hover { background: var(--amber-d); }
+  .btn-ghost { color: var(--text); border-color: var(--border); background: transparent; }
+  .btn-ghost:hover { border-color: var(--amber); color: var(--amber); }
+  .logins { font: 12.5px var(--mono); color: var(--muted); margin-top: 14px; }
+  .logins b { color: var(--text); font-weight: 600; }
+
+  section { padding: 30px 0; }
+  h2 { font-size: 22px; margin: 0 0 6px; letter-spacing: -.3px; }
+  .sub { color: var(--muted); margin: 0 0 20px; max-width: 820px; }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 18px 16px; }
+  .card h3 { margin: 0 0 6px; font-size: 16px; display: flex; gap: 10px; align-items: center; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; }
+  .num { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--amber); color: #1a1205;
+         font: 800 12.5px var(--mono); display: inline-flex; align-items: center; justify-content: center; }
+  .tag { font: 700 10.5px var(--mono); letter-spacing: .05em; border-radius: 4px; padding: 1px 6px; margin-left: auto; white-space: nowrap; }
+  .tag.das { color: var(--blue); border: 1px solid var(--blue); }
+  .tag.hil { color: var(--orange); border: 1px solid var(--orange); }
+  .tag.adm { color: #c4b5fd; border: 1px solid #a78bfa; }
+
+  .figure { background: #ffffff; border-radius: 10px; padding: 10px; }
+  .figure img { width: 100%; display: block; }
+  .caption { color: var(--muted); font-size: 13px; margin-top: 10px; }
+
+  .arch .card h3 { color: var(--teal); }
+  code { font-family: var(--mono); font-size: 12.5px; color: var(--amber); }
+
+  .limits { border-left: 3px solid var(--amber); background: var(--card); border-radius: 0 10px 10px 0; padding: 16px 20px; }
+  .limits ul { margin: 6px 0 0; padding-left: 20px; color: var(--muted); }
+  .limits li { margin: 4px 0; }
+
+  footer { border-top: 1px solid var(--border); margin-top: 26px; padding: 22px 0 34px; color: var(--muted); font-size: 13px; }
+  footer .wrap { display: flex; gap: 18px; flex-wrap: wrap; justify-content: space-between; }
+  #startErr { color: #fca5a5; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="logo"><span>K9X</span> DAS</div>
+    <span class="poc">PROOF OF CONCEPT</span>
+    <nav>
+      <a href="#steps">What you'll see</a>
+      <a href="#flow">Flow</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#limits">Scope</a>
+      <a href="/app">Sign in</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div class="eyebrow">Defense Acquisition System · reference deployment</div>
+    <h1>Agents prepare the acquisition package.<br><em>Humans decide at every gate.</em></h1>
+    <p class="lede">
+      DAS takes a capability document and moves it through the defense acquisition lifecycle:
+      JCIDS requirements, a JROC review, Acquisition milestone readiness, a Milestone review, then
+      Systems Engineering. Agent squads do the analysis and assemble the packages; every gate is a
+      human decision made in <b>K9X HIL</b>, and the program moves on only when a person approves it.
+      Built on the open-source <b>K9-AIF</b> framework.
+    </p>
+    <div class="cta">
+      <button class="btn btn-primary" id="startDemo">Start Demo →</button>
+      <a class="btn btn-ghost" href="/app">Sign in (admin)</a>
+      <span id="startErr"></span>
+    </div>
+    <div class="logins" id="logins">Public demonstration · demo login: <b>demo / demo</b></div>
+  </section>
+
+  <section id="steps">
+    <h2>What you'll see</h2>
+    <p class="sub">Seven steps, numbered the same way as the flow diagram below. A full run takes a few minutes per stage on a single local GPU.</p>
+    <div class="grid">
+      <div class="card"><h3><span class="num">1</span>JCIDS<span class="tag das">DAS</span></h3>
+        <p>Pick a demo capability document (FIREBIRD UAV, IRONCLAD ground vehicle, SENTINEL cyber defense) and click Analyze. Three squads generate the Initial Capabilities Document (ICD) and DoDAF views, then score JROC readiness.</p></div>
+      <div class="card"><h3><span class="num">2</span>JROC review<span class="tag hil">K9X HIL</span></h3>
+        <p>The ICD goes to K9X HIL as a review task. A person opens it, reads the ICD, and approves or rejects. The decision is sent back to DAS and recorded with the job.</p></div>
+      <div class="card"><h3><span class="num">3</span>Start the next stage<span class="tag adm">DAS admin</span></h3>
+        <p>In <b>Jobs in Pipeline</b>, every job shows its stages and decisions. After an approval the DAS admin clicks <b>Start Acquisition</b>; nothing moves without a recorded approval.</p></div>
+      <div class="card"><h3><span class="num">4</span>Acquisition<span class="tag das">DAS</span></h3>
+        <p>Agents assess readiness for the Acquisition Pathway / Milestone decision against its entry criteria and build the Milestone Review Package, including gaps and a recommendation, not a decision.</p></div>
+      <div class="card"><h3><span class="num">5</span>Milestone review<span class="tag hil">K9X HIL</span></h3>
+        <p>The second human gate: the milestone decision authority reviews the package in K9X HIL and approves or rejects.</p></div>
+      <div class="card"><h3><span class="num">6</span>Start Systems Engineering<span class="tag adm">DAS admin</span></h3>
+        <p>Again in Jobs in Pipeline, the DAS admin starts the next stage once the approval is recorded.</p></div>
+      <div class="card"><h3><span class="num">7</span>Systems Engineering<span class="tag das">DAS</span></h3>
+        <p>SE is reached and the job completes. In this deployment SE is a demonstration endpoint: it records the next technical review (SRR); the SE review squads are not implemented yet.</p></div>
+    </div>
+  </section>
+
+  <section id="flow">
+    <h2>The flow</h2>
+    <p class="sub">Left to right, one job. Solid arrows run today; the dashed loops (request changes, revise, re-review) are designed but not yet built.</p>
+    <div class="figure"><img src="/static/das-hil-flow.svg" alt="DAS flow: 1 JCIDS, 2 JROC review in K9X HIL, 3 DAS admin starts, 4 Acquisition, 5 Milestone review in K9X HIL, 6 DAS admin starts, 7 SE demonstration endpoint"></div>
+    <p class="caption">Every decision (who, when, comment) is kept with the job and shown in Jobs in Pipeline.</p>
+  </section>
+
+  <section id="architecture" class="arch">
+    <h2>Architecture</h2>
+    <p class="sub">DAS is a solution built on K9-AIF: each part extends a framework building block, and the stages talk only through events.</p>
+    <div class="grid">
+      <div class="card"><h3>Router → Orchestrators → Squads → Agents</h3>
+        <p>The DAS Router routes each event to a stage orchestrator (JCIDS, Acquisition, SE). Orchestrators run squads; squads run agents in order, each building on the previous agent's output. No layer knows its caller.</p></div>
+      <div class="card"><h3>Event backbone (Kafka)</h3>
+        <p>Stages and reviews are connected by topics, e.g. <code>workflow.hil.das.jroc</code> for the review task and <code>das.jroc.replies</code> for the decision. Only the Router publishes to stage topics.</p></div>
+      <div class="card"><h3>K9X HIL</h3>
+        <p>A separate human-in-the-loop system. It receives review tasks, records the human decision, and publishes it back to the system that asked. <a href="https://hil.k9x.ai" target="_blank" rel="noopener">hil.k9x.ai</a></p></div>
+      <div class="card"><h3>Decisions and results kept by job</h3>
+        <p>Each stage's result and each HIL decision is stored in object storage by job id, so Jobs in Pipeline survives restarts and a decision days later still resumes the right job.</p></div>
+      <div class="card"><h3>Models, local</h3>
+        <p>Agents run on <b id="model">a local model</b> through Ollama on a single workstation GPU; Granite Guardian adds an advisory safety check on the assembled package. No cloud model is used.</p></div>
+      <div class="card"><h3>Roles</h3>
+        <p><b>demo</b> runs jobs and watches. <b>admin</b> also starts the next stage after a HIL approval: the analyst who runs a job is not the person who moves the program forward.</p></div>
+    </div>
+  </section>
+
+  <section id="limits">
+    <div class="limits">
+      <h2 style="margin-bottom:4px">Scope of this demonstration</h2>
+      <ul>
+        <li>Input documents are <b>synthetic</b> and fictional (no real program or DoD data); outputs have not been reviewed by acquisition experts.</li>
+        <li>Systems Engineering is a <b>demonstration endpoint</b>; its review squads are not implemented.</li>
+        <li>The review loop (request changes, revise the document, re-review) is <b>designed, not built</b>.</li>
+        <li>This is a public demonstration: the logins above are shared, and runs are visible to the operator.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>K9X DAS · reference deployment of the <a href="https://github.com/k9aif/k9-aif-framework" target="_blank" rel="noopener">K9-AIF framework</a> · source: <a href="https://github.com/k9aif/dow-k9x" target="_blank" rel="noopener">k9aif/dow-k9x</a> (archived: <a href="https://doi.org/10.5281/zenodo.22074087" target="_blank" rel="noopener">DOI 10.5281/zenodo.22074087</a>)</div>
+    <div>Independent research · Apache-2.0</div>
+  </div>
+</footer>
+
+<script>
+  const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  fetch('/auth/public').then(r => r.json()).then(d => {
+    const L = d.logins || {}; const parts = [];
+    if (L.demo) parts.push(`demo login: <b>${esc(L.demo.user)} / ${esc(L.demo.password)}</b>`);
+    if (L.admin) parts.push(`admin (starts the next stage): <b>${esc(L.admin.user)} / ${esc(L.admin.password)}</b>`);
+    if (parts.length) document.getElementById('logins').innerHTML = 'Public demonstration · ' + parts.join(' · ');
+  }).catch(() => {});
+  fetch('/llm').then(r => r.json()).then(d => {
+    if (d.ollama_model) document.getElementById('model').textContent = d.ollama_model;
+  }).catch(() => {});
+  // Start Demo: open the app signed in as the demo user
+  document.getElementById('startDemo').addEventListener('click', () => { location.href = '/app?start=demo'; });
+</script>
+</body>
+</html>

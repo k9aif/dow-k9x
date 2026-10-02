@@ -361,6 +361,15 @@ if _STATIC_DIR.exists():
 
 
 @app.get("/")
+async def landing():
+    """What this demonstration is, the flow and the architecture; Start Demo opens /app."""
+    html = _STATIC_DIR / "landing.html"
+    if html.exists():
+        return FileResponse(html, headers={"Cache-Control": "no-cache"})
+    return {"status": "ok", "message": "DAS API running."}
+
+
+@app.get("/app")
 async def index():
     html = _STATIC_DIR / "index.html"
     if html.exists():
