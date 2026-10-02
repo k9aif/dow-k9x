@@ -137,8 +137,17 @@ case "$cmd" in
     # OLLAMA_MODEL: the model every DAS agent uses (and the UI/ICD report), from .env (default qwen3.8:27b)
     OLLAMA_MODEL="${OLLAMA_MODEL:-$(grep -E '^OLLAMA_MODEL=' "$DAS_DIR/.env" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]"'"'"'')}"
     OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3.8:27b}"
+    # Login + resume settings from .env (src/k9_dow/api/auth.py, gates/hil_gateway.py)
+    envval() { grep -E "^$1=" "$DAS_DIR/.env" 2>/dev/null | tail -1 | cut -d= -f2- | sed -e 's/^["'"'"']//' -e 's/["'"'"']$//'; }
+    DAS_RESUME_MODE="$(envval DAS_RESUME_MODE)"; DAS_RESUME_MODE="${DAS_RESUME_MODE:-manual}"
+    DAS_ADMIN_USER="$(envval DAS_ADMIN_USER)"; DAS_ADMIN_USER="${DAS_ADMIN_USER:-admin}"
+    DAS_ADMIN_PASSWORD="$(envval DAS_ADMIN_PASSWORD)"
+    DAS_SESSION_SECRET="$(envval DAS_SESSION_SECRET)"
     sed -e "s/<PODMAN_HOST_IP>/${PODMAN_HOST_IP}/g" -e "s|<OLLAMA_MODEL>|${OLLAMA_MODEL}|g" \
+        -e "s|<DAS_RESUME_MODE>|${DAS_RESUME_MODE}|g" -e "s|<DAS_ADMIN_USER>|${DAS_ADMIN_USER}|g" \
+        -e "s|<DAS_ADMIN_PASSWORD>|${DAS_ADMIN_PASSWORD}|g" -e "s|<DAS_SESSION_SECRET>|${DAS_SESSION_SECRET}|g" \
       "$DAS_DIR/ubuntu/das-pod.yaml" > "$RENDERED_YAML"
+    [ -n "$DAS_ADMIN_PASSWORD" ] || echo "Note: DAS_ADMIN_PASSWORD not set in .env -- no admin login (nobody can start the next stage in manual mode)."
     echo "Deploying pod: $POD_NAME (3 containers, host IP ${PODMAN_HOST_IP}, model ${OLLAMA_MODEL}) ..."
     sudo podman play kube "$RENDERED_YAML" --replace
     echo ""

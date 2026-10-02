@@ -89,6 +89,14 @@ spec:
       value: "http://<PODMAN_HOST_IP>:11434"
     - name: OLLAMA_MODEL
       value: "<OLLAMA_MODEL>"
+    - name: DAS_RESUME_MODE
+      value: "<DAS_RESUME_MODE>"
+    - name: DAS_ADMIN_USER
+      value: "<DAS_ADMIN_USER>"
+    - name: DAS_ADMIN_PASSWORD
+      value: "<DAS_ADMIN_PASSWORD>"
+    - name: DAS_SESSION_SECRET
+      value: "<DAS_SESSION_SECRET>"
     - name: POSTGRES_HOST
       value: "rhel-host"
     - name: POSTGRES_PORT
@@ -167,6 +175,8 @@ spec:
     command: ["python", "-m", "k9_dow.runtime.dow_router_process"]
 
     env:
+    - name: DAS_RESUME_MODE
+      value: "<DAS_RESUME_MODE>"
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: "rhel-host:9092"
     # The router resumes a job after a HIL decision only if the previous

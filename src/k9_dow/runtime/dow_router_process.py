@@ -28,7 +28,8 @@ from k9_aif_abb.k9_utils.config_loader import load_yaml
 from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
 from k9_dow.routers.das_router import DasRouter, DAS_TOPICS
 from k9_dow.gates.hil_gateway import (GATE_INPUT_STAGE, GATE_TOPICS, approvers,
-                                      gate_approved_event, save_gate_decision, stage_result_exists)
+                                      gate_approved_event, mark_started, resume_mode,
+                                      save_gate_decision, stage_result_exists, GATE_NEXT_STAGE)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -141,12 +142,20 @@ async def main() -> None:
                 "type": "GateDecision", "job_id": job_id, "gate_id": gate_id,
                 "action": action, "actor": reply.get("actor"), "comment": reply.get("comment"),
                 "decided_at": reply.get("decided_at"), "accepted": accepted,
+                "resume": resume_mode(),
             })
             if not accepted:
                 return
-            if action == "complete":
+            if action == "complete" and resume_mode() == "manual":
+                # Recorded (gate file above); the DAS admin starts the next
+                # stage from Jobs in Pipeline (POST /jobs/<id>/advance).
+                print(f"\n  ✔ HIL  {gate_id} approved by {reply.get('actor')}  job={job_id}"
+                      f"  → awaiting DAS admin to start the next stage\n", flush=True)
+            elif action == "complete":
                 print(f"\n  ✔ HIL  {gate_id} approved by {reply.get('actor')}  job={job_id}  → resuming\n",
                       flush=True)
+                await loop.run_in_executor(None, mark_started, config, job_id,
+                                           GATE_NEXT_STAGE[gate_id], "auto")
                 await handle(gate_approved_event(gate_id, reply))
             else:
                 # reject / expire: the pipeline stops at this gate

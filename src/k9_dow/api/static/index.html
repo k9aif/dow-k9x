@@ -135,7 +135,7 @@
     </form>
     <div style="margin-top:16px;padding:10px 12px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:6px;font-size:11px;color:var(--text2);line-height:1.7">
       <div style="font-weight:600;color:var(--text);margin-bottom:4px">Try it out:</div>
-      <span style="font-family:var(--mono);color:var(--accent)">demo</span> / <span style="font-family:var(--mono);color:var(--accent)">demo</span>
+      <div id="loginCreds">Demo: <span style="font-family:var(--mono);color:var(--accent)">demo</span> / <span style="font-family:var(--mono);color:var(--accent)">demo</span></div>
     </div>
   </div>
 </div>
@@ -635,7 +635,8 @@ function renderLive() {
     else if (evtType === 'GateDecision') { cls = 'gate'; detail = (e.gate_id||'?') + ' ' +
         (e.action === 'complete' ? 'APPROVED' : (e.action||'?').toUpperCase()) + ' by ' + (e.actor||'?') + ' in K9X HIL' +
         (e.accepted === false ? ' (not an authorized approver: ignored)'
-          : e.action === 'complete' ? ' → resuming pipeline' : ' → pipeline stops at this gate'); }
+          : e.action === 'complete' ? (e.resume === 'manual' ? ' → waiting for DAS admin to start the next stage (Jobs in Pipeline)' : ' → resuming pipeline')
+          : ' → pipeline stops at this gate'); }
     else if (evtType === 'SquadStarted') { cls = 'squad'; detail = (e.squad||'') + ' (' + (e.total||'?') + ' agents: ' + (e.agents||[]).join(', ') + ')'; }
     else if (evtType === 'SquadCompleted') { cls = 'squad'; detail = (e.squad||'') + ' done in ' + (e.elapsed_s||'?') + 's'; }
     else if (evtType === 'OrchestratorCompleted') { cls = 'orchestrator'; detail = 'completed in ' + (e.elapsed_s||'?') + 's → gate: ' + (e.gate||''); }
@@ -815,9 +816,11 @@ const STEP_LABEL = {
   'jcids': 'JCIDS', 'JROC-VALIDATION': 'JROC gate', 'acquisition': 'Acquisition',
   'PATHWAY-MILESTONE': 'Milestone gate', 'se': 'SE',
 };
+state.authToken = null; state.role = null;
+try { const a = JSON.parse(sessionStorage.getItem('k9x_das_auth') || 'null'); if (a) { state.authToken = a.token; state.role = a.role; } } catch (_) {}
 function jobStepChip(st, hilUrl) {
   const label = STEP_LABEL[st.step] || st.step;
-  const colors = {done: 'var(--green)', approved: 'var(--green)', pending: 'var(--orange)',
+  const colors = {done: 'var(--green)', approved: 'var(--green)', pending: 'var(--orange)', running: 'var(--accent)',
                   error: 'var(--red)', reject: 'var(--red)', expire: 'var(--red)', ignored: 'var(--text2)',
                   not_reached: 'var(--border)'};
   const c = colors[st.state] || 'var(--text2)';
@@ -827,6 +830,7 @@ function jobStepChip(st, hilUrl) {
     else if (st.state === 'pending') text += ' — awaiting decision';
     else if (st.state !== 'not_reached') text += ' — ' + esc(st.state) + (st.actor ? ' by ' + esc(st.actor) : '');
   } else if (st.state === 'done') text += st.demo ? ' ✓ (demo)' : ' ✓';
+  else if (st.state === 'running') text += ' — running' + (st.started_by && st.started_by !== 'auto' ? ' (started by ' + esc(st.started_by) + ')' : '');
   const when = st.decided_at ? ` title="${esc(new Date(st.decided_at).toLocaleString())}${st.comment ? ' — ' + esc(st.comment) : ''}"` : '';
   const chip = `<span${when} style="display:inline-block;border:1px solid ${c};color:${st.state==='not_reached'?'var(--text2)':c};border-radius:4px;padding:2px 7px;margin:2px 3px 2px 0;font-size:11px;opacity:${st.state==='not_reached'?0.5:1}">${text}</span>`;
   return st.kind === 'gate' && st.state === 'pending'
@@ -854,7 +858,30 @@ async function renderJobsHistory() {
         <a href="/jobs/${encodeURIComponent(j.job_id)}/view/icd" target="_blank" rel="noopener" style="margin-left:auto;color:var(--accent)">View ICD</a>
       </div>
       <div style="margin-top:6px">${(j.steps || []).map(st => jobStepChip(st, data.hil_url)).join('<span style="color:var(--text2)">→ </span>')}</div>
+      ${j.next_action ? nextActionHtml(j) : ''}
     </div>`).join('') + '</div>';
+}
+function nextActionHtml(j) {
+  const stage = STEP_LABEL[j.next_action.stage] || j.next_action.stage;
+  const gate = STEP_LABEL[j.next_action.gate] || j.next_action.gate;
+  if (state.role === 'admin') {
+    return `<div style="margin-top:8px;display:flex;gap:10px;align-items:center">
+      <button onclick="advanceJob('${esc(j.job_id)}', this)" style="background:var(--accent);color:#fff;border:0;border-radius:4px;padding:5px 12px;font-size:12px;cursor:pointer">Start ${esc(stage)}</button>
+      <span style="color:var(--text2);font-size:11px">${esc(gate)} approved in K9X HIL — start the next stage when ready.</span></div>`;
+  }
+  return `<div style="margin-top:8px;color:var(--orange);font-size:11px">${esc(gate)} approved — waiting for the DAS admin to start ${esc(stage)}.</div>`;
+}
+async function advanceJob(jobId, btn) {
+  btn.disabled = true; btn.textContent = 'Starting…';
+  let msg = '';
+  try {
+    const r = await fetch('/jobs/' + encodeURIComponent(jobId) + '/advance', {method: 'POST',
+      headers: {'Authorization': 'Bearer ' + (state.authToken || '')}});
+    const d = await r.json().catch(() => ({}));
+    msg = r.ok ? '' : (d.detail || ('HTTP ' + r.status));
+  } catch (e) { msg = 'Could not reach DAS.'; }
+  if (msg) { btn.disabled = false; btn.textContent = 'Retry'; btn.insertAdjacentHTML('afterend', `<span style="color:var(--red);font-size:11px">${esc(msg)}</span>`); return; }
+  renderJobsHistory();
 }
 
 function renderArch() {
@@ -1208,14 +1235,30 @@ async function upload() {
 // Hardcoded, client-side only -- not real authentication. Purpose is
 // session isolation for concurrent visitors (see state.mySessionJobIds
 // filtering in connectSSE below), not access control.
-function doLogin(e) {
+// Public demonstration: show the logins this deployment offers (demo views,
+// admin also starts the next stage after a HIL approval).
+fetch('/auth/public').then(r => r.json()).then(d => {
+  const el = document.getElementById('loginCreds'); if (!el || !d.logins) return;
+  const row = (label, c) => `${label}: <span style="font-family:var(--mono);color:var(--accent)">${esc(c.user)}</span> / <span style="font-family:var(--mono);color:var(--accent)">${esc(c.password)}</span>`;
+  el.innerHTML = row('Demo', d.logins.demo) + (d.logins.admin ? '<br>' + row('Admin (starts next stage)', d.logins.admin) : '');
+}).catch(() => {});
+
+async function doLogin(e) {
   e.preventDefault();
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
-  if (u !== 'demo' || p !== 'demo') {
-    document.getElementById('loginError').textContent = 'Invalid credentials. Try demo / demo.';
+  let auth = null;
+  try {
+    const r = await fetch('/auth/login', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                          body: JSON.stringify({username: u, password: p})});
+    if (r.ok) auth = await r.json();
+  } catch (_) {}
+  if (!auth) {
+    document.getElementById('loginError').textContent = 'Invalid credentials.';
     return;
   }
+  state.authToken = auth.token; state.role = auth.role;
+  sessionStorage.setItem('k9x_das_auth', JSON.stringify({token: auth.token, role: auth.role}));
   // Persisted, not regenerated on every login -- a page reload always
   // re-shows this login overlay (see comment at top of doLogin), and a
   // fresh sessionId on every reload would break the server-side
@@ -1227,7 +1270,7 @@ function doLogin(e) {
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('mainApp').style.display = 'flex';
   const chip = document.getElementById('userChip');
-  if (chip) chip.textContent = 'User: ' + u.charAt(0).toUpperCase() + u.slice(1);
+  if (chip) chip.textContent = 'User: ' + u.charAt(0).toUpperCase() + u.slice(1) + (auth.role === 'admin' ? ' (DAS admin)' : '');
 
   // A fresh login is a natural "start clean" checkpoint -- clears any
   // job-in-progress lock/timeout and stale Live Feed/Agents/LLM Calls

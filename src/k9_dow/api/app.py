@@ -16,13 +16,15 @@ import os
 import uuid
 from collections import deque
 
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+from fastapi import Depends, FastAPI, File, Form, UploadFile, HTTPException
+from pydantic import BaseModel
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from k9_aif_abb.k9_utils.config_loader import load_yaml
 from k9_dow.config.settings import settings
 from k9_dow.utils.ids import generate_job_id
+from k9_dow.api.auth import require_admin
 from k9_dow.utils.health_check import check_dependencies, check_ollama_reachable
 
 log = logging.getLogger(__name__)
@@ -540,6 +542,52 @@ async def jobs_history(limit: int = 30):
         jobs.append(await loop.run_in_executor(None, job_history, _config, jid, ids[jid]))
     return JSONResponse({"jobs": jobs, "hil_url": os.environ.get("HIL_PUBLIC_URL", "https://hil.k9x.ai")},
                         headers={"Cache-Control": "no-store"})
+
+
+class LoginReq(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/auth/login")
+async def auth_login(req: LoginReq):
+    from k9_dow.api.auth import login
+    result = login(req.username, req.password)
+    if not result:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    return result
+
+
+@app.get("/auth/public")
+async def auth_public():
+    """Sign-in page: the logins of this public demonstration, and the resume mode."""
+    from k9_dow.api.auth import public_logins
+    from k9_dow.gates.hil_gateway import resume_mode
+    return {"logins": public_logins(), "resume_mode": resume_mode()}
+
+
+@app.post("/jobs/{job_id}/advance")
+async def advance_job(job_id: str, admin: dict = Depends(require_admin)):
+    """DAS admin starts the next stage of a job whose gate K9X HIL approved.
+    Refuses unless an approval is on record and that stage hasn't started."""
+    from k9_dow.gates.hil_gateway import (gate_approved_event, job_history, load_stage_result,
+                                          mark_started)
+    loop = asyncio.get_event_loop()
+    hist = await loop.run_in_executor(None, job_history, _config, job_id)
+    nxt = hist.get("next_action")
+    if not nxt:
+        raise HTTPException(status_code=409, detail="Nothing to start: no HIL approval waiting, or the next stage already started")
+    gate = next(s for s in hist["steps"] if s["step"] == nxt["gate"])
+    reply = {"correlation_id": job_id, "action": "complete", "actor": gate.get("actor"),
+             "comment": gate.get("comment"), "decided_at": gate.get("decided_at"), "status": "completed"}
+    event = gate_approved_event(nxt["gate"], reply)
+    event["decision"]["started_by"] = admin["u"]
+    await loop.run_in_executor(None, mark_started, _config, job_id, nxt["stage"], admin["u"])
+    _publish_to_router(event)
+    log.info("[API] %s started %s for job=%s (approved at %s by %s)",
+             admin["u"], nxt["stage"], job_id, nxt["gate"], gate.get("actor"))
+    return {"job_id": job_id, "started": nxt["stage"], "after_gate": nxt["gate"],
+            "approved_by": gate.get("actor"), "started_by": admin["u"]}
 
 
 @app.get("/jobs/{job_id}")

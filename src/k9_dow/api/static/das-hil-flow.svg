@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" width="1000" height="600" font-family="Helvetica, Arial, sans-serif">
+  <!-- DAS reference deployment: HIL decision round trip (DAS v1.2.0+).
+       Source of truth for both das.k9x.ai (Architecture tab) and the IEEE Access v8 figure. -->
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1f2937"/>
+    </marker>
+    <marker id="arrg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/>
+    </marker>
+    <style>
+      .lane-label { font-size: 15px; font-weight: 700; fill: #111827; }
+      .lane-sub { font-size: 12.5px; fill: #4b5563; }
+      .col { font-size: 13px; font-weight: 700; fill: #374151; }
+      .box { font-size: 14px; fill: #111827; }
+      .boxb { font-size: 14px; font-weight: 700; fill: #111827; }
+      .topic { font-size: 12.5px; font-family: Menlo, Consolas, monospace; fill: #1e3a8a; }
+      .note { font-size: 12.5px; fill: #374151; font-style: italic; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="600" fill="#ffffff"/>
+
+  <!-- column headers -->
+  <text class="col" x="189" y="27" text-anchor="middle">Submit</text>
+  <text class="col" x="327" y="27" text-anchor="middle">Stage 1: JCIDS</text>
+  <text class="col" x="476" y="27" text-anchor="middle">JROC gate</text>
+  <text class="col" x="626" y="27" text-anchor="middle">Stage 2: Acquisition</text>
+  <text class="col" x="776" y="27" text-anchor="middle">Milestone gate</text>
+  <text class="col" x="916" y="27" text-anchor="middle">Stage 3: SE</text>
+
+  <!-- lanes (horizontal bands, labels on the left) -->
+  <rect x="0" y="40"  width="1000" height="108" fill="#f8fafc" stroke="#d1d5db"/>
+  <rect x="0" y="148" width="1000" height="108" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="0" y="256" width="1000" height="108" fill="#f8fafc" stroke="#d1d5db"/>
+  <rect x="0" y="364" width="1000" height="108" fill="#ffffff" stroke="#d1d5db"/>
+  <rect x="0" y="472" width="1000" height="98"  fill="#f8fafc" stroke="#d1d5db"/>
+  <line x1="122" y1="40" x2="122" y2="570" stroke="#d1d5db"/>
+
+  <text class="lane-label" x="10" y="88">Analyst</text>
+  <text class="lane-sub" x="10" y="107">das.k9x.ai</text>
+  <text class="lane-label" x="10" y="196">DAS Router</text>
+  <text class="lane-sub" x="10" y="215">router process</text>
+  <text class="lane-label" x="10" y="304">DAS</text>
+  <text class="lane-label" x="10" y="322">Orchestrators</text>
+  <text class="lane-label" x="10" y="412">K9X HIL</text>
+  <text class="lane-sub" x="10" y="431">human review</text>
+  <text class="lane-label" x="10" y="515">Object</text>
+  <text class="lane-label" x="10" y="533">storage</text>
+
+  <!-- Analyst lane -->
+  <rect x="130" y="57" width="118" height="74" rx="6" fill="#eef2ff" stroke="#4f46e5"/>
+  <text class="boxb" x="189" y="84" text-anchor="middle">Upload</text>
+  <text class="box" x="189" y="102" text-anchor="middle">capability</text>
+  <text class="box" x="189" y="119" text-anchor="middle">document</text>
+
+  <rect x="856" y="57" width="120" height="74" rx="6" fill="#eef2ff" stroke="#4f46e5"/>
+  <text class="boxb" x="916" y="84" text-anchor="middle">Jobs in</text>
+  <text class="boxb" x="916" y="101" text-anchor="middle">Pipeline</text>
+  <text class="box" x="916" y="119" text-anchor="middle">stage + decisions</text>
+
+  <!-- Router lane -->
+  <rect x="130" y="165" width="118" height="74" rx="6" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text class="boxb" x="189" y="192" text-anchor="middle">DasRouter</text>
+  <text class="box" x="189" y="210" text-anchor="middle">routes by</text>
+  <text class="box" x="189" y="227" text-anchor="middle">document type</text>
+
+  <rect x="406" y="165" width="140" height="74" rx="6" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text class="boxb" x="476" y="190" text-anchor="middle">Reads decision</text>
+  <text class="box" x="476" y="208" text-anchor="middle">approve →</text>
+  <text class="box" x="476" y="226" text-anchor="middle">gate_approved</text>
+
+  <rect x="706" y="165" width="140" height="74" rx="6" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text class="boxb" x="776" y="190" text-anchor="middle">Reads decision</text>
+  <text class="box" x="776" y="208" text-anchor="middle">approve →</text>
+  <text class="box" x="776" y="226" text-anchor="middle">gate_approved</text>
+
+  <!-- Orchestrator lane -->
+  <rect x="258" y="273" width="138" height="74" rx="6" fill="#eff6ff" stroke="#2563eb"/>
+  <text class="boxb" x="327" y="295" text-anchor="middle">JCIDS</text>
+  <text class="box" x="327" y="312" text-anchor="middle">views, readiness,</text>
+  <text class="box" x="327" y="328" text-anchor="middle">package</text>
+  <text class="box" x="327" y="343" text-anchor="middle">(3 squads)</text>
+
+  <rect x="556" y="273" width="140" height="74" rx="6" fill="#eff6ff" stroke="#2563eb"/>
+  <text class="boxb" x="626" y="295" text-anchor="middle">Acquisition</text>
+  <text class="box" x="626" y="312" text-anchor="middle">readiness vs.</text>
+  <text class="box" x="626" y="328" text-anchor="middle">milestone criteria</text>
+  <text class="box" x="626" y="343" text-anchor="middle">(2 squads)</text>
+
+  <rect x="856" y="273" width="120" height="74" rx="6" fill="#eff6ff" stroke="#2563eb" stroke-dasharray="5 3"/>
+  <text class="boxb" x="916" y="295" text-anchor="middle">SE</text>
+  <text class="box" x="916" y="312" text-anchor="middle">demonstration</text>
+  <text class="box" x="916" y="328" text-anchor="middle">endpoint</text>
+  <text class="box" x="916" y="343" text-anchor="middle">(next: SRR)</text>
+
+  <!-- HIL lane -->
+  <rect x="406" y="381" width="140" height="74" rx="6" fill="#fff7ed" stroke="#ea580c"/>
+  <text class="boxb" x="476" y="405" text-anchor="middle">JROC Review</text>
+  <text class="box" x="476" y="423" text-anchor="middle">human approves</text>
+  <text class="box" x="476" y="441" text-anchor="middle">or rejects</text>
+
+  <rect x="706" y="381" width="140" height="74" rx="6" fill="#fff7ed" stroke="#ea580c"/>
+  <text class="boxb" x="776" y="405" text-anchor="middle">Milestone Review</text>
+  <text class="box" x="776" y="423" text-anchor="middle">human approves</text>
+  <text class="box" x="776" y="441" text-anchor="middle">or rejects</text>
+
+  <text class="note" x="130" y="405">Reject or expire</text>
+  <text class="note" x="130" y="421">stops the pipeline</text>
+  <text class="note" x="130" y="437">at that gate.</text>
+
+  <!-- Storage lane -->
+  <rect x="258" y="489" width="718" height="64" rx="6" fill="#f3f4f6" stroke="#6b7280"/>
+  <text class="boxb" x="617" y="514" text-anchor="middle">Results kept by job id</text>
+  <text class="box" x="617" y="534" text-anchor="middle">JCIDS, Acquisition and SE results · every HIL decision (saved by the Router)</text>
+
+  <!-- Kafka event arrows (solid), topic on each -->
+  <line x1="189" y1="131" x2="189" y2="162" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text class="topic" x="196" y="152">dow.router.in</text>
+
+  <line x1="230" y1="239" x2="300" y2="270" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text class="topic" x="192" y="263">das.jcids</text>
+
+  <line x1="396" y1="320" x2="436" y2="378" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text class="topic" x="262" y="370">workflow.hil.das.jroc</text>
+
+  <line x1="530" y1="381" x2="530" y2="242" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text class="topic" transform="translate(524,318) rotate(-90)" text-anchor="middle">das.jroc.replies</text>
+
+  <line x1="546" y1="225" x2="590" y2="270" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text class="topic" x="552" y="262">das.acquisition</text>
+
+  <line x1="696" y1="320" x2="736" y2="378" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text class="topic" x="562" y="370">workflow.hil.das.pathway</text>
+
+  <line x1="830" y1="381" x2="830" y2="242" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text class="topic" transform="translate(824,318) rotate(-90)" text-anchor="middle">das.pathway.replies</text>
+
+  <line x1="846" y1="225" x2="886" y2="270" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text class="topic" x="852" y="262">das.se</text>
+
+  <!-- object storage (dashed) -->
+  <line x1="327" y1="347" x2="327" y2="486" stroke="#6b7280" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrg)"/>
+  <line x1="626" y1="347" x2="626" y2="486" stroke="#6b7280" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrg)"/>
+  <line x1="916" y1="347" x2="916" y2="486" stroke="#6b7280" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrg)"/>
+  <path d="M976,521 H990 V94 H979" fill="none" stroke="#6b7280" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrg)"/>
+
+  <!-- legend -->
+  <line x1="130" y1="586" x2="160" y2="586" stroke="#1f2937" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text class="note" x="168" y="590" style="font-style:normal">Kafka event (topic named on the arrow)</text>
+  <line x1="470" y1="586" x2="500" y2="586" stroke="#6b7280" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrg)"/>
+  <text class="note" x="508" y="590" style="font-style:normal">object storage write / read</text>
+  <rect x="742" y="579" width="22" height="13" rx="3" fill="#eff6ff" stroke="#2563eb" stroke-dasharray="5 3"/>
+  <text class="note" x="770" y="590" style="font-style:normal">demonstration endpoint</text>
+</svg>

@@ -123,3 +123,65 @@ def test_history_full_run_marks_se_demo(monkeypatch):
                                    "gate-PATHWAY-MILESTONE": {"action": "complete", "actor": "m@k9x.ai"},
                                    "se": {"status": "pipeline_complete", "demo_stub": True}})
     assert [s[1] for s in steps] == ["done", "approved", "done", "approved", "done"]
+
+
+# ── Manual resume: DAS admin starts the next stage after a HIL approval ──
+
+def test_history_offers_next_action_until_started(monkeypatch):
+    stored = {"jcids": {"status": "awaiting_gate"},
+              "gate-JROC-VALIDATION": {"action": "complete", "actor": "a@k9x.ai"}}
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: stored.get(stage))
+    h = hil_gateway.job_history({}, "job-9", list(stored))
+    assert h["next_action"] == {"gate": "JROC-VALIDATION", "stage": "acquisition"}
+    stored["started-acquisition"] = {"by": "admin"}
+    h = hil_gateway.job_history({}, "job-9", list(stored))
+    assert h["next_action"] is None
+    assert next(s for s in h["steps"] if s["step"] == "acquisition")["state"] == "running"
+
+
+def test_resume_mode_defaults_to_manual(monkeypatch):
+    monkeypatch.delenv("DAS_RESUME_MODE", raising=False)
+    assert hil_gateway.resume_mode() == "manual"
+    monkeypatch.setenv("DAS_RESUME_MODE", "AUTO")
+    assert hil_gateway.resume_mode() == "auto"
+
+
+def test_login_roles_and_admin_check(monkeypatch):
+    import importlib
+    from fastapi import HTTPException
+    monkeypatch.setenv("DAS_ADMIN_PASSWORD", "s3cret")
+    from k9_dow.api import auth
+    importlib.reload(auth)
+    assert auth.login("demo", "demo")["role"] == "viewer"
+    admin = auth.login("admin", "s3cret")
+    assert admin["role"] == "admin" and auth.login("admin", "wrong") is None
+    assert auth.require_admin("Bearer " + admin["token"])["u"] == "admin"
+    for header, code in (("", 401), ("Bearer " + auth.login("demo", "demo")["token"], 403),
+                         ("Bearer " + admin["token"][:-2] + "xx", 401)):
+        with pytest.raises(HTTPException) as e:
+            auth.require_admin(header)
+        assert e.value.status_code == code
+    monkeypatch.delenv("DAS_ADMIN_PASSWORD")
+    importlib.reload(auth)
+    assert auth.login("admin", "s3cret") is None          # no admin password = no admin
+
+
+def test_advance_starts_next_stage_once(monkeypatch):
+    import asyncio
+    from fastapi import HTTPException
+    from k9_dow.api import app as app_mod
+    stored = {"jcids": {"status": "awaiting_gate"},
+              "gate-JROC-VALIDATION": {"action": "complete", "actor": "a@k9x.ai", "decided_at": "t"}}
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: stored.get(stage))
+    monkeypatch.setattr(hil_gateway, "list_job_ids", lambda cfg: {"job-9": list(stored)})
+    monkeypatch.setattr(hil_gateway, "save_stage_result",
+                        lambda cfg, job, stage, res: stored.update({stage: res}))
+    sent = []
+    monkeypatch.setattr(app_mod, "_publish_to_router", sent.append)
+    out = asyncio.run(app_mod.advance_job("job-9", admin={"u": "admin", "r": "admin"}))
+    assert out["started"] == "acquisition" and out["approved_by"] == "a@k9x.ai"
+    assert sent[0]["event_type"] == "gate_approved" and sent[0]["gate_id"] == "JROC-VALIDATION"
+    assert sent[0]["decision"]["started_by"] == "admin" and "started-acquisition" in stored
+    with pytest.raises(HTTPException) as e:                # already started
+        asyncio.run(app_mod.advance_job("job-9", admin={"u": "admin", "r": "admin"}))
+    assert e.value.status_code == 409

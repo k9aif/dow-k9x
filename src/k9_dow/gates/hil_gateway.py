@@ -102,6 +102,17 @@ def gate_approved_event(gate_id: str, reply: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+# Stage each gate's approval starts.
+GATE_NEXT_STAGE = {"JROC-VALIDATION": "acquisition", "PATHWAY-MILESTONE": "se"}
+
+
+def resume_mode() -> str:
+    """DAS_RESUME_MODE: "manual" (default) — a HIL approval is recorded and the
+    DAS admin starts the next stage from Jobs in Pipeline; "auto" — the
+    approval starts it immediately."""
+    return "auto" if os.environ.get("DAS_RESUME_MODE", "manual").strip().lower() == "auto" else "manual"
+
+
 def approvers() -> Optional[set]:
     """DAS_HIL_APPROVERS (comma-separated emails). Unset = any HIL decision is
     accepted (public demo). Note the actor comes from K9X HIL's record."""
@@ -158,6 +169,13 @@ def load_stage_result(config: Dict[str, Any], job_id: str, stage: str) -> Option
 STAGE_ORDER = ["jcids", "gate-JROC-VALIDATION", "acquisition", "gate-PATHWAY-MILESTONE", "se"]
 
 
+def mark_started(config: Dict[str, Any], job_id: str, stage: str, by: str) -> None:
+    """Record that a stage was started, so it can't be started twice."""
+    from datetime import datetime, timezone
+    save_stage_result(config, job_id, f"started-{stage}",
+                      {"by": by, "at": datetime.now(timezone.utc).isoformat()})
+
+
 def save_gate_decision(config: Dict[str, Any], job_id: str, gate_id: str, decision: Dict[str, Any]) -> None:
     """Every HIL decision the Router receives (approve, reject, expire; accepted or not)."""
     save_stage_result(config, job_id, f"gate-{gate_id}", decision)
@@ -207,9 +225,22 @@ def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]]
             if rec and rec.get("demo_stub"):
                 step["demo"] = True
             steps.append(step)
+    # What happens next: an approved gate whose next stage hasn't started
+    next_action = None
+    for gate_id, nxt in GATE_NEXT_STAGE.items():
+        gate = next(s for s in steps if s["step"] == gate_id)
+        stage = next(s for s in steps if s["step"] == nxt)
+        if gate["state"] == "approved" and stage["state"] == "not_reached":
+            started = data.get(f"started-{nxt}")
+            if started:
+                stage["state"] = "running"
+                stage["started_by"] = started.get("by")
+            else:
+                next_action = {"gate": gate_id, "stage": nxt}
     return {
         "job_id": job_id,
         "document_title": jcids.get("document_title"),
         "filename": jcids.get("filename"),
         "steps": steps,
+        "next_action": next_action,
     }
