@@ -25,7 +25,11 @@
   header.top nav a { color: var(--muted); text-decoration: none; }
   header.top nav a:hover { color: var(--text); }
 
-  .hero { padding: 56px 0 34px; }
+  .hero-band { background:
+      linear-gradient(180deg, rgba(11,18,32,0) 0%, rgba(11,18,32,.25) 65%, var(--bg) 100%),
+      url("/static/landing-bg.jpg") center / cover no-repeat, #05080f;
+    border-bottom: 1px solid var(--border); }
+  .hero { padding: 64px 0 46px; }
   .eyebrow { font: 700 12px var(--mono); color: var(--teal); letter-spacing: .08em; text-transform: uppercase; }
   h1 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.12; margin: 10px 0 14px; letter-spacing: -.8px; }
   h1 em { font-style: normal; color: var(--amber); }
@@ -86,7 +90,8 @@
   </div>
 </header>
 
-<main class="wrap">
+<div class="hero-band">
+<div class="wrap">
   <section class="hero">
     <div class="eyebrow">Defense Acquisition System · reference deployment</div>
     <h1>Agents prepare the acquisition package.<br><em>Humans decide at every gate.</em></h1>
@@ -104,6 +109,10 @@
     </div>
     <div class="logins" id="logins">Public demonstration · demo login: <b>demo / demo</b></div>
   </section>
+</div>
+</div>
+
+<main class="wrap">
 
   <section id="steps">
     <h2>What you'll see</h2>
