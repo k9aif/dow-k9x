@@ -146,7 +146,13 @@
   <h1>DAS</h1>
   <span class="sub">Defense Acquisition System <span style="color:var(--orange);font-size:9px;font-weight:600;border:1px solid var(--orange);padding:1px 5px;border-radius:3px;margin-left:4px">PROOF OF CONCEPT</span> <span style="font-size:10px;color:var(--text2);margin-left:6px">Built on <span style="color:var(--accent);font-weight:600">K9-AIF Framework</span></span></span>
   <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
-    <span id="userChip" style="font-size:10px;font-family:var(--mono);color:var(--text2)"></span>
+    <span style="position:relative">
+      <span id="userChip" onclick="toggleUserMenu(event)" title="Account" style="font-size:10px;font-family:var(--mono);color:var(--text2);cursor:pointer;border:1px solid var(--border);border-radius:4px;padding:2px 7px"></span>
+      <div id="userMenu" hidden style="position:absolute;right:0;top:22px;z-index:50;min-width:190px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px;box-shadow:0 6px 18px rgba(0,0,0,.35)">
+        <div onclick="signOut(true)" style="padding:7px 10px;font-size:12px;color:var(--text);cursor:pointer;border-radius:4px" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">Sign in as a different user…</div>
+        <div onclick="signOut(false)" style="padding:7px 10px;font-size:12px;color:var(--red);cursor:pointer;border-radius:4px" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">Sign out</div>
+      </div>
+    </span>
     <span id="nowClock" style="font-size:10px;font-family:var(--mono);color:var(--text2)"></span>
     <span id="llmInfo" style="font-size:10px;font-family:var(--mono);color:var(--text2)"></span>
     <div class="status-dot ok" id="sseDot" title="SSE connected"></div>
@@ -1263,6 +1269,27 @@ fetch('/auth/public').then(r => r.json()).then(d => {
   el.innerHTML = row('Demo', d.logins.demo) + (d.logins.admin ? '<br>' + row('Admin (starts next stage)', d.logins.admin) : '');
 }).catch(() => {});
 
+function toggleUserMenu(e) {
+  e.stopPropagation();
+  const m = document.getElementById('userMenu'); m.hidden = !m.hidden;
+}
+document.addEventListener('click', () => { const m = document.getElementById('userMenu'); if (m) m.hidden = true; });
+
+// Sign out: forget the session token and return to the sign-in page (which
+// lists the demo and admin logins). switchUser only changes the hint text.
+function signOut(switchUser) {
+  document.getElementById('userMenu').hidden = true;
+  state.authToken = null; state.role = null;
+  try { sessionStorage.removeItem('k9x_das_auth'); } catch (_) {}
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').textContent = switchUser ? 'Sign in with another account (e.g. admin).' : '';
+  document.getElementById('loginError').style.color = switchUser ? 'var(--text2)' : 'var(--red)';
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('loginUser').focus();
+}
+
 async function doLogin(e) {
   e.preventDefault();
   const u = document.getElementById('loginUser').value.trim();
@@ -1274,6 +1301,7 @@ async function doLogin(e) {
     if (r.ok) auth = await r.json();
   } catch (_) {}
   if (!auth) {
+    document.getElementById('loginError').style.color = 'var(--red)';
     document.getElementById('loginError').textContent = 'Invalid credentials.';
     return;
   }
