@@ -100,6 +100,14 @@ class JcidsOrchestrator(BaseOrchestrator):
         # governance.enabled: false in config.yaml falls back to None,
         # meaning BaseOrchestrator/BaseAgent's own require_governance()
         # resolves NoopGovernance exactly as before this change.
+        # k9x_Shield at stage entry: the submitted document is checked before
+        # any agent or model sees it (config.yaml security.shield; same profile
+        # k9-aif >= 1.15 also applies inside every agent).
+        self._shield = None
+        if ((self.config.get("security") or {}).get("shield") or {}).get("enabled") is True:
+            from k9_aif_abb.k9_security.vulnerability.shield_governance import ShieldGovernance
+            self._shield = ShieldGovernance(self.config)
+
         self._governance = None
         if self.config.get("governance", {}).get("enabled"):
             from k9_dow.governance.guardian_governance import GuardianGovernance
@@ -152,6 +160,17 @@ class JcidsOrchestrator(BaseOrchestrator):
 
         flow_t0 = time.monotonic()
         self._emit("OrchestratorStarted", job_id=job_id, filename=filename, document_type=doc_type)
+
+        if self._shield is not None:
+            try:
+                self._shield.pre_process(payload, {"layer": self.layer, "component_type": "orchestrator"})
+            except PermissionError as exc:
+                reason = str(exc)
+                check = reason.split("[", 1)[1].split("]", 1)[0] if "[" in reason else "k9x_Shield"
+                print(f"  ✋ k9x_Shield BLOCKED job={job_id}: {reason}", flush=True)
+                self._emit("ShieldBlocked", job_id=job_id, check=check, reason=reason)
+                return {"job_id": job_id, "orchestrator": "jcids", "status": "blocked_by_shield",
+                        "check": check, "reason": reason, "filename": filename}
 
         view_gen_squad = self._load_squad("view_generation_squad.yaml", "ViewGenerationSquad")
         gate_squad = self._load_squad("gate_readiness_squad.yaml", "GateReadinessSquad")

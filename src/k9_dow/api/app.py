@@ -305,14 +305,25 @@ async def get_mode():
     return {"demo_mode": DEMO_MODE}
 
 
+_ATTACKS_DIR = _DEMOS_DIR / "attacks"
+
+
 @app.get("/demos")
-async def list_demos():
-    if not _DEMOS_DIR.exists():
+async def list_demos(set: str = ""):
+    """Demo documents; ?set=attacks lists the red-team documents (each states
+    its attack and expected outcome in its first line)."""
+    folder = _ATTACKS_DIR if set == "attacks" else _DEMOS_DIR
+    if not folder.exists():
         return {"demos": []}
     demos = []
-    for f in sorted(_DEMOS_DIR.iterdir()):
+    for f in sorted(folder.iterdir()):
         if f.is_file() and f.suffix in (".md", ".txt"):
-            demos.append({"name": f.stem.replace("_", " "), "filename": f.name, "size": f.stat().st_size})
+            item = {"name": f.stem.replace("_", " "), "filename": f.name, "size": f.stat().st_size}
+            if folder is _ATTACKS_DIR:
+                m = re.search(r"Expected: (.*?) -->", f.read_text(encoding="utf-8", errors="ignore")[:400])
+                item["expected"] = m.group(1) if m else ""
+                item["set"] = "attacks"
+            demos.append(item)
     return {"demos": demos}
 
 
@@ -321,10 +332,12 @@ def _resolve_demo_path(filename: str) -> Path:
     Path(filename).name strips any directory components (../, absolute
     paths) before joining, so this can't be used to read arbitrary files
     on the host."""
-    path = _DEMOS_DIR / Path(filename).name
-    if not path.is_file() or path.parent != _DEMOS_DIR:
-        raise HTTPException(status_code=404, detail="Input document not found")
-    return path
+    name = Path(filename).name
+    for folder in (_DEMOS_DIR, _ATTACKS_DIR):
+        path = folder / name
+        if path.is_file() and path.parent == folder:
+            return path
+    raise HTTPException(status_code=404, detail="Input document not found")
 
 
 @app.get("/demos/{filename}/download")
@@ -420,9 +433,7 @@ async def pipeline_info():
 
 @app.post("/jobs/demo/{demo_filename}")
 async def run_demo(demo_filename: str, document_type: str = "capability_gap", session_id: str = ""):
-    demo_path = _DEMOS_DIR / demo_filename
-    if not demo_path.exists():
-        raise HTTPException(status_code=404, detail="Demo document not found")
+    demo_path = _resolve_demo_path(demo_filename)   # demos or red-team set; no path traversal
     text = demo_path.read_text(encoding="utf-8")
     return await _submit_job(demo_filename, text, document_type, session_id)
 

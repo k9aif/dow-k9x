@@ -192,6 +192,10 @@
       <select id="demoSelect" onchange="selectDemo()" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;margin-bottom:8px">
         <option value="">-- Select a demo document --</option>
       </select>
+      <label style="color:var(--red)">Red-team Documents</label>
+      <select id="attackSelect" onchange="selectAttack()" title="Synthetic documents carrying an attack: see how k9x_Shield holds up" style="width:100%;background:var(--bg);border:1px solid rgba(239,68,68,0.5);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;margin-bottom:8px">
+        <option value="">-- Select an attack document --</option>
+      </select>
       <div id="demoInfo" style="font-size:10px;color:var(--text2);margin-bottom:8px;display:none"></div>
       <input type="file" id="fileInput" style="display:none">
       <label>Document Type</label>
@@ -427,6 +431,18 @@ function renderJobPanel() {
       // Deliberately no fetchDocs()/switchTab('docs') -- nothing was
       // generated; navigating there would show an empty tab and bury
       // the error banner above instead of leaving it in view.
+    }
+  } else if (lastResult && lastResult.status === 'blocked_by_shield') {
+    progressEl.innerHTML += `<div style="margin-top:8px;padding:10px 12px;border-radius:8px;border:1px solid var(--red);background:rgba(239,68,68,0.10)">
+      <div style="color:var(--red);font-weight:700;font-size:12px">✋ Blocked by k9x_Shield — ${esc(lastResult.check || '')}</div>
+      <div style="color:var(--text2);font-size:10.5px;margin-top:4px">${esc(lastResult.reason || '')}</div>
+      <div style="color:var(--text2);font-size:10.5px;margin-top:6px">The document was stopped at the start of the JCIDS stage: no agent ran, no model was called, and nothing was sent to HIL.</div></div>`;
+    statusEl.innerHTML = '<span class="job-badge failed">' + (lastJobId || '') + ' BLOCKED</span>';
+    setJobResultText(`Job: ${lastJobId}\nStatus: blocked by k9x_Shield (${lastResult.check})\n\n${lastResult.reason}`);
+    if (lastJobId && lastJobId !== state.lastCompletedJobId) {
+      state.lastCompletedJobId = lastJobId;
+      if (state.jobTimeoutId) { clearTimeout(state.jobTimeoutId); state.jobTimeoutId = null; }
+      setJobInProgress(false);
     }
   } else if (lastResult) {
     let summary = `Job: ${lastJobId || '?'}\nOrchestrator: ${lastOrch}\nStatus: ${lastResult.status}\nGate: ${lastResult.gate_id || 'N/A'}\n\n`;
@@ -664,7 +680,7 @@ function updatePipeline(orch, status) {
   const dotId = map[orch];
   if (dotId) {
     const el = document.getElementById(dotId);
-    if (el) el.className = status === 'error' ? 'pipe-dot'
+    if (el) el.className = (status === 'error' || status === 'blocked_by_shield') ? 'pipe-dot'
                          : status === 'active' ? 'pipe-dot active' : 'pipe-dot done';
   }
 }
@@ -701,6 +717,7 @@ function renderLive() {
     else if (evtType === 'SquadCompleted') { cls = 'squad'; detail = (e.squad||'') + ' done in ' + (e.elapsed_s||'?') + 's'; }
     else if (evtType === 'OrchestratorCompleted') { cls = 'orchestrator'; detail = 'completed in ' + (e.elapsed_s||'?') + 's → gate: ' + (e.gate||''); }
     else if (evtType === 'PipelineComplete') { cls = 'result'; detail = '✓ Processing Complete — ' + (e.orchestrator||'') + ' → ' + (e.gate||''); }
+    else if (evtType === 'ShieldBlocked') { cls = 'gate'; detail = '✋ k9x_Shield blocked the document (' + (e.check||'?') + '): ' + (e.reason||''); }
     else if (evtType === 'HilTaskPublished') { cls = 'gate'; detail = '→ Sent to HIL for review and approval — message published to \'' + (e.topic||'?') + '\''; }
     else if (evtType === 'loop_started') { cls = 'agent'; detail = (e.agent||'?') + ' — ValidationLoop started'; }
     else if (evtType === 'hypothesis_generated') { cls = 'agent'; detail = (e.agent||'?') + ' — iteration ' + (e.iteration||'?') + ' hypothesis'; }
@@ -1614,8 +1631,35 @@ fetch('/demos/sample-result').then(r=>r.json()).then(data=>{
 }).catch(err => console.error('Sample load failed:', err));
 }
 
+// Red-team set: one dropdown or the other is active; the choice is copied
+// into demoSelect so the existing submit path runs it unchanged.
+fetch('/demos?set=attacks').then(r => r.json()).then(data => {
+  const sel = document.getElementById('attackSelect'); if (!sel) return;
+  (data.demos || []).forEach(d => {
+    const o = document.createElement('option');
+    o.value = d.filename; o.textContent = d.name; o.dataset.expected = d.expected || '';
+    sel.appendChild(o);
+  });
+}).catch(() => {});
+
+function selectAttack() {
+  const a = document.getElementById('attackSelect');
+  const sel = document.getElementById('demoSelect');
+  const info = document.getElementById('demoInfo');
+  if (!a.value) { info.style.display = 'none'; return; }
+  let o = [...sel.options].find(x => x.value === a.value);
+  if (!o) { o = document.createElement('option'); o.value = a.value; o.textContent = a.options[a.selectedIndex].text; o.hidden = true; sel.appendChild(o); }
+  sel.value = a.value;
+  info.style.display = 'block';
+  info.innerHTML = '<span style="color:var(--red)">Red-team:</span> ' + esc(a.options[a.selectedIndex].text) +
+    '<br>Expected: ' + esc(a.options[a.selectedIndex].dataset.expected || '?') +
+    ` · <a href="/demos/${encodeURIComponent(a.value)}/view" target="_blank" rel="noopener" style="color:var(--accent)">view document</a>`;
+  document.getElementById('fileInput').value = '';
+}
+
 function selectDemo() {
   const sel = document.getElementById('demoSelect');
+  const atk = document.getElementById('attackSelect'); if (atk) atk.value = '';
   const info = document.getElementById('demoInfo');
   const fi = document.getElementById('fileInput');
   if (sel.value) {
@@ -1629,6 +1673,7 @@ function selectDemo() {
 
 function clearDemo() {
   document.getElementById('demoSelect').value = '';
+  const atk = document.getElementById('attackSelect'); if (atk) atk.value = '';
   document.getElementById('demoInfo').style.display = 'none';
 }
 
