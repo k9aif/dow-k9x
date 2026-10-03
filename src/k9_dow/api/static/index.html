@@ -847,7 +847,7 @@ function renderDocs() {
         <span class="doc-size">${sizeKb} KB</span>
         <a class="doc-dl" href="/jobs/${run.jobId}/view/${doc.id}" target="_blank" style="background:var(--accent)">View</a>
         <a class="doc-dl" href="/jobs/${run.jobId}/docs/${doc.id}" download="${doc.filename}">Download .md</a>
-        ${doc.id === 'icd' ? `<a class="doc-dl" href="/jobs/${run.jobId}/docx/icd" style="background:#2b579a">Download .docx</a>` : ''}
+        ${doc.id === 'icd' || doc.id === 'quality' ? `<a class="doc-dl" href="/jobs/${run.jobId}/docx/${doc.id}" style="background:#2b579a">Download .docx</a>` : ''}
       </div>`;
     }
   }
@@ -877,9 +877,9 @@ async function renderQuality(jobId) {
     if ((f.flagged || []).length) body += `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--orange)">${f.flagged.length} element(s) not supported by the source</summary>` +
       f.flagged.map(x => `<div style="margin:4px 0 0 14px;color:var(--text2)"><b>${esc(x.id)}</b> (${esc(x.verdict || '?')}): ${esc(x.text || '')}</div>`).join('') + '</details>';
     body += `<div style="margin-top:8px;font-size:10.5px;color:var(--text2)">${esc(g.note || '')}</div>`;
-    body += `<div style="margin-top:10px;display:flex;gap:6px">
-      <a class="doc-dl" href="/jobs/${encodeURIComponent(jobId)}/docs/quality">Download report .md</a>
-      <a class="doc-dl" href="/jobs/${encodeURIComponent(jobId)}/docx/quality" style="background:#2b579a">Download report .docx</a></div>`;
+    body += `<div style="margin-top:8px;color:var(--text2);font-size:11px">The full report is listed under Deliverables above (View, .md, .docx).</div>`;
+    const run = (state.allRuns || []).find(r => r.jobId === jobId);
+    if (run && !run.qualityListed && !run.docs.some(d => d.id === 'quality')) (run.qualityListed = true, fetchDocs(jobId)).then(() => { if (state.activeTab === 'docs') renderDocs(); });
     if (state.role === 'admin') body += `<button onclick="startGrade('${esc(jobId)}', this)" style="margin-top:8px;background:none;color:var(--text2);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer">Grade again (admin)</button>`;
   } else {
     body += row('Grading / score', g.status === 'running' ? '<span style="color:var(--accent)">grading… (loading the grader model can take a minute)</span>'

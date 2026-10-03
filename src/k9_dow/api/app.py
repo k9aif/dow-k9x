@@ -732,6 +732,11 @@ async def list_docs(job_id: str):
     log.info("[API] /docs: composing docs for job=%s", job_id)
     try:
         docs = _extract_docs(data)
+        quality = await _quality_report_md(job_id) if docs else None
+        if quality:
+            docs.append({"id": "quality", "section": "Deliverables",
+                         "agent": "ICD Quality Report — the ICD graded against its input document",
+                         "filename": f"{job_id}-ICD-Quality.md", "size": len(quality)})
         return JSONResponse(
             content={"job_id": job_id, "docs": docs},
             headers={"Cache-Control": "no-store"},
@@ -954,6 +959,12 @@ async def view_doc(job_id: str, doc_id: str):
         md = _compose_milestone_package(job_id)
         if md is None:
             raise HTTPException(status_code=404, detail="Acquisition has not run for this job")
+        return _render_icd_html(job_id, md)
+
+    if doc_id == "quality":
+        md = await _quality_report_md(job_id)
+        if md is None:
+            raise HTTPException(status_code=404, detail="Not graded yet")
         return _render_icd_html(job_id, md)
 
     if doc_id != "icd":
