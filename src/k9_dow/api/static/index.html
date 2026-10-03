@@ -871,6 +871,9 @@ async function renderQuality(jobId) {
     if ((f.flagged || []).length) body += `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--orange)">${f.flagged.length} element(s) not supported by the source</summary>` +
       f.flagged.map(x => `<div style="margin:4px 0 0 14px;color:var(--text2)"><b>${esc(x.id)}</b> (${esc(x.verdict || '?')}): ${esc(x.text || '')}</div>`).join('') + '</details>';
     body += `<div style="margin-top:8px;font-size:10.5px;color:var(--text2)">${esc(g.note || '')}</div>`;
+    body += `<div style="margin-top:10px;display:flex;gap:6px">
+      <a class="doc-dl" href="/jobs/${encodeURIComponent(jobId)}/docs/quality">Download report .md</a>
+      <a class="doc-dl" href="/jobs/${encodeURIComponent(jobId)}/docx/quality" style="background:#2b579a">Download report .docx</a></div>`;
     if (state.role === 'admin') body += `<button onclick="startGrade('${esc(jobId)}', this)" style="margin-top:8px;background:none;color:var(--text2);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer">Grade again (admin)</button>`;
   } else {
     body += row('Grading / score', g.status === 'running' ? '<span style="color:var(--accent)">grading… (loading the grader model can take a minute)</span>'

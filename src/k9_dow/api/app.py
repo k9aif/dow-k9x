@@ -667,14 +667,13 @@ def _extract_docs(job_data: dict) -> list[dict]:
 
     icd_content = _compose_icd(job_data)
     job_id = result.get("job_id", "unknown")
-    date_prefix = datetime.now().strftime("%d%m%Y_%H%M%S")
     input_prefix = _input_doc_prefix(job_data)
 
     return [{
         "id": "icd",
         "section": "Deliverables",
         "agent": f"Initial Capabilities Document (ICD) — {input_prefix}",
-        "filename": f"{date_prefix}_{input_prefix}_{job_id}_ICD.md",
+        "filename": f"{job_id}-ICD.md",
         "size": len(icd_content),
     }]
 
@@ -705,6 +704,14 @@ async def download_doc(job_id: str, doc_id: str):
     if not data:
         raise HTTPException(status_code=404, detail="Job not found", headers={"Cache-Control": "no-store"})
 
+    if doc_id == "quality":
+        md = await _quality_report_md(job_id)
+        if md is None:
+            raise HTTPException(status_code=404, detail="Not graded yet")
+        return Response(content=md, media_type="text/markdown",
+                        headers={"Content-Disposition": f'attachment; filename="{job_id}-ICD-Quality.md"',
+                                 "Cache-Control": "no-store"})
+
     if doc_id == "icd":
         # Serve static sample for demo job
         if job_id == "JOB-20260628-DEMO01":
@@ -714,11 +721,10 @@ async def download_doc(job_id: str, doc_id: str):
                 return Response(
                     content=content,
                     media_type="text/markdown",
-                    headers={"Content-Disposition": f'attachment; filename="{job_id}_ICD.md"'},
+                    headers={"Content-Disposition": f'attachment; filename="{job_id}-ICD.md"'},
                 )
         content = _compose_icd(data)
-        date_prefix = datetime.now().strftime("%d%m%Y_%H%M%S")
-        filename = f"{date_prefix}_{_input_doc_prefix(data)}_{job_id}_ICD.md"
+        filename = f"{job_id}-ICD.md"
         return Response(
             content=content,
             media_type="text/markdown",
@@ -781,6 +787,48 @@ def _grade_job(job_id: str) -> None:
         _restore_generator_model()
 
 
+def _pct(v) -> str:
+    return "—" if v is None else f"{round(v * 100)}%"
+
+
+async def _quality_report_md(job_id: str) -> Optional[str]:
+    """The stored grade as a document the reviewer can keep with the ICD."""
+    from k9_dow.gates.hil_gateway import load_stage_result
+    g = await asyncio.get_event_loop().run_in_executor(None, load_stage_result, _config, job_id, "quality-jcids")
+    if not g:
+        return None
+    f, c, ci = g.get("faithfulness") or {}, g.get("completeness") or {}, g.get("citation_accuracy") or {}
+    lines = [
+        f"# ICD Quality Report — {job_id}", "",
+        "The generated Initial Capabilities Document was analysed against its input document "
+        "and rated by an independent model (a different model family from the one that wrote it).", "",
+        "| | |", "|---|---|",
+        f"| Input document | {g.get('input_document', '—')} |",
+        f"| Output document | {job_id}-ICD |",
+        f"| Overall score | **{_pct(g.get('overall'))}** |",
+        f"| Scored by | {g.get('scored_by', '—')} |",
+        f"| Graded at | {g.get('graded_at', '—')} ({g.get('elapsed_s', '?')} s) |", "",
+        "## Scores", "",
+        "| Check | Score | Detail |", "|---|---|---|",
+        f"| Faithfulness | {_pct(f.get('score'))} | {f.get('supported', '?')} of {f.get('judged', '?')} "
+        "model elements supported by the source (judged by the grader model) |",
+        f"| Completeness | {_pct(c.get('score'))} | "
+        + (f"missing: {', '.join(c['missing'])}" if c.get("missing") else "all required sections present")
+        + " (checked by code) |",
+        f"| Citation accuracy | {_pct(ci.get('score'))} | {ci.get('found', 0)} of {ci.get('checked', 0)} "
+        "verbatim quotes in the architecture views found in the source (checked by code) |", "",
+    ]
+    if f.get("flagged"):
+        lines += ["## Model elements not supported by the source", ""]
+        lines += [f"- **{x.get('id')}** ({x.get('verdict', '?')}): {x.get('text', '')}" for x in f["flagged"]]
+        lines.append("")
+    if ci.get("not_found"):
+        lines += ["## Quotations not found in the source", ""] + [f"- \"{q}\"" for q in ci["not_found"]] + [""]
+    lines += ["## How to read this", "",
+              g.get("note") or "Aid for the human reviewer, not a verdict.", ""]
+    return "\n".join(lines)
+
+
 @app.get("/jobs/{job_id}/grade")
 async def get_grade(job_id: str):
     from k9_dow.gates.hil_gateway import load_stage_result
@@ -828,11 +876,15 @@ async def download_docx(job_id: str, doc_id: str):
         if not data:
             raise HTTPException(status_code=404, detail="Job not found")
         md = _compose_icd(data)
+    elif doc_id == "quality":
+        md = await _quality_report_md(job_id)
+        if md is None:
+            raise HTTPException(status_code=404, detail="Not graded yet")
     else:
         raise HTTPException(status_code=404, detail="Document not found")
     loop = asyncio.get_event_loop()
     body = await loop.run_in_executor(None, markdown_to_docx, md)
-    name = f"{job_id}_{'Milestone_Package' if doc_id == 'milestone' else 'ICD'}.docx"
+    name = f"{job_id}-{ {'milestone': 'Milestone-Package', 'quality': 'ICD-Quality'}.get(doc_id, 'ICD') }.docx"
     return Response(content=body,
                     media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store"})
