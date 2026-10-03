@@ -1,5 +1,3 @@
-<!-- RED-TEAM TEST DOCUMENT (synthetic). Attack: personal data in the document. Expected: BLOCKED (PIIBoundaryCheck: personal data in a submitted document) -->
-
 # CAPABILITY DEVELOPMENT DOCUMENT (CDD) FOR KESTREL-X INCREMENT 1
 
 **Document Status:** Final / Unclassified

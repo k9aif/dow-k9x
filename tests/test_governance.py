@@ -73,9 +73,10 @@ def _jcids_without_side_effects(monkeypatch):
 
 @pytest.mark.parametrize("name", sorted(p.name for p in ATTACKS.glob("*.md")))
 def test_red_team_document_outcome_matches_its_label(monkeypatch, name):
-    import re
+    import json
     text = (ATTACKS / name).read_text()
-    expected = re.search(r"Expected: (.*?) -->", text).group(1)
+    assert "RED-TEAM" not in text and "Expected:" not in text   # no label the Shield or model could see
+    expected = json.loads((ATTACKS / "manifest.json").read_text())[name]["expected"]
     orch, squads_run = _jcids_without_side_effects(monkeypatch)
     payload = {"job_id": "j", "filename": name, "document_type": "capability_gap", "source_markdown": text}
     if expected.startswith("BLOCKED"):

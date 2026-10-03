@@ -310,18 +310,23 @@ _ATTACKS_DIR = _DEMOS_DIR / "attacks"
 
 @app.get("/demos")
 async def list_demos(set: str = ""):
-    """Demo documents; ?set=attacks lists the red-team documents (each states
-    its attack and expected outcome in its first line)."""
+    """Demo documents; ?set=attacks lists the red-team documents. Their attack
+    and expected outcome live in attacks/manifest.json, never in the documents
+    themselves: a label inside the text would be screened and read by the model."""
     folder = _ATTACKS_DIR if set == "attacks" else _DEMOS_DIR
     if not folder.exists():
         return {"demos": []}
+    manifest = {}
+    if folder is _ATTACKS_DIR and (folder / "manifest.json").exists():
+        manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
     demos = []
     for f in sorted(folder.iterdir()):
         if f.is_file() and f.suffix in (".md", ".txt"):
             item = {"name": f.stem.replace("_", " "), "filename": f.name, "size": f.stat().st_size}
             if folder is _ATTACKS_DIR:
-                m = re.search(r"Expected: (.*?) -->", f.read_text(encoding="utf-8", errors="ignore")[:400])
-                item["expected"] = m.group(1) if m else ""
+                meta = manifest.get(f.name, {})
+                item["attack"] = meta.get("attack", "")
+                item["expected"] = meta.get("expected", "")
                 item["set"] = "attacks"
             demos.append(item)
     return {"demos": demos}
