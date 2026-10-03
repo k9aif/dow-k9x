@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 236" width="900" height="236" font-family="Helvetica, Arial, sans-serif">
+  <!-- DAS reference deployment: job flow with K9X HIL reviews (DAS v1.2.x).
+       Dark variant for das.k9x.ai; das-hil-flow.svg (light) is the IEEE figure.
+       Solid = implemented. Dashed = designed, not yet built. -->
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#aab5c8"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7d889c"/>
+    </marker>
+    <style>
+      .sys  { font-size: 11.5px; font-weight: 700; letter-spacing: .04em; }
+      .t    { font-size: 13.5px; font-weight: 700; fill: #d3dae6; }
+      .s    { font-size: 12px; fill: #aab5c8; }
+      .lbl  { font-size: 12px; fill: #d3dae6; }
+      .dl   { font-size: 12px; fill: #aab5c8; font-style: italic; }
+      .note { font-size: 12px; fill: #aab5c8; }
+    </style>
+  </defs>
+  <rect width="900" height="236" fill="#111a2e"/>
+
+  <!-- 1 DAS: JCIDS -->
+  <rect x="12" y="46" width="96" height="80" rx="5" fill="#16264a" stroke="#6b9cf5" stroke-width="1.4"/>
+  <text class="sys" x="68" y="63" text-anchor="middle" fill="#6b9cf5">DAS</text>
+  <text class="t" x="60" y="85" text-anchor="middle">JCIDS</text>
+  <text class="s" x="60" y="102" text-anchor="middle">ICD, DoDAF</text>
+  <text class="s" x="60" y="117" text-anchor="middle">views</text>
+
+  <!-- 2 HIL: JROC review -->
+  <rect x="142" y="46" width="96" height="80" rx="5" fill="#2e2116" stroke="#f0975a" stroke-width="1.4"/>
+  <text class="sys" x="198" y="63" text-anchor="middle" fill="#f0975a">K9X HIL</text>
+  <text class="t" x="190" y="85" text-anchor="middle">JROC</text>
+  <text class="t" x="190" y="102" text-anchor="middle">review</text>
+  <text class="s" x="190" y="117" text-anchor="middle">human decides</text>
+
+  <!-- 3 DAS: Jobs in Pipeline -->
+  <rect x="272" y="46" width="96" height="80" rx="5" fill="#241d42" stroke="#a98bf2" stroke-width="1.4"/>
+  <text class="sys" x="328" y="63" text-anchor="middle" fill="#a98bf2">DAS</text>
+  <text class="t" x="320" y="85" text-anchor="middle">Jobs in</text>
+  <text class="t" x="320" y="102" text-anchor="middle">Pipeline</text>
+  <text class="s" x="320" y="117" text-anchor="middle">admin starts</text>
+
+  <!-- 4 DAS: Acquisition -->
+  <rect x="402" y="46" width="96" height="80" rx="5" fill="#16264a" stroke="#6b9cf5" stroke-width="1.4"/>
+  <text class="sys" x="458" y="63" text-anchor="middle" fill="#6b9cf5">DAS</text>
+  <text class="t" x="450" y="85" text-anchor="middle">Acquisition</text>
+  <text class="s" x="450" y="102" text-anchor="middle">milestone</text>
+  <text class="s" x="450" y="117" text-anchor="middle">readiness</text>
+
+  <!-- 5 HIL: Milestone review -->
+  <rect x="532" y="46" width="96" height="80" rx="5" fill="#2e2116" stroke="#f0975a" stroke-width="1.4"/>
+  <text class="sys" x="588" y="63" text-anchor="middle" fill="#f0975a">K9X HIL</text>
+  <text class="t" x="580" y="85" text-anchor="middle">Milestone</text>
+  <text class="t" x="580" y="102" text-anchor="middle">review</text>
+  <text class="s" x="580" y="117" text-anchor="middle">human decides</text>
+
+  <!-- 6 DAS: Jobs in Pipeline -->
+  <rect x="662" y="46" width="96" height="80" rx="5" fill="#241d42" stroke="#a98bf2" stroke-width="1.4"/>
+  <text class="sys" x="718" y="63" text-anchor="middle" fill="#a98bf2">DAS</text>
+  <text class="t" x="710" y="85" text-anchor="middle">Jobs in</text>
+  <text class="t" x="710" y="102" text-anchor="middle">Pipeline</text>
+  <text class="s" x="710" y="117" text-anchor="middle">admin starts</text>
+
+  <!-- 7 DAS: SE (demonstration endpoint) -->
+  <rect x="792" y="46" width="96" height="80" rx="5" fill="#16264a" stroke="#6b9cf5" stroke-width="1.4"/>
+  <text class="sys" x="848" y="63" text-anchor="middle" fill="#6b9cf5">DAS</text>
+  <text class="t" x="840" y="85" text-anchor="middle">SE</text>
+  <text class="s" x="840" y="102" text-anchor="middle">demonstration</text>
+  <text class="s" x="840" y="117" text-anchor="middle">endpoint (SRR)</text>
+
+  <!-- step numbers (refer to steps as 1-7) -->
+  <circle cx="24" cy="58" r="9" fill="#e9b64e"/>
+  <text x="24" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#111a2e">1</text>
+  <circle cx="154" cy="58" r="9" fill="#e9b64e"/>
+  <text x="154" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#111a2e">2</text>
+  <circle cx="284" cy="58" r="9" fill="#e9b64e"/>
+  <text x="284" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#111a2e">3</text>
+  <circle cx="414" cy="58" r="9" fill="#e9b64e"/>
+  <text x="414" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#111a2e">4</text>
+  <circle cx="544" cy="58" r="9" fill="#e9b64e"/>
+  <text x="544" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#111a2e">5</text>
+  <circle cx="674" cy="58" r="9" fill="#e9b64e"/>
+  <text x="674" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#111a2e">6</text>
+  <circle cx="804" cy="58" r="9" fill="#e9b64e"/>
+  <text x="804" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#111a2e">7</text>
+
+  <!-- flow arrows (implemented) with labels above -->
+  <line x1="108" y1="86" x2="139" y2="86" stroke="#aab5c8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text class="lbl" x="125" y="38" text-anchor="middle">review task</text>
+  <line x1="238" y1="86" x2="269" y2="86" stroke="#aab5c8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text class="lbl" x="255" y="38" text-anchor="middle">approved</text>
+  <line x1="368" y1="86" x2="399" y2="86" stroke="#aab5c8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text class="lbl" x="385" y="38" text-anchor="middle">start</text>
+  <line x1="498" y1="86" x2="529" y2="86" stroke="#aab5c8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text class="lbl" x="515" y="38" text-anchor="middle">review task</text>
+  <line x1="628" y1="86" x2="659" y2="86" stroke="#aab5c8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text class="lbl" x="645" y="38" text-anchor="middle">approved</text>
+  <line x1="758" y1="86" x2="789" y2="86" stroke="#aab5c8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text class="lbl" x="775" y="38" text-anchor="middle">start</text>
+
+  <!-- review loops under each HIL box (designed) -->
+  <path d="M172,126 V152 H208 V130" fill="none" stroke="#7d889c" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#g)"/>
+  <text class="dl" x="190" y="168" text-anchor="middle">changes requested,</text>
+  <text class="dl" x="190" y="182" text-anchor="middle">revise, re-review</text>
+  <path d="M562,126 V152 H598 V130" fill="none" stroke="#7d889c" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#g)"/>
+  <text class="dl" x="580" y="168" text-anchor="middle">changes requested,</text>
+  <text class="dl" x="580" y="182" text-anchor="middle">revise, re-review</text>
+
+  <!-- notes + legend -->
+  <text class="note" x="12" y="214">Reject or expire at a review stops the job. Each decision is recorded with the job.</text>
+  <line x1="12" y1="227" x2="40" y2="227" stroke="#aab5c8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text class="note" x="46" y="231">implemented</text>
+  <line x1="130" y1="227" x2="158" y2="227" stroke="#7d889c" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#g)"/>
+  <text class="note" x="164" y="231">designed, not yet built</text>
+</svg>
