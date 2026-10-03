@@ -736,6 +736,31 @@ async def download_doc(job_id: str, doc_id: str):
 _grading: dict = {}   # job_id -> {"status": "running", "started": ts} while a grade runs
 
 
+def _restore_generator_model() -> None:
+    """One GPU cannot hold the generator and the grader together, so loading
+    the grader unloads the generator. Swap back right after grading -- unload
+    the grader, load the generator -- so the next Analyze does not wait for it."""
+    import urllib.request
+    factory = (_config.get("inference") or {}).get("llm_factory", {})
+    base = str(factory.get("base_url") or settings.OLLAMA_HOST).rstrip("/")
+    models = factory.get("models", {})
+    judge = (models.get("judge") or {}).get("model")
+    general = (models.get("general") or {}).get("model")
+    steps = [{"model": general, "keep_alive": os.getenv("OLLAMA_KEEP_ALIVE", "1h")}]
+    if judge and judge != general:
+        steps.insert(0, {"model": judge, "keep_alive": 0})
+    for body in steps:
+        if not body["model"]:
+            continue
+        try:
+            req = urllib.request.Request(base + "/api/generate", data=json.dumps(body).encode(),
+                                         headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=300).read()
+            log.info("[Grade] %s %s", "unloaded" if body["keep_alive"] == 0 else "reloaded", body["model"])
+        except Exception as exc:
+            log.warning("[Grade] model swap-back (%s) failed: %s", body["model"], exc)
+
+
 def _grade_job(job_id: str) -> None:
     from k9_dow.gates.hil_gateway import save_stage_result
     from k9_dow.quality.icd_grader import grade
@@ -752,6 +777,8 @@ def _grade_job(job_id: str) -> None:
     except Exception as exc:
         log.warning("[Grade] job=%s failed: %s", job_id, exc)
         _grading[job_id] = {"status": "error", "detail": str(exc)[:300]}
+    finally:
+        _restore_generator_model()
 
 
 @app.get("/jobs/{job_id}/grade")
