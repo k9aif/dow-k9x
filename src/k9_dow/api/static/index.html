@@ -925,7 +925,7 @@ async function renderInputDocs() {
     }
   }
   const countEl = document.getElementById('inputs-count');
-  if (countEl) countEl.textContent = state.inputDocs.length;
+  if (countEl) countEl.textContent = state.inputDocs.length + ((state.attackDocs || []).length ? ' + ' + state.attackDocs.length : '');
 
   let html = `<div style="display:flex;align-items:center;gap:10px;margin:16px 0">
     <button disabled title="Uploading new source documents is disabled in this shared demo" style="opacity:0.4;cursor:not-allowed">Browse...</button>
@@ -947,7 +947,7 @@ async function renderInputDocs() {
   if (atk.length) {
     html += `<div style="border-top:2px solid var(--red);margin:22px 0 10px"></div>
       <div class="doc-section" style="color:var(--red)">Red-team Documents</div>
-      <div style="font-size:11px;color:var(--text2);margin:-2px 0 8px">Synthetic capability documents carrying an attack. Run one from the Red-team Documents dropdown to see whether k9x_Shield stops it.</div>`;
+      <div style="font-size:11px;color:var(--text2);margin:-2px 0 8px">Synthetic capability documents carrying an attack, each with its expected result. Run one from <b>Red-Team Test (optional)</b> in the left panel to see whether k9x_Shield stops it.</div>`;
     for (const doc of atk) {
       const sizeKb = (doc.size / 1024).toFixed(1);
       html += `<div class="doc-item">
@@ -1635,10 +1635,11 @@ function enterApp(u, auth) {
 
   // Prefetch just for the tab badge count -- doesn't touch feedArea, so it's
   // safe to run before the user ever opens the Input Docs tab.
-  fetch('/demos').then(r => r.json()).then(data => {
+  Promise.all([fetch('/demos').then(r => r.json()), fetch('/demos?set=attacks').then(r => r.json())]).then(([data, atk]) => {
     state.inputDocs = data.demos || [];
+    state.attackDocs = atk.demos || [];
     const countEl = document.getElementById('inputs-count');
-    if (countEl) countEl.textContent = state.inputDocs.length;
+    if (countEl) countEl.textContent = state.inputDocs.length + ((state.attackDocs || []).length ? ' + ' + state.attackDocs.length : '');
   }).catch(() => {});
 }
 
