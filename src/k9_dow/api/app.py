@@ -731,6 +731,31 @@ async def download_doc(job_id: str, doc_id: str):
     raise HTTPException(status_code=404, detail="Document not found")
 
 
+@app.get("/jobs/{job_id}/docx/{doc_id}")
+async def download_docx(job_id: str, doc_id: str):
+    """Word version of the ICD (doc_id=icd) or the Milestone review package
+    (doc_id=milestone), from the same markdown as the View pages."""
+    from fastapi.responses import Response
+    from k9_dow.reporting.docx.md_document import markdown_to_docx
+    if doc_id == "milestone":
+        md = _compose_milestone_package(job_id)
+        if md is None:
+            raise HTTPException(status_code=404, detail="Acquisition has not run for this job")
+    elif doc_id == "icd":
+        data = _get_job(job_id)
+        if not data:
+            raise HTTPException(status_code=404, detail="Job not found")
+        md = _compose_icd(data)
+    else:
+        raise HTTPException(status_code=404, detail="Document not found")
+    loop = asyncio.get_event_loop()
+    body = await loop.run_in_executor(None, markdown_to_docx, md)
+    name = f"{job_id}_{'Milestone_Package' if doc_id == 'milestone' else 'ICD'}.docx"
+    return Response(content=body,
+                    media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store"})
+
+
 @app.get("/jobs/{job_id}/view/{doc_id}")
 async def view_doc(job_id: str, doc_id: str):
     from fastapi.responses import HTMLResponse

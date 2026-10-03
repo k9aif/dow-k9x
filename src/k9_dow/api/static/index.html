@@ -837,7 +837,8 @@ function renderDocs() {
         <span class="doc-name">${doc.agent}</span>
         <span class="doc-size">${sizeKb} KB</span>
         <a class="doc-dl" href="/jobs/${run.jobId}/view/${doc.id}" target="_blank" style="background:var(--accent)">View</a>
-        <a class="doc-dl" href="/jobs/${run.jobId}/docs/${doc.id}" download="${doc.filename}">Download</a>
+        <a class="doc-dl" href="/jobs/${run.jobId}/docs/${doc.id}" download="${doc.filename}">Download .md</a>
+        ${doc.id === 'icd' ? `<a class="doc-dl" href="/jobs/${run.jobId}/docx/icd" style="background:#2b579a">Download .docx</a>` : ''}
       </div>`;
     }
   }
@@ -856,6 +857,7 @@ async function renderInputDocs() {
       const resp = await fetch('/demos');
       const data = await resp.json();
       state.inputDocs = data.demos || [];
+      state.attackDocs = (await (await fetch('/demos?set=attacks')).json()).demos || [];
     } catch (err) {
       area.innerHTML = '<div style="color:var(--text2);padding:20px">Unable to load input documents.</div>';
       return;
@@ -878,6 +880,22 @@ async function renderInputDocs() {
       <a class="doc-dl" href="/demos/${encodeURIComponent(doc.filename)}/view" target="_blank" style="background:var(--accent)">View</a>
       <a class="doc-dl" href="/demos/${encodeURIComponent(doc.filename)}/download" download="${doc.filename}">Download</a>
     </div>`;
+  }
+  // Red-team documents: a separate section after a red rule
+  const atk = state.attackDocs || [];
+  if (atk.length) {
+    html += `<div style="border-top:2px solid var(--red);margin:22px 0 10px"></div>
+      <div class="doc-section" style="color:var(--red)">Red-team Documents</div>
+      <div style="font-size:11px;color:var(--text2);margin:-2px 0 8px">Synthetic capability documents carrying an attack. Run one from the Red-team Documents dropdown to see whether k9x_Shield stops it.</div>`;
+    for (const doc of atk) {
+      const sizeKb = (doc.size / 1024).toFixed(1);
+      html += `<div class="doc-item">
+        <span class="doc-name">${esc(doc.name)}<span style="display:block;font-size:10px;color:var(--text2)">Expected: ${esc(doc.expected || '?')}</span></span>
+        <span class="doc-size">${sizeKb} KB</span>
+        <a class="doc-dl" href="/demos/${encodeURIComponent(doc.filename)}/view" target="_blank" style="background:var(--accent)">View</a>
+        <a class="doc-dl" href="/demos/${encodeURIComponent(doc.filename)}/download" download="${doc.filename}">Download</a>
+      </div>`;
+    }
   }
   area.innerHTML = html;
 }
@@ -974,8 +992,10 @@ async function renderJobsHistory(quiet) {
         <span style="color:var(--accent);font-family:var(--mono)">${esc(j.job_id)}</span>
         <span style="color:var(--text)">${esc(j.document_title || j.filename || '')}</span>
         <a href="/jobs/${encodeURIComponent(j.job_id)}/view/icd" target="_blank" rel="noopener" style="margin-left:auto;color:var(--accent)">View ICD</a>
+        <a href="/jobs/${encodeURIComponent(j.job_id)}/docx/icd" style="color:var(--accent)">.docx</a>
         ${(j.steps || []).some(st => st.step === 'acquisition' && st.state === 'done')
-          ? `<a href="/jobs/${encodeURIComponent(j.job_id)}/view/milestone" target="_blank" rel="noopener" style="color:var(--accent)">View Milestone package</a>` : ''}
+          ? `<a href="/jobs/${encodeURIComponent(j.job_id)}/view/milestone" target="_blank" rel="noopener" style="color:var(--accent)">View Milestone package</a>
+             <a href="/jobs/${encodeURIComponent(j.job_id)}/docx/milestone" style="color:var(--accent)">.docx</a>` : ''}
       </div>
       <div style="margin-top:6px">${(j.steps || []).map(st => jobStepChip(st, data.hil_url)).join('<span style="color:var(--text2)">→ </span>')}</div>
       ${j.next_action ? nextActionHtml(j) : ''}
