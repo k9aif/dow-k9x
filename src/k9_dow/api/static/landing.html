@@ -12,6 +12,7 @@
     --mono: ui-monospace, Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--text);
          font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
@@ -56,6 +57,8 @@
   .built-on h2 { color: var(--amber); }
   .built-on p { color: var(--muted); margin: 10px 0 0; max-width: 900px; }
   .built-on b { color: var(--text); }
+  .built-on .keyline { color: var(--text); font-size: 15.5px; border-left: 3px solid var(--amber); padding-left: 12px; }
+  .built-on .keyline b { color: var(--amber); }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
   .chip { font: 600 12px var(--mono); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; color: var(--text); text-decoration: none; }
   .chip:hover { border-color: var(--amber); color: var(--amber); }
@@ -99,12 +102,12 @@
     <span class="poc">PROOF OF CONCEPT</span>
     <nav>
       <a href="#steps">What you'll see</a>
-      <a href="#current">Staying current</a>
       <a href="#flow">Flow</a>
       <a href="#architecture">Architecture</a>
       <a href="#knowledge">Knowledge</a>
-      <a href="#limits">Scope</a>
       <a href="#k9aif">K9-AIF</a>
+      <a href="#current">Staying current</a>
+      <a href="#limits">Scope</a>
       <a href="/app?start=admin">Admin</a>
     </nav>
   </div>
@@ -120,7 +123,7 @@
       JCIDS requirements, a JROC review, Acquisition milestone readiness, a Milestone review, then
       Systems Engineering. Agent squads do the analysis and assemble the packages; every gate is a
       human decision made in <b>K9X HIL</b>, and the program moves on only when a person approves it.
-      Built on the open-source <b>K9-AIF</b> framework.
+      Built on the open-source <b>K9-AIF</b> framework (<a href="#k9aif">read more about the framework ↓</a>).
     </p>
     <p class="readfirst">New here? Read this page first: it explains, at a high level, what the demo shows, how a job flows, and the framework it is built on. Then start the demo.</p>
     <div class="cta">
@@ -154,21 +157,6 @@
       <div class="card"><h3><span class="num">7</span>Systems Engineering<span class="tag das">DAS</span></h3>
         <p>SE is reached and the job completes. In this deployment SE is a demonstration endpoint: it records the next technical review (SRR); the SE review squads are not implemented yet.</p></div>
     </div>
-  </section>
-
-  <section id="current">
-    <div class="eyebrow">Why it stays secure</div>
-    <h2>The framework keeps itself current: K9X Sentinel</h2>
-    <p class="sub">New attacks on AI agents are published every week. K9-AIF does not wait for an incident: K9X Sentinel watches for them every day and turns the ones that matter into framework checks, which every solution built on K9-AIF, including DAS, inherits on upgrade.</p>
-    <div class="loop">
-      <div class="step"><i>1 · WATCH</i><b>Read new research daily</b><span>Threat reports and advisories (e.g. Zscaler ThreatLabz, OWASP GenAI / LLM Top 10, MITRE ATLAS, CISA KEV) plus a dependency audit against the OSV vulnerability database.</span></div>
-      <div class="step"><i>2 · COMPARE</i><b>Check against the framework</b><span>Each new attack is assessed against K9-AIF's security capability catalog (mapped to the OWASP LLM and Agentic Top 10): covered, partially covered, or a gap.</span></div>
-      <div class="step"><i>3 · DECIDE</i><b>A person reviews every gap</b><span>Gaps go to K9X HIL as review tasks, the same human-in-the-loop system that runs the gates in this demo. Nothing changes without a decision.</span></div>
-      <div class="step"><i>4 · STRENGTHEN</i><b>New checks ship in the framework</b><span>Approved gaps become new or stronger checks in a framework release, each one recorded in the capability catalog.</span></div>
-      <div class="step"><i>5 · INHERIT</i><b>Every solution is protected</b><span>Solutions extend the framework's building blocks, so they pick up the new checks on upgrade, without rewriting their own agents.</span></div>
-    </div>
-    <p class="proof"><b>Try it in the demo:</b> the <span style="color:#fca5a5">Red-team Documents</span> dropdown runs capability documents that carry an attack (hidden instructions, credential exfiltration, governance bypass, personal data, a paraphrased injection). Each states its expected outcome, and the result shows exactly which check stopped it, or that it got through to the human reviewer.</p>
-    <p class="proof">In practice: <b>K9-AIF 1.14</b> closed gaps identified from the ThreatLabz 2026 report (signed agent identity, screening of tool results for injected instructions, a check for deceptive outbound links); <b>1.14.1</b> raised dependency floors after Sentinel's vulnerability audit. See <a href="https://sentinel.k9x.ai" target="_blank" rel="noopener">sentinel.k9x.ai</a> (read-only demo login; open gaps are redacted).</p>
   </section>
 
   <section id="flow">
@@ -219,6 +207,36 @@
     <p class="caption">Status in this hosted demonstration: the corpus and the pgvector table are configured but <b>not yet loaded</b>, so ICDs currently reflect the submitted document alone.</p>
   </section>
 
+  <section id="k9aif">
+    <div class="built-on">
+      <h2>Built on the K9-AIF framework</h2>
+      <p><b>K9-AIF (Agentic Integration Framework)</b> is an architecture-first framework for building governed, secure, and enterprise-scale AI applications. Built on OOA/OOD principles and TOGAF-aligned, it brings consistency, governance, and auditability to agentic systems from day one. Every Router, Orchestrator, Squad and Agent in DAS extends a K9-AIF Architecture Building Block, so governance, human review and auditability are inherited, not hand-built per application.</p>
+      <p class="keyline"><b>The framework keeps itself up to date with the latest security checks.</b> AI is now used to attack applications that are themselves built with AI: instructions hidden in documents, agents impersonating other agents, poisoned tool results. K9-AIF tracks these attacks as they are published and adds the checks to the framework, so a solution built on it is protected against them without rewriting its own agents. <a href="#current">How this works ↓</a></p>
+      <p>The <b>K9X ecosystem</b> brings the framework to life with core components, including <b>K9X HIL</b> (human-in-the-loop decisions, the review gates in this demo), <b>K9X Sentinel</b> (a daily watch of newly published AI attacks, checked against the framework's security capabilities) and <b>K9X Satan</b> (an adversarial harness that fires attacks at a pipeline to prove its defences hold).</p>
+      <div class="chips">
+        <a class="chip" href="https://k9x.ai" target="_blank" rel="noopener">k9x.ai ↗</a>
+        <a class="chip" href="https://hil.k9x.ai" target="_blank" rel="noopener">K9X HIL ↗</a>
+        <a class="chip" href="https://sentinel.k9x.ai" target="_blank" rel="noopener">K9X Sentinel ↗</a>
+        <a class="chip" href="https://satan.k9x.ai" target="_blank" rel="noopener">K9X Satan ↗</a>
+        <a class="chip" href="https://github.com/k9aif/k9-aif-framework" target="_blank" rel="noopener">Framework source ↗</a>
+      </div>
+    </div>
+  </section>
+  <section id="current">
+    <div class="eyebrow">How it stays up to date</div>
+    <h2>The framework keeps itself current: K9X Sentinel</h2>
+    <p class="sub">New attacks on AI agents are published every week. Rather than waiting for an incident, K9X Sentinel watches for them every day and turns the ones that matter into framework checks, which every solution built on K9-AIF, including DAS, inherits on upgrade.</p>
+    <div class="loop">
+      <div class="step"><i>1 · WATCH</i><b>Read new research daily</b><span>Threat reports and advisories (e.g. Zscaler ThreatLabz, OWASP GenAI / LLM Top 10, MITRE ATLAS, CISA KEV) plus a dependency audit against the OSV vulnerability database.</span></div>
+      <div class="step"><i>2 · COMPARE</i><b>Check against the framework</b><span>Each new attack is assessed against K9-AIF's security capability catalog (mapped to the OWASP LLM and Agentic Top 10): covered, partially covered, or a gap.</span></div>
+      <div class="step"><i>3 · DECIDE</i><b>A person reviews every gap</b><span>Gaps go to K9X HIL as review tasks, the same human-in-the-loop system that runs the gates in this demo. Nothing changes without a decision.</span></div>
+      <div class="step"><i>4 · STRENGTHEN</i><b>New checks ship in the framework</b><span>Approved gaps become new or stronger checks in a framework release, each one recorded in the capability catalog.</span></div>
+      <div class="step"><i>5 · INHERIT</i><b>Every solution is protected</b><span>Solutions extend the framework's building blocks, so they pick up the new checks on upgrade, without rewriting their own agents.</span></div>
+    </div>
+    <p class="proof"><b>Try it in the demo:</b> the <span style="color:#fca5a5">Red-team Documents</span> dropdown runs capability documents that carry an attack (hidden instructions, credential exfiltration, governance bypass, personal data, a paraphrased injection). Each states its expected outcome, and the result shows exactly which check stopped it, or that it got through to the human reviewer.</p>
+    <p class="proof">In practice: <b>K9-AIF 1.14</b> closed gaps identified from the ThreatLabz 2026 report (signed agent identity, screening of tool results for injected instructions, a check for deceptive outbound links); <b>1.14.1</b> raised dependency floors after Sentinel's vulnerability audit. See <a href="https://sentinel.k9x.ai" target="_blank" rel="noopener">sentinel.k9x.ai</a> (read-only demo login; open gaps are redacted).</p>
+  </section>
+
   <section id="limits">
     <div class="limits">
       <h2 style="margin-bottom:4px">Scope of this demonstration</h2>
@@ -229,20 +247,6 @@
         <li>The review loop (request changes, revise the document, re-review) is <b>designed, not built</b>.</li>
         <li>This is a public demonstration: the logins above are shared, and runs are visible to the operator.</li>
       </ul>
-    </div>
-  </section>
-  <section id="k9aif">
-    <div class="built-on">
-      <h2>Built on the K9-AIF framework</h2>
-      <p><b>K9-AIF (Agentic Integration Framework)</b> is an architecture-first framework for building governed, secure, and enterprise-scale AI applications. Built on OOA/OOD principles and TOGAF-aligned, it brings consistency, governance, and auditability to agentic systems from day one. Every Router, Orchestrator, Squad and Agent in DAS extends a K9-AIF Architecture Building Block, so governance, human review and auditability are inherited, not hand-built per application.</p>
-      <p>The <b>K9X ecosystem</b> brings the framework to life with core components, including <b>K9X HIL</b> (human-in-the-loop decisions, the review gates in this demo), <b>K9X Sentinel</b> (a daily watch of newly published AI attacks, checked against the framework's security capabilities) and <b>K9X Satan</b> (an adversarial harness that fires attacks at a pipeline to prove its defences hold). New checks are added to the framework as new attack classes appear, and every solution built on K9-AIF inherits them on upgrade, so attacks are caught at the edge of the pipeline, before they reach a model or a decision.</p>
-      <div class="chips">
-        <a class="chip" href="https://k9x.ai" target="_blank" rel="noopener">k9x.ai ↗</a>
-        <a class="chip" href="https://hil.k9x.ai" target="_blank" rel="noopener">K9X HIL ↗</a>
-        <a class="chip" href="https://sentinel.k9x.ai" target="_blank" rel="noopener">K9X Sentinel ↗</a>
-        <a class="chip" href="https://satan.k9x.ai" target="_blank" rel="noopener">K9X Satan ↗</a>
-        <a class="chip" href="https://github.com/k9aif/k9-aif-framework" target="_blank" rel="noopener">Framework source ↗</a>
-      </div>
     </div>
   </section>
 </main>
