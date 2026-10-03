@@ -43,3 +43,10 @@ def test_grade_combines_scores(monkeypatch):
     monkeypatch.setattr(g, "faithfulness", lambda s, i, c: {"score": 0.5, "judged": 2, "supported": 1})
     r = g.grade(SOURCE, ICD, {"inference": {"llm_factory": {"models": {"judge": {"model": "deepseek-r1:32b"}}}}})
     assert r["scored_by"] == "deepseek-r1:32b" and r["overall"] is not None
+
+
+def test_consistency_report_quotes_are_not_source_citations():
+    icd = ICD.replace("## 2. Gate Readiness", '### 1.3 Cross-View Consistency Report\n'
+                      'Rename to "CAP-001: Survivable Transport Capability" as proposed\n## 2. Gate Readiness')
+    r = g.citation_accuracy(SOURCE, icd)
+    assert r["checked"] == 3 and "CAP-001: Survivable Transport Capability" not in r["not_found"]

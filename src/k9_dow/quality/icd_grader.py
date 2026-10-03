@@ -44,26 +44,40 @@ def _norm(t: str) -> str:
 
 
 def _source_cited_part(icd: str) -> str:
-    """Only the architecture views cite the source verbatim; later sections
-    (gate readiness, package) quote the pipeline's own reports."""
-    m = re.search(r"^##\s*2\.\s*Gate Readiness", icd, flags=re.M | re.I)
+    """Only the architecture views cite the source verbatim. The cross-view
+    consistency report quotes the generated views and proposes new names, and
+    later sections (gate readiness, package) quote the pipeline's own reports."""
+    m = re.search(r"^#{2,3}\s*(?:1\.3\s*Cross-View Consistency|2\.\s*Gate Readiness)", icd, flags=re.M | re.I)
     return icd[:m.start()] if m else icd
 
 
 def citation_accuracy(source: str, icd: str) -> Dict[str, Any]:
     src = _norm(source)
+    cited = _source_cited_part(icd)
     quotes = []
     # A real quotation opens after start/space/bracket and closes before
     # space/punctuation, so the gap between two short quoted names is not
     # mistaken for one quotation.
     pattern = r'(?:(?<=^)|(?<=[\s(\[|:]))"([^"\n]{20,600})"(?=[\s.,;:)\]|]|$)'
-    for q in re.findall(pattern, _source_cited_part(icd).replace("“", '"').replace("”", '"'), flags=re.M):
-        parts = [p.strip(" .") for p in re.split(r"\.\.\.|…", q) if len(p.strip(" .")) >= 12]
-        if parts:
-            quotes.append((q, all(_norm(p) in src for p in parts)))
+    # A quote that is not in the source but appears unquoted elsewhere in the
+    # ICD quotes the pipeline's own views (e.g. the consistency checker citing
+    # OV-1), not the input document: counted and reported, not scored.
+    own_text = _norm(re.sub(r'"[^"\n]*"', " ", cited.replace("“", '"').replace("”", '"')))
+    internal = []
+    for q in re.findall(pattern, cited.replace("“", '"').replace("”", '"'), flags=re.M):
+        parts = [p.strip(" .,;:") for p in re.split(r"\.\.\.|…", q) if len(p.strip(" .,;:")) >= 12]
+        if not parts:
+            continue
+        if all(_norm(p) in src for p in parts):
+            quotes.append((q, True))
+        elif all(_norm(p) in own_text for p in parts):
+            internal.append(q)
+        else:
+            quotes.append((q, False))
     found = sum(1 for _, ok in quotes if ok)
     return {"score": round(found / len(quotes), 3) if quotes else None, "checked": len(quotes),
-            "found": found, "not_found": [q[:160] for q, ok in quotes if not ok][:10]}
+            "found": found, "not_found": [q[:160] for q, ok in quotes if not ok][:10],
+            "internal": len(internal), "internal_examples": [q[:160] for q in internal][:5]}
 
 
 def completeness(icd: str) -> Dict[str, Any]:
