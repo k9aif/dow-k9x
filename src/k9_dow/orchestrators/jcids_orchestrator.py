@@ -103,10 +103,14 @@ class JcidsOrchestrator(BaseOrchestrator):
         # k9x_Shield at stage entry: the submitted document is checked before
         # any agent or model sees it (config.yaml security.shield; same profile
         # k9-aif >= 1.15 also applies inside every agent).
+        # security.document_screen (stricter: personal data blocks) if present,
+        # else the general security.shield profile.
         self._shield = None
-        if ((self.config.get("security") or {}).get("shield") or {}).get("enabled") is True:
+        sec = self.config.get("security") or {}
+        screen = sec.get("document_screen") or sec.get("shield") or {}
+        if screen.get("enabled") is True:
             from k9_aif_abb.k9_security.vulnerability.shield_governance import ShieldGovernance
-            self._shield = ShieldGovernance(self.config)
+            self._shield = ShieldGovernance({**self.config, "security": {**sec, "shield": screen}})
 
         self._governance = None
         if self.config.get("governance", {}).get("enabled"):

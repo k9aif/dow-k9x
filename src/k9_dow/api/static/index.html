@@ -192,10 +192,12 @@
       <select id="demoSelect" onchange="selectDemo()" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;margin-bottom:8px">
         <option value="">-- Select a demo document --</option>
       </select>
-      <label style="color:var(--red)">Red-team Documents</label>
+      <details id="redTeamBox" style="margin:2px 0 8px">
+      <summary style="cursor:pointer;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px">Red-team test (optional)</summary>
       <select id="attackSelect" onchange="selectAttack()" title="Synthetic documents carrying an attack: see how k9x_Shield holds up" style="width:100%;background:var(--bg);border:1px solid rgba(239,68,68,0.5);border-radius:4px;padding:6px 8px;color:var(--text);font-size:11px;margin-bottom:8px">
         <option value="">-- Select an attack document --</option>
       </select>
+      </details>
       <div id="demoInfo" style="font-size:10px;color:var(--text2);margin-bottom:8px;display:none"></div>
       <input type="file" id="fileInput" style="display:none">
       <label>Document Type</label>
@@ -640,6 +642,7 @@ function connectSSE() {
       if (state.redTeam) {
         if (evtType === 'ShieldBlocked') state.redTeamOutcome = {blocked: true, check: evt.check, reason: evt.reason};
         else if (evtType === 'SquadStarted' && !state.redTeamOutcome) state.redTeamOutcome = {passed: true};
+        else if (evtType === 'HilTaskPublished' && evt.gate_id !== 'PATHWAY-MILESTONE') state.redTeamOutcome = {passed: true, review: true};
       }
       // Human decision from K9X HIL, consumed by the DAS Router process
       if (evtType === 'GateDecision') {
@@ -842,7 +845,53 @@ function renderDocs() {
       </div>`;
     }
   }
+  const latest = state.allRuns.find(r => r.jobId !== 'JOB-20260628-DEMO01');
+  if (latest) html += `<div id="qualityBox" data-job="${esc(latest.jobId)}" style="margin-top:36px"></div>`;
   area.innerHTML = html;
+  if (latest) renderQuality(latest.jobId);
+}
+
+// ─── Quality check: generated ICD graded against its input document ───
+function pct(v) { return v === null || v === undefined ? '—' : Math.round(v * 100) + '%'; }
+async function renderQuality(jobId) {
+  const box = document.getElementById('qualityBox'); if (!box || box.dataset.job !== jobId) return;
+  let g = {};
+  try { g = await (await fetch('/jobs/' + encodeURIComponent(jobId) + '/grade', {cache: 'no-store'})).json(); } catch (_) {}
+  if (!document.getElementById('qualityBox')) return;
+  const input = g.input_document || (state.redTeam && state.redTeam.file) || '—';
+  const row = (k, v) => `<div style="display:flex;gap:12px;padding:3px 0"><span style="width:150px;flex:none;color:var(--text2)">${k}</span><span style="color:var(--text)">${v}</span></div>`;
+  let body = row('Input document', esc(input)) + row('Output document', esc(g.output_document || jobId + ' ICD'));
+  if (g.status === 'done') {
+    const f = g.faithfulness || {}, c = g.completeness || {}, ci = g.citation_accuracy || {};
+    body += row('Overall score', `<b style="font-size:15px">${pct(g.overall)}</b>`) +
+      row('Faithfulness', `${pct(f.score)} &nbsp;<span style="color:var(--text2)">${f.supported ?? '?'} of ${f.judged ?? '?'} model elements supported by the source</span>`) +
+      row('Completeness', `${pct(c.score)} &nbsp;<span style="color:var(--text2)">${(c.missing || []).length ? 'missing: ' + esc(c.missing.join(', ')) : 'all required sections present'}</span>`) +
+      row('Citation accuracy', `${pct(ci.score)} &nbsp;<span style="color:var(--text2)">${ci.found ?? 0} of ${ci.checked ?? 0} verbatim quotes found in the source</span>`) +
+      row('Scored by', esc(g.scored_by || '?') + ` <span style="color:var(--text2)">(${g.elapsed_s ?? '?'} s${g.graded_at ? ', ' + new Date(g.graded_at).toLocaleString() : ''})</span>`);
+    if ((f.flagged || []).length) body += `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--orange)">${f.flagged.length} element(s) not supported by the source</summary>` +
+      f.flagged.map(x => `<div style="margin:4px 0 0 14px;color:var(--text2)"><b>${esc(x.id)}</b> (${esc(x.verdict || '?')}): ${esc(x.text || '')}</div>`).join('') + '</details>';
+    body += `<div style="margin-top:8px;font-size:10.5px;color:var(--text2)">${esc(g.note || '')}</div>`;
+  } else {
+    body += row('Grading / score', g.status === 'running' ? '<span style="color:var(--accent)">grading… (loading the grader model can take a minute)</span>'
+                                   : g.status === 'error' ? '<span style="color:var(--red)">failed: ' + esc(g.detail || '') + '</span>' : 'not graded yet') +
+            row('Scored by', esc(g.scored_by || 'deepseek-r1:32b'));
+    if (g.status !== 'running') body += state.role === 'admin'
+      ? `<button onclick="startGrade('${esc(jobId)}', this)" style="margin-top:10px;background:var(--accent);color:#fff;border:0;border-radius:4px;padding:6px 14px;font-size:12px;cursor:pointer">Grade now</button>`
+      : `<div style="margin-top:8px;color:var(--text2);font-size:11px">The DAS admin can run the grader.</div>`;
+    if (g.status === 'running') setTimeout(() => renderQuality(jobId), 10000);
+  }
+  box.innerHTML = `<div style="border-top:1px solid var(--border);padding-top:16px">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Quality check</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:10px">The generated document is analysed against its input document and rated by an independent model (a different model family from the one that wrote it).</div>
+    <div style="font-size:12px">${body}</div></div>`;
+}
+async function startGrade(jobId, btn) {
+  btn.disabled = true; btn.textContent = 'Starting…';
+  try {
+    const r = await fetch('/jobs/' + encodeURIComponent(jobId) + '/grade', {method: 'POST', headers: {'Authorization': 'Bearer ' + (state.authToken || '')}});
+    if (!r.ok) { btn.disabled = false; btn.textContent = 'Retry (' + r.status + ')'; return; }
+  } catch (_) { btn.disabled = false; btn.textContent = 'Retry'; return; }
+  renderQuality(jobId);
 }
 
 // Source documents the pipeline actually reads from (src/k9_dow/api/static/demos/),
@@ -1371,7 +1420,7 @@ async function upload() {
   const atkSel = document.getElementById('attackSelect');
   const chosen = demoSel.value || (atkSel ? atkSel.value : '');
   const isDemo = chosen && !fi.files.length;
-  if (!(atkSel && atkSel.value && chosen === atkSel.value)) { state.redTeam = null; }
+  if (!chosen) { state.redTeam = null; }
   state.redTeamOutcome = null;
   const isFile = fi.files.length > 0;
   if (!isDemo && !isFile) { alert('Select a demo document or upload a file'); return; }
@@ -1712,7 +1761,7 @@ function selectAttack() {
   document.getElementById('fileInput').value = '';
   if (!a.value) { state.redTeam = null; info.style.display = 'none'; if (state.activeTab === 'live') renderLive(); return; }
   const opt = a.options[a.selectedIndex];
-  state.redTeam = {file: a.value, name: opt.text, expected: opt.dataset.expected || ''};
+  state.redTeam = {file: a.value, name: opt.text, expected: opt.dataset.expected || '', red: true};
   state.redTeamOutcome = null;
   info.style.display = 'block';
   info.innerHTML = '<span style="color:var(--red)">Red-team:</span> ' + esc(opt.text) +
@@ -1748,10 +1797,12 @@ function redTeamFlowHtml() {
   const status = out
     ? (out.blocked
         ? `<span style="color:var(--red);font-weight:700">✋ Blocked by k9x_Shield (${esc(out.check || '')})</span> — no agent ran, no model was called, nothing reached HIL.<div style="margin-top:4px;font-size:10.5px">${esc(out.reason || '')}</div>`
-        : `<span style="color:var(--orange);font-weight:700">Passed the checks</span> — it continues to the agents and reaches the JROC reviewer, the human safeguard.`)
-    : `<b>Not run yet.</b> Click <b>Analyze</b> to send it through the pipeline. Expected result: ${esc(rt.expected)}.`;
+        : out.review
+          ? `<span style="color:var(--orange);font-weight:700">Sent to the JROC reviewer</span> — the ICD is waiting for a human decision in K9X HIL.`
+          : `<span style="color:var(--green);font-weight:700">Passed the checks</span> — the agents are working; the ICD then goes to the JROC reviewer.`)
+    : `<b>Not run yet.</b> Click <b>Analyze</b> to send it through the pipeline.${rt.expected ? ' Expected result: ' + esc(rt.expected) + '.' : ''}`;
   return `<div style="padding:16px 20px;border-bottom:1px solid var(--border)">
-    <div style="font-size:11px;letter-spacing:.08em;color:var(--red);font-weight:700;margin-bottom:8px">RED-TEAM RUN</div>
+    <div style="font-size:11px;letter-spacing:.08em;color:${rt.red ? 'var(--red)' : 'var(--accent)'};font-weight:700;margin-bottom:8px">${rt.red ? 'RED-TEAM RUN' : 'PIPELINE RUN'}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${steps.map((st, i) => box(i, st)).join(arrow)}</div>
     <div style="margin-top:10px;color:var(--text2);font-size:12px">${status}</div></div>`;
 }
@@ -1760,6 +1811,10 @@ function selectDemo() {
   const sel = document.getElementById('demoSelect');
   const atk = document.getElementById('attackSelect'); if (atk) atk.value = '';
   state.redTeam = null; state.redTeamOutcome = null;
+  if (sel.value) {
+    state.redTeam = {file: sel.value, name: sel.options[sel.selectedIndex].text, expected: '', red: false};
+    setTimeout(() => switchTab('live'), 0);
+  }
   const info = document.getElementById('demoInfo');
   const fi = document.getElementById('fileInput');
   if (sel.value) {

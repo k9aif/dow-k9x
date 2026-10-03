@@ -89,6 +89,8 @@ spec:
       value: "http://<PODMAN_HOST_IP>:11434"
     - name: OLLAMA_MODEL
       value: "<OLLAMA_MODEL>"
+    - name: GRADER_MODEL
+      value: "<GRADER_MODEL>"
     - name: DAS_RESUME_MODE
       value: "<DAS_RESUME_MODE>"
     - name: DAS_ADMIN_USER

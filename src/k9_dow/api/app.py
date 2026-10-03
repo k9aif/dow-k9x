@@ -731,6 +731,54 @@ async def download_doc(job_id: str, doc_id: str):
     raise HTTPException(status_code=404, detail="Document not found")
 
 
+# ── Quality check: grade the generated ICD against its input document ──
+
+_grading: dict = {}   # job_id -> {"status": "running", "started": ts} while a grade runs
+
+
+def _grade_job(job_id: str) -> None:
+    from k9_dow.gates.hil_gateway import save_stage_result
+    from k9_dow.quality.icd_grader import grade
+    try:
+        data = _get_job(job_id) or {}
+        jcids = data.get("result") or {}
+        filename = jcids.get("filename") or data.get("filename") or ""
+        source = _resolve_demo_path(filename).read_text(encoding="utf-8")
+        result = grade(source, _compose_icd(data), _config,
+                       input_name=filename, output_name=f"{job_id} ICD")
+        result["graded_at"] = datetime.now(timezone.utc).isoformat()
+        save_stage_result(_config, job_id, "quality-jcids", result)
+        _grading.pop(job_id, None)
+    except Exception as exc:
+        log.warning("[Grade] job=%s failed: %s", job_id, exc)
+        _grading[job_id] = {"status": "error", "detail": str(exc)[:300]}
+
+
+@app.get("/jobs/{job_id}/grade")
+async def get_grade(job_id: str):
+    from k9_dow.gates.hil_gateway import load_stage_result
+    if job_id in _grading:
+        return _grading[job_id]
+    loop = asyncio.get_event_loop()
+    stored = await loop.run_in_executor(None, load_stage_result, _config, job_id, "quality-jcids")
+    if stored:
+        return {"status": "done", **stored}
+    model = ((_config.get("inference") or {}).get("llm_factory", {}).get("models", {}).get("judge", {}).get("model"))
+    return {"status": "not_graded", "scored_by": model}
+
+
+@app.post("/jobs/{job_id}/grade")
+async def start_grade(job_id: str, admin: dict = Depends(require_admin)):
+    """DAS admin starts grading (it loads a second large model on the GPU)."""
+    if _grading.get(job_id, {}).get("status") == "running":
+        return _grading[job_id]
+    if not _get_job(job_id):
+        raise HTTPException(status_code=404, detail="Job not found")
+    _grading[job_id] = {"status": "running", "started": datetime.now(timezone.utc).isoformat()}
+    asyncio.get_event_loop().run_in_executor(None, _grade_job, job_id)
+    return _grading[job_id]
+
+
 @app.get("/jobs/{job_id}/docx/{doc_id}")
 async def download_docx(job_id: str, doc_id: str):
     """Word version of the ICD (doc_id=icd) or the Milestone review package

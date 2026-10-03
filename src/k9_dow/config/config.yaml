@@ -36,6 +36,13 @@ inference:
         temperature: 0.2
         max_tokens: 8192
         num_ctx: 16384
+      # Independent grader for generated documents (a different model family
+      # from the generator, so a model does not grade its own work).
+      judge:
+        model: "${GRADER_MODEL:-deepseek-r1:32b}"
+        temperature: 0.0
+        max_tokens: 6144
+        num_ctx: 32768
       guardian:
         model: "${DAS_GUARDIAN_MODEL:-granite4.1-guardian:8b}"
         temperature: 0.0
@@ -67,6 +74,12 @@ inference:
         provider: ollama
         llm_ref: package_synthesis
         capabilities: [package_synthesis]
+        latency_tier: batch
+        cost_tier: standard
+      judge:
+        provider: ollama
+        llm_ref: judge
+        capabilities: [judge]
         latency_tier: batch
         cost_tier: standard
       guardian:
@@ -138,6 +151,24 @@ security:
     check_config:
       InputSizeCheck:
         max_chars: 250000
+  # Screen for the submitted document at JCIDS stage entry (stricter than the
+  # per-agent profile above): personal data such as an SSN BLOCKS here.
+  # Not used inside agents, whose inputs include generated text where the PII
+  # patterns (e.g. any 5-digit number as a ZIP code) would misfire. All four
+  # demo documents pass this screen (checked 2026-10-03).
+  document_screen:
+    enabled: true
+    strict: false
+    fail_open: false
+    ingress:
+      checks: [InputSizeCheck, PromptInjectionCheck, PIIBoundaryCheck]
+    egress:
+      checks: []
+    check_config:
+      InputSizeCheck:
+        max_chars: 250000
+      PIIBoundaryCheck:
+        block_on_match: true
 
 # Systems Engineering stage (reached after the PATHWAY-MILESTONE approval).
 # demo_stub: true = demonstration endpoint: SE is triggered and records the
