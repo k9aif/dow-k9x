@@ -869,8 +869,8 @@ async function renderQuality(jobId) {
   let body = row('Input document', esc(input)) + row('Output document', esc(g.output_document || jobId + ' ICD'));
   if (g.status === 'done') {
     const f = g.faithfulness || {}, c = g.completeness || {}, ci = g.citation_accuracy || {};
-    body += row('Overall score', `<b style="font-size:15px">${pct(g.overall)}</b>`) +
-      row('Faithfulness', `${pct(f.score)} &nbsp;<span style="color:var(--text2)">${f.supported ?? '?'} of ${f.judged ?? '?'} model elements supported by the source</span>`) +
+    body += row('Overall score', g.overall == null ? '<span style="color:var(--orange)">not available — faithfulness was not evaluated</span>' : `<b style="font-size:15px">${pct(g.overall)}</b>`) +
+      row('Faithfulness', f.score == null ? `<span style="color:var(--orange)">not evaluated</span> &nbsp;<span style="color:var(--text2)">${esc(f.note || '')}</span>` : `${pct(f.score)} &nbsp;<span style="color:var(--text2)">${f.supported ?? '?'} of ${f.judged ?? '?'} model elements supported by the source</span>`) +
       row('Completeness', `${pct(c.score)} &nbsp;<span style="color:var(--text2)">${(c.missing || []).length ? 'missing: ' + esc(c.missing.join(', ')) : 'all required sections present'}</span>`) +
       row('Citation accuracy', `${pct(ci.score)} &nbsp;<span style="color:var(--text2)">${ci.found ?? 0} of ${ci.checked ?? 0} verbatim quotes found in the source</span>`) +
       row('Scored by', esc(g.scored_by || '?') + ` <span style="color:var(--text2)">(${g.elapsed_s ?? '?'} s${g.graded_at ? ', ' + new Date(g.graded_at).toLocaleString() : ''})</span>`);

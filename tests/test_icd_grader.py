@@ -50,3 +50,15 @@ def test_consistency_report_quotes_are_not_source_citations():
                       'Rename to "CAP-001: Survivable Transport Capability" as proposed\n## 2. Gate Readiness')
     r = g.citation_accuracy(SOURCE, icd)
     assert r["checked"] == 3 and "CAP-001: Survivable Transport Capability" not in r["not_found"]
+
+
+def test_claims_accept_typed_element_lines():
+    icd = ("- type: CapabilityNeed, id: CN-001, title: Unified traceability\n"
+           "- type: Performance, id: REQ-002, shall_text: The system shall ...\n"
+           "- source: CN-001, target: REQ-002, type: SUPPORTED_BY\n")
+    assert [c["id"] for c in g._claims(icd)] == ["CN-001", "REQ-002"]
+
+
+def test_no_overall_score_without_the_judge(monkeypatch):
+    monkeypatch.setattr(g, "faithfulness", lambda s, i, c: {"score": None, "judged": 0, "note": "no model elements"})
+    assert g.grade(SOURCE, ICD, {})["overall"] is None

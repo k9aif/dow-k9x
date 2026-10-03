@@ -855,13 +855,15 @@ async def _quality_report_md(job_id: str) -> Optional[str]:
         "| | |", "|---|---|",
         f"| Input document | {g.get('input_document', '—')} |",
         f"| Output document | {job_id}-ICD |",
-        f"| Overall score | **{_pct(g.get('overall'))}** |",
+        f"| Overall score | **{_pct(g.get('overall'))}** |" if g.get("overall") is not None
+        else "| Overall score | not available: faithfulness was not evaluated |",
         f"| Scored by | {g.get('scored_by', '—')} |",
         f"| Graded at | {g.get('graded_at', '—')} ({g.get('elapsed_s', '?')} s) |", "",
         "## Scores", "",
         "| Check | Score | Detail |", "|---|---|---|",
-        f"| Faithfulness | {_pct(f.get('score'))} | {f.get('supported', '?')} of {f.get('judged', '?')} "
-        "model elements supported by the source (judged by the grader model) |",
+        (f"| Faithfulness | {_pct(f.get('score'))} | {f.get('supported', '?')} of {f.get('judged', '?')} "
+         "model elements supported by the source (judged by the grader model) |") if f.get("score") is not None
+        else f"| Faithfulness | not evaluated | {f.get('note', '')} |",
         f"| Completeness | {_pct(c.get('score'))} | "
         + (f"missing: {', '.join(c['missing'])}" if c.get("missing") else "all required sections present")
         + " (checked by code) |",

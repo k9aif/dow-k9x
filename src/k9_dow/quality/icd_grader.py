@@ -91,7 +91,8 @@ def _claims(icd: str) -> List[Dict[str, str]]:
     """The ICD's extracted model elements: one claim per CN/SR/TBI line."""
     out = []
     for line in icd.splitlines():
-        m = re.match(r"\s*[-*]\s*id:\s*((?:CN|SR|TBI|CAP)-\d+)\s*,\s*(.+)", line)
+        # "- id: CN-001, ..." or "- type: CapabilityNeed, id: CN-001, ..." (REQ-, SR-, TBI-, CAP-, ...)
+        m = re.match(r"\s*[-*]\s*(?:type:\s*[^,]+,\s*)?id:\s*([A-Z]{2,5}-\d+)\s*,\s*(.+)", line)
         if m:
             out.append({"id": m.group(1), "text": m.group(2).strip()[:400]})
     return out[:60]
@@ -142,7 +143,11 @@ def grade(source: str, icd: str, config: Dict[str, Any], input_name: str = "", o
     cit = citation_accuracy(source, icd)
     comp = completeness(icd)
     faith = faithfulness(source, icd, config)
+    # No overall score unless the model judge actually ran: averaging only the
+    # two code checks would present a partial grade as a full one.
     parts = [x["score"] for x in (faith, comp, cit) if x.get("score") is not None]
+    if faith.get("score") is None:
+        parts = []
     judge_model = ((config.get("inference") or {}).get("llm_factory", {}).get("models", {})
                    .get("judge", {}).get("model"))
     return {
