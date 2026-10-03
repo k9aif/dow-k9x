@@ -379,12 +379,18 @@ function renderJobPanel() {
     }
   });
 
+  const started = state.events.some(e => (e.type || e.event_type) === 'OrchestratorStarted');
+  const loadingNote = state.jobInProgress && state.modelLoading
+    ? `<div style="margin-bottom:10px;padding:8px 10px;border-radius:6px;border:1px solid var(--orange);background:rgba(245,158,11,0.08);color:var(--text)">` +
+      `<span class="k9-spinner"></span><b style="color:var(--orange)">Loading ${esc(state.modelLoading)} onto the GPU…</b>` +
+      `<div style="color:var(--text2);margin-top:4px">The model is unloaded after a quiet spell; loading it takes about a minute. The agents start as soon as it is ready.</div></div>`
+    : '';
   if (squads.length === 0) {
-    progressEl.innerHTML = state.jobInProgress
-      ? '<div style="color:var(--text2)">Job submitted — waiting for pipeline to start...</div>'
-      : 'No job running. Select a document and click Analyze.';
+    progressEl.innerHTML = loadingNote + (state.jobInProgress
+      ? '<div style="color:var(--text2)">' + (started ? 'Pipeline started — first agent is running...' : 'Job queued — waiting for the pipeline to start...') + '</div>'
+      : 'No job running. Select a document and click Analyze.');
   } else {
-    progressEl.innerHTML = squads.map(s => {
+    progressEl.innerHTML = loadingNote + squads.map(s => {
       const done = s.status === 'done';
       const boxColor = done ? 'var(--green)' : 'var(--accent)';
       const agentsHtml = s.agents.map(a =>
@@ -1485,6 +1491,7 @@ async function upload() {
     }
 
     document.getElementById('jobStatus').innerHTML = '<span class="job-badge submitted">' + data.job_id + ' SUBMITTED</span>';
+    watchModelLoad();
     setJobResultText(JSON.stringify(data, null, 2) + '\n\nWaiting for pipeline results via SSE...');
     document.getElementById('squadList').innerHTML = '<div style="color:var(--text2)">Waiting for pipeline...</div>';
     switchTab('live');
@@ -1492,6 +1499,25 @@ async function upload() {
     setJobResultText('Error: ' + err.message);
     setJobInProgress(false);
   }
+}
+
+// If the agents' model is not on the GPU, the backend starts loading it and
+// the Job Progress panel says so until it is resident (checked every 4 s).
+async function watchModelLoad() {
+  state.modelLoading = null;
+  let w = {};
+  try { w = await (await fetch('/llm/warm', {method: 'POST'})).json(); } catch (_) { return; }
+  if (w.loaded !== false) return;
+  state.modelLoading = w.model || 'the model';
+  renderJobPanel(); if (state.activeTab === 'live') renderLive();
+  const tick = async () => {
+    if (!state.jobInProgress) { state.modelLoading = null; return; }
+    let st = {};
+    try { st = await (await fetch('/llm/status', {cache: 'no-store'})).json(); } catch (_) {}
+    if (st.loaded === false) { setTimeout(tick, 4000); return; }
+    state.modelLoading = null; renderJobPanel(); if (state.activeTab === 'live') renderLive();
+  };
+  setTimeout(tick, 4000);
 }
 
 // ─── Login ────────────────────────────────────────────
@@ -1806,7 +1832,11 @@ function redTeamFlowHtml() {
         : out.review
           ? `<span style="color:var(--orange);font-weight:700">Sent to the JROC reviewer</span> — the ICD is waiting for a human decision in K9X HIL.`
           : `<span style="color:var(--green);font-weight:700">Passed the checks</span> — the agents are working; the ICD then goes to the JROC reviewer.`)
-    : `<b>Not run yet.</b> Click <b>Analyze</b> to send it through the pipeline.${rt.expected ? ' Expected result: ' + esc(rt.expected) + '.' : ''}`;
+    : state.jobInProgress
+      ? (state.modelLoading
+          ? `<span class="k9-spinner"></span><b style="color:var(--orange)">Please wait — loading ${esc(state.modelLoading)} onto the GPU…</b> about a minute after a quiet spell; the agents start as soon as it is ready.`
+          : `<span class="k9-spinner"></span><b>Please wait — starting the pipeline…</b>`)
+      : `<b>Not run yet.</b> Click <b>Analyze</b> to send it through the pipeline.${rt.expected ? ' Expected result: ' + esc(rt.expected) + '.' : ''}`;
   return `<div style="padding:16px 20px;border-bottom:1px solid var(--border)">
     <div style="font-size:11px;letter-spacing:.08em;color:${rt.red ? 'var(--red)' : 'var(--accent)'};font-weight:700;margin-bottom:8px">${rt.red ? 'RED-TEAM RUN' : 'PIPELINE RUN'}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${steps.map((st, i) => box(i, st)).join(arrow)}</div>

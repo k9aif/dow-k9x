@@ -415,6 +415,51 @@ async def llm_info():
     }
 
 
+def _ollama_base() -> str:
+    factory = (_config.get("inference") or {}).get("llm_factory", {})
+    return str(factory.get("base_url") or settings.OLLAMA_HOST).rstrip("/")
+
+
+def _generator_loaded() -> Optional[bool]:
+    """Is the agents' model resident on the GPU right now? None if unknown."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen(_ollama_base() + "/api/ps", timeout=3) as r:
+            names = [m.get("name") or m.get("model") for m in json.loads(r.read()).get("models", [])]
+        return settings.OLLAMA_MODEL in names
+    except Exception:
+        return None
+
+
+def _load_generator() -> None:
+    """Ask Ollama to load the agents' model (an empty prompt only loads it)."""
+    import urllib.request
+    body = {"model": settings.OLLAMA_MODEL, "keep_alive": os.getenv("OLLAMA_KEEP_ALIVE", "1h")}
+    try:
+        req = urllib.request.Request(_ollama_base() + "/api/generate", data=json.dumps(body).encode(),
+                                     headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=300).read()
+    except Exception as exc:
+        log.warning("[LLM] preload of %s failed: %s", settings.OLLAMA_MODEL, exc)
+
+
+@app.get("/llm/status")
+async def llm_status():
+    loaded = await asyncio.get_event_loop().run_in_executor(None, _generator_loaded)
+    return {"model": settings.OLLAMA_MODEL, "loaded": loaded}
+
+
+@app.post("/llm/warm")
+async def llm_warm():
+    """Called when a job is submitted: if the model is not on the GPU, start
+    loading it now so the load overlaps the queue wait, and tell the UI."""
+    loop = asyncio.get_event_loop()
+    loaded = await loop.run_in_executor(None, _generator_loaded)
+    if loaded is False:
+        loop.run_in_executor(None, _load_generator)
+    return {"model": settings.OLLAMA_MODEL, "loaded": loaded}
+
+
 @app.get("/pipeline")
 async def pipeline_info():
     from k9_dow.gates.gate_registry import DAS_GATES
