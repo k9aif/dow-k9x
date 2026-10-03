@@ -871,13 +871,15 @@ async function renderQuality(jobId) {
     if ((f.flagged || []).length) body += `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--orange)">${f.flagged.length} element(s) not supported by the source</summary>` +
       f.flagged.map(x => `<div style="margin:4px 0 0 14px;color:var(--text2)"><b>${esc(x.id)}</b> (${esc(x.verdict || '?')}): ${esc(x.text || '')}</div>`).join('') + '</details>';
     body += `<div style="margin-top:8px;font-size:10.5px;color:var(--text2)">${esc(g.note || '')}</div>`;
+    if (state.role === 'admin') body += `<button onclick="startGrade('${esc(jobId)}', this)" style="margin-top:8px;background:none;color:var(--text2);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer">Grade again (admin)</button>`;
   } else {
     body += row('Grading / score', g.status === 'running' ? '<span style="color:var(--accent)">grading… (loading the grader model can take a minute)</span>'
                                    : g.status === 'error' ? '<span style="color:var(--red)">failed: ' + esc(g.detail || '') + '</span>' : 'not graded yet') +
             row('Scored by', esc(g.scored_by || 'deepseek-r1:32b'));
-    if (g.status !== 'running') body += state.role === 'admin'
-      ? `<button onclick="startGrade('${esc(jobId)}', this)" style="margin-top:10px;background:var(--accent);color:#fff;border:0;border-radius:4px;padding:6px 14px;font-size:12px;cursor:pointer">Grade now</button>`
-      : `<div style="margin-top:8px;color:var(--text2);font-size:11px">The DAS admin can run the grader.</div>`;
+    if (g.status !== 'running') body += state.authToken
+      ? `<button onclick="startGrade('${esc(jobId)}', this)" style="margin-top:10px;background:var(--accent);color:#fff;border:0;border-radius:4px;padding:6px 14px;font-size:12px;cursor:pointer">Start Grading</button>
+         <div style="margin-top:6px;color:var(--text2);font-size:11px">Takes about a minute: the grader model is loaded onto the GPU, then checks every model element against the input document.</div>`
+      : `<div style="margin-top:8px;color:var(--text2);font-size:11px">Sign in to run the grader.</div>`;
     if (g.status === 'running') setTimeout(() => renderQuality(jobId), 10000);
   }
   box.innerHTML = `<div style="border-top:1px solid var(--border);padding-top:16px">
@@ -889,6 +891,7 @@ async function startGrade(jobId, btn) {
   btn.disabled = true; btn.textContent = 'Starting…';
   try {
     const r = await fetch('/jobs/' + encodeURIComponent(jobId) + '/grade', {method: 'POST', headers: {'Authorization': 'Bearer ' + (state.authToken || '')}});
+    if (r.status === 409) { renderQuality(jobId); return; }
     if (!r.ok) { btn.disabled = false; btn.textContent = 'Retry (' + r.status + ')'; return; }
   } catch (_) { btn.disabled = false; btn.textContent = 'Retry'; return; }
   renderQuality(jobId);

@@ -66,10 +66,16 @@ def verify(token: str) -> Optional[dict]:
         return None
 
 
-def require_admin(authorization: str = Header(default="")) -> dict:
+def require_user(authorization: str = Header(default="")) -> dict:
+    """Any signed-in user (demo viewer or admin)."""
     data = verify(authorization.removeprefix("Bearer ").strip()) if authorization else None
     if not data:
         raise HTTPException(status_code=401, detail="Sign in required")
+    return data
+
+
+def require_admin(authorization: str = Header(default="")) -> dict:
+    data = require_user(authorization)
     if data.get("r") != "admin":
         raise HTTPException(status_code=403, detail="DAS admin only")
     return data

@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from k9_aif_abb.k9_utils.config_loader import load_yaml
 from k9_dow.config.settings import settings
 from k9_dow.utils.ids import generate_job_id
-from k9_dow.api.auth import require_admin
+from k9_dow.api.auth import require_admin, require_user
 from k9_dow.utils.health_check import check_dependencies, check_ollama_reachable
 
 log = logging.getLogger(__name__)
@@ -768,12 +768,19 @@ async def get_grade(job_id: str):
 
 
 @app.post("/jobs/{job_id}/grade")
-async def start_grade(job_id: str, admin: dict = Depends(require_admin)):
-    """DAS admin starts grading (it loads a second large model on the GPU)."""
+async def start_grade(job_id: str, user: dict = Depends(require_user)):
+    """Any signed-in user starts grading once per job; only the DAS admin can
+    grade a job again (grading loads a second large model on the GPU)."""
+    from k9_dow.gates.hil_gateway import load_stage_result
     if _grading.get(job_id, {}).get("status") == "running":
         return _grading[job_id]
     if not _get_job(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
+    if user.get("r") != "admin":
+        stored = await asyncio.get_event_loop().run_in_executor(
+            None, load_stage_result, _config, job_id, "quality-jcids")
+        if stored:
+            raise HTTPException(status_code=409, detail="Already graded; only the DAS admin can grade again")
     _grading[job_id] = {"status": "running", "started": datetime.now(timezone.utc).isoformat()}
     asyncio.get_event_loop().run_in_executor(None, _grade_job, job_id)
     return _grading[job_id]
