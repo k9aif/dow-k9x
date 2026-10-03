@@ -1054,7 +1054,7 @@ function renderArch() {
     The result is <span style="color:var(--text)">structural consistency across the enterprise</span>.
     Whether a team builds an insurance operations center, a defense acquisition pipeline, or a supply chain optimizer —
     the architecture is identical. Agent behavior is defined in YAML. Infrastructure is config-driven.
-    LLM calls go through a governed inference pipeline with weighted model routing.
+    Submitted documents are checked by k9x_Shield as each stage starts, and every model call goes through the framework's single call path and model router.
     Every solution is testable, auditable, and maintainable by any team that understands the framework —
     not just the team that wrote it.
   </p>
@@ -1074,6 +1074,8 @@ function renderArch() {
       <div><a href="https://studio.k9x.ai" target="_blank" style="color:var(--accent);font-weight:600">studio.k9x.ai</a> <span style="color:var(--text2)">— Visual platform to design and compose new applications (or use the command prompt)</span></div>
       <div><a href="https://continuum.k9x.ai" target="_blank" style="color:var(--accent);font-weight:600">continuum.k9x.ai</a> <span style="color:var(--text2)">— Architecture Building Block and Solution Building Block continuum</span></div>
       <div><a href="https://hil.k9x.ai" target="_blank" style="color:var(--accent);font-weight:600">hil.k9x.ai</a> <span style="color:var(--text2)">— Human-in-the-Loop case management for non-delegable decisions</span></div>
+      <div><a href="https://sentinel.k9x.ai" target="_blank" style="color:var(--accent);font-weight:600">sentinel.k9x.ai</a> <span style="color:var(--text2)">— Daily watch of new AI attacks, checked against the framework's security capabilities</span></div>
+      <div><a href="https://satan.k9x.ai" target="_blank" style="color:var(--accent);font-weight:600">satan.k9x.ai</a> <span style="color:var(--text2)">— Adversarial harness that fires attacks at a pipeline to prove its defences hold</span></div>
       <div><a href="https://pydocs.k9x.ai/starthere/" target="_blank" style="color:var(--accent);font-weight:600">pydocs.k9x.ai</a> <span style="color:var(--text2)">— Framework documentation and API reference</span></div>
     </div>
     <p style="margin:10px 0 0;font-size:11px;color:var(--text2)">
@@ -1095,9 +1097,10 @@ function renderArch() {
       building blocks to build their application without reinventing infrastructure.
     </p>
     <p style="margin:8px 0 0">
-      The most powerful part: reusable patterns discovered during implementation get promoted back
-      into the framework — a <span style="color:var(--text)">continuous learning method</span> where
-      every application built on K9-AIF makes the framework smarter for the next team.
+      The intended long-term cycle: reusable patterns discovered during implementation are cataloged and
+      promoted back into the framework, so every application built on K9-AIF can strengthen it for the next team.
+      Today the Continuum catalogs and promotes components; automated harvesting and Architecture Board review
+      are <span style="color:var(--text)">designed, not yet built</span>.
       This is the <a href="https://continuum.k9x.ai" target="_blank" style="color:var(--accent)">Continuum</a>.
     </p>
   </div>
@@ -1149,89 +1152,98 @@ function renderArch() {
       <div><span style="color:var(--teal);font-weight:600">Discernment</span> — How do we know the output is good?
         Validation loop agents iterate until confidence thresholds are met. Low confidence triggers escalation, not silent failure.</div>
       <div><span style="color:var(--teal);font-weight:600">Diligence</span> — Is every action traceable?
-        Every LLM call, agent decision, and gate outcome is logged, auditable, and stored with provenance.</div>
+        Every LLM call is traced; each stage's results and every gate decision (who, when, comment) are stored with the job.</div>
     </div>
   </div>
 </div>
 
 <div style="padding:0 16px 16px">
+<div style="font-size:12px;font-weight:600;color:var(--text);margin:18px 0 6px">1. Submit and the JCIDS stage</div>
   <div class="mermaid" id="mermaid-seq">
 sequenceDiagram
     participant UI as Browser UI
     participant API as App Backend
+    participant Q as Job Queue
     participant K as Kafka
-    participant R as DasRouter
+    participant R as DAS Router
     participant JO as JCIDS Orchestrator
-    participant VG as ViewGeneration Squad
-    participant GR as GateReadiness Squad
-    participant PA as PackageAssembly Squad
-    participant LLM as Ollama LLM
+    participant LLM as Ollama
     participant S3 as MinIO S3
-    participant GATE as DAS Gate Registry
 
-    UI->>API: Upload document
-    API->>K: Publish to dow.router.in
-    API-->>UI: job_id + correlation_id
-
-    K->>R: Consume event
-    R->>R: Classify document_type
-    R->>K: Publish to das.jcids
-    Note over R: Deterministic routing
-
-    K->>JO: Consume from das.jcids
-    JO->>K: OrchestratorStarted
-
-    rect rgb(30, 41, 59)
-        Note over JO,LLM: ViewGeneration Squad
-        JO->>VG: execute(payload)
-        VG->>LLM: ModelExtractorAgent
-        LLM-->>VG: extracted model elements
-        VG->>LLM: ViewGeneratorAgent
-        LLM-->>VG: DoDAF views (OV/SV/CV)
-        VG->>LLM: ConsistencyCheckerAgent
-        LLM-->>VG: consistency report
-        VG-->>JO: view_generation result
+    UI->>API: Analyze (demo or red-team document)
+    API->>Q: enqueue job (max 5 in queue)
+    API-->>UI: job_id
+    Q->>API: dispatcher takes the next job
+    API->>K: dow.router.in
+    K->>R: consume
+    R->>K: das.jcids (route by document type)
+    K->>JO: consume
+    Note over JO: k9x_Shield checks the document (input size, prompt injection, personal data)
+    alt attack detected
+        JO->>K: das.results: blocked_by_shield
+        K-->>UI: Blocked card, no agent ran, nothing sent to HIL
+    else document passes
+        JO->>LLM: ViewGeneration squad (ModelExtractor, ViewGenerator loop, ConsistencyChecker)
+        JO->>LLM: GateReadiness squad (JROC criteria, Evidence, Readiness score, Gaps)
+        JO->>LLM: PackageAssembly squad (Artifacts, Completeness, Package)
+        JO->>LLM: Granite Guardian advisory check on the package
+        JO->>S3: ICD and results (jcids-output, by job id)
+        JO->>K: das.results (live feed and ICD)
+        JO->>K: workflow.hil.das.jroc (JROC review task)
     end
+</div>
+<div style="font-size:12px;font-weight:600;color:var(--text);margin:18px 0 6px">2. JROC decision and the Acquisition stage</div>
+  <div class="mermaid" id="mermaid-seq2">
+sequenceDiagram
+    participant HIL as K9X HIL
+    participant K as Kafka
+    participant R as DAS Router
+    participant S3 as MinIO S3
+    participant UI as DAS admin (Jobs in Pipeline)
+    participant API as App Backend
+    participant AO as Acquisition Orchestrator
+    participant LLM as Ollama
 
-    JO->>K: SquadCompleted
+    K->>HIL: JROC review task
+    Note over HIL: A person approves or rejects
+    HIL->>K: das.jroc.replies (decision)
+    K->>R: consume
+    R->>S3: record the decision with the job
+    UI->>API: Start Acquisition
+    API->>S3: is an approval recorded? has the stage started?
+    API->>K: gate_approved (dow.router.in)
+    K->>R: consume
+    R->>K: das.acquisition
+    K->>AO: consume
+    AO->>S3: load the stored JCIDS package
+    AO->>LLM: GateReadiness + PackageAssembly (Milestone criteria)
+    AO->>S3: Milestone package
+    AO->>K: workflow.hil.das.pathway (Milestone review task)
+</div>
+<div style="font-size:12px;font-weight:600;color:var(--text);margin:18px 0 6px">3. Milestone decision and Systems Engineering</div>
+  <div class="mermaid" id="mermaid-seq3">
+sequenceDiagram
+    participant HIL as K9X HIL
+    participant K as Kafka
+    participant R as DAS Router
+    participant S3 as MinIO S3
+    participant UI as DAS admin (Jobs in Pipeline)
+    participant API as App Backend
+    participant SE as SE Orchestrator
 
-    rect rgb(30, 41, 59)
-        Note over JO,LLM: GateReadiness Squad
-        JO->>GR: execute(payload + views)
-        GR->>GR: CriteriaLoaderAgent
-        GR->>LLM: EvidenceCollectorAgent
-        LLM-->>GR: evidence collected
-        GR->>LLM: ReadinessScorerAgent
-        LLM-->>GR: readiness score
-        GR->>LLM: GapReporterAgent
-        LLM-->>GR: gap report
-        GR-->>JO: gate_readiness result
-    end
-
-    JO->>K: SquadCompleted
-
-    rect rgb(30, 41, 59)
-        Note over JO,LLM: PackageAssembly Squad
-        JO->>PA: execute(payload + views + gate)
-        PA->>PA: ArtifactFetcherAgent
-        PA->>LLM: CompletenessCheckerAgent
-        LLM-->>PA: completeness check
-        PA->>LLM: PackageBuilderAgent
-        LLM-->>PA: review package
-        PA-->>JO: review_package result
-    end
-
-    JO->>S3: Store results to DAS-results/
-    JO->>K: Publish to das.results
-    K-->>API: SSE stream to browser
-    API-->>UI: Live Feed + Generated Docs
-
-    Note over API: Status: awaiting_gate (JROC-VALIDATION)
-    API->>GATE: POST /gates/{gate_id}/decide
-    GATE->>GATE: record_decision()
-    GATE-->>API: state + may_proceed
-    Note over GATE: Self-contained within DAS's own API —<br/>not yet connected to the separate K9X HIL<br/>platform (hil.k9x.ai) via Kafka
-  </div>
+    K->>HIL: Milestone review task
+    Note over HIL: A person approves or rejects
+    HIL->>K: das.pathway.replies (decision)
+    K->>R: consume
+    R->>S3: record the decision with the job
+    UI->>API: Start SE
+    API->>K: gate_approved
+    K->>R: consume
+    R->>K: das.se
+    K->>SE: consume
+    SE->>S3: SE reached (demonstration endpoint, next review SRR)
+    SE->>K: das.results
+</div>
 </div>`;
   area.innerHTML += `
 <div style="padding:16px;border-top:1px solid var(--border)">
@@ -1246,6 +1258,7 @@ classDiagram
     class BaseOrchestrator {
         &lt;&lt;ABB&gt;&gt;
         +execute_flow(payload) dict
+        +execute_squads(squads, payload)
     }
     class BaseSquad {
         &lt;&lt;ABB&gt;&gt;
@@ -1257,15 +1270,24 @@ classDiagram
         +execute(payload) dict
         +publish_event(event)
     }
-    class K9EventBus {
+    class K9ValidationLoopAgent {
         &lt;&lt;ABB&gt;&gt;
+        +execute(payload) dict
+    }
+    class K9EventBus {
+        &lt;&lt;framework&gt;&gt;
         +publish(event)
         +subscribe_async(callback)
     }
     class K9ModelRouter {
-        &lt;&lt;ABB&gt;&gt;
+        &lt;&lt;framework&gt;&gt;
         +route(request) RouteDecision
         +invoke(request) InferenceResponse
+    }
+    class ShieldGovernance {
+        &lt;&lt;framework&gt;&gt;
+        +pre_process(payload)
+        +post_process(output)
     }
 
     class DasRouter {
@@ -1274,7 +1296,6 @@ classDiagram
     }
     class JcidsOrchestrator {
         &lt;&lt;SBB&gt;&gt;
-        +execute_flow(payload) dict
     }
     class AcquisitionOrchestrator {
         &lt;&lt;SBB&gt;&gt;
@@ -1282,31 +1303,41 @@ classDiagram
     class SeOrchestrator {
         &lt;&lt;SBB&gt;&gt;
     }
-    class ModelExtractorAgent {
+    class EvidenceCollectorAgent {
         &lt;&lt;SBB&gt;&gt;
     }
     class ViewGeneratorAgent {
         &lt;&lt;SBB&gt;&gt;
     }
-    class EvidenceCollectorAgent {
+    class GuardianGovernance {
         &lt;&lt;SBB&gt;&gt;
+        +post_process(result)
+    }
+    class HilGateway {
+        &lt;&lt;SBB module&gt;&gt;
+        +publish_gate_task()
+        +save_stage_result()
     }
 
     BaseRouter &lt;|-- DasRouter
     BaseOrchestrator &lt;|-- JcidsOrchestrator
     BaseOrchestrator &lt;|-- AcquisitionOrchestrator
     BaseOrchestrator &lt;|-- SeOrchestrator
-    BaseAgent &lt;|-- ModelExtractorAgent
-    BaseAgent &lt;|-- ViewGeneratorAgent
     BaseAgent &lt;|-- EvidenceCollectorAgent
+    BaseAgent &lt;|-- K9ValidationLoopAgent
+    K9ValidationLoopAgent &lt;|-- ViewGeneratorAgent
 
-    DasRouter ..> K9EventBus : publishes via
-    JcidsOrchestrator ..> BaseSquad : loads squads
-    BaseSquad ..> BaseAgent : executes agents
+    JcidsOrchestrator ..> BaseSquad : runs squads
+    BaseSquad ..> BaseAgent : runs agents in order
     BaseAgent ..> K9ModelRouter : llm_invoke()
-  </div>
+    JcidsOrchestrator ..> ShieldGovernance : checks document
+    JcidsOrchestrator ..> GuardianGovernance : advisory check
+    JcidsOrchestrator ..> HilGateway : review task
+    AcquisitionOrchestrator ..> HilGateway : review task
+    HilGateway ..> K9EventBus : publishes via
+</div>
 </div>`;
-  mermaid.run({nodes: [document.getElementById('mermaid-seq'), document.getElementById('mermaid-cls')]});
+  mermaid.run({nodes: ['mermaid-seq','mermaid-seq2','mermaid-seq3','mermaid-cls'].map(id => document.getElementById(id))});
 }
 
 // ─── Upload / Demo ───────────────────────────────────
