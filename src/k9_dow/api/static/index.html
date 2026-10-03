@@ -1682,12 +1682,13 @@ function redTeamFlowHtml() {
     ['JCIDS agents', '3 squads, model calls'],
     ['JROC review', 'a person decides in K9X HIL'],
   ];
-  const stopAt = out ? (out.blocked ? 2 : 4) : (expectBlock ? 2 : 4);
+  // Before Analyze nothing has run: all steps neutral. Colours only show a real result.
+  const stopAt = out ? (out.blocked ? 2 : 4) : 4;
   const box = (i, [t, d]) => {
-    const reached = i <= stopAt;
-    const isStop = i === stopAt;
-    const red = isStop && (out ? !!out.blocked : expectBlock);
-    const col = red ? 'var(--red)' : isStop ? 'var(--orange)' : reached ? 'var(--accent)' : 'var(--border)';
+    const reached = !out || i <= stopAt;
+    const isStop = !!out && i === stopAt;
+    const red = isStop && !!out.blocked;
+    const col = !out ? 'var(--border)' : red ? 'var(--red)' : isStop ? 'var(--orange)' : 'var(--accent)';
     return `<div style="flex:1;min-width:120px;border:1px solid ${col};border-radius:8px;padding:10px 12px;opacity:${reached ? 1 : 0.35};background:${red ? 'rgba(239,68,68,0.10)' : 'transparent'}">
       <div style="font-weight:700;color:${reached ? 'var(--text)' : 'var(--text2)'};font-size:12px">${i + 1}. ${esc(t)}</div>
       <div style="color:var(--text2);font-size:10.5px;margin-top:3px">${esc(d)}</div></div>`;
@@ -1697,7 +1698,7 @@ function redTeamFlowHtml() {
     ? (out.blocked
         ? `<span style="color:var(--red);font-weight:700">✋ Blocked by k9x_Shield (${esc(out.check || '')})</span> — no agent ran, no model was called, nothing reached HIL.<div style="margin-top:4px;font-size:10.5px">${esc(out.reason || '')}</div>`
         : `<span style="color:var(--orange);font-weight:700">Passed the checks</span> — it continues to the agents and reaches the JROC reviewer, the human safeguard.`)
-    : `Expected: <b>${esc(rt.expected)}</b>. Click <b>Analyze</b> to run it.`;
+    : `<b>Not run yet.</b> Click <b>Analyze</b> to send it through the pipeline. Expected result: ${esc(rt.expected)}.`;
   return `<div style="padding:16px 20px;border-bottom:1px solid var(--border)">
     <div style="font-size:11px;letter-spacing:.08em;color:var(--red);font-weight:700;margin-bottom:8px">RED-TEAM RUN</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${steps.map((st, i) => box(i, st)).join(arrow)}</div>
