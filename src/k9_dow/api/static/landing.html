@@ -22,15 +22,15 @@
   header.top nav a.active { color: var(--amber); }
   section[id] { scroll-margin-top: 64px; }
   /* Page contents: a quiet list in the left margin on wide screens */
-  .toc { position: fixed; left: 28px; top: 120px; width: 170px; display: none; z-index: 5; }
+  .toc { position: fixed; left: 32px; top: 120px; width: 185px; display: none; z-index: 5; }
   .toc ul { list-style: none; margin: 0; padding: 0; }
-  .toc li { margin: 0 0 9px; }
-  .toc a { color: var(--muted); text-decoration: none; font-size: 13px; display: flex; gap: 9px; align-items: baseline; opacity: .75; }
-  .toc a::before { content: "•"; color: var(--border); }
-  .toc a:hover { opacity: 1; color: var(--text); }
-  .toc a.active { color: var(--amber); opacity: 1; }
+  .toc li { margin: 0 0 12px; }
+  .toc a { color: var(--muted); text-decoration: none; font-size: 15px; display: flex; gap: 10px; align-items: baseline; }
+  .toc a::before { content: "•"; color: var(--muted); }
+  .toc a:hover { color: var(--text); }
+  .toc a.active { color: var(--amber); }
   .toc a.active::before { color: var(--amber); }
-  @media (min-width: 1500px) { .toc { display: block; } }
+  @media (min-width: 1560px) { .toc { display: block; } }
   header.top .wrap { display: flex; align-items: center; gap: 14px; padding-block: 12px; flex-wrap: wrap; }
   .logo { font-weight: 800; letter-spacing: -.3px; font-size: 18px; }
   .logo span { color: var(--amber); }
