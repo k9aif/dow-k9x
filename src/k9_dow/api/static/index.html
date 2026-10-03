@@ -636,6 +636,11 @@ function connectSSE() {
       if (state.activeTab === 'jobs' && (evtType === 'GateDecision' || (evt.result || {}).status)) {
         renderJobsHistory(true);
       }
+      // Red-team run outcome
+      if (state.redTeam) {
+        if (evtType === 'ShieldBlocked') state.redTeamOutcome = {blocked: true, check: evt.check, reason: evt.reason};
+        else if (evtType === 'SquadStarted' && !state.redTeamOutcome) state.redTeamOutcome = {passed: true};
+      }
       // Human decision from K9X HIL, consumed by the DAS Router process
       if (evtType === 'GateDecision') {
         const gateDot = {'JROC-VALIDATION': 'dot-jroc', 'PATHWAY-MILESTONE': 'dot-milestone'}[evt.gate_id];
@@ -689,6 +694,8 @@ function updatePipeline(orch, status) {
 function renderLive() {
   const area = document.getElementById('feedArea');
   const last50 = state.events.slice(-50);
+  const rtPanel = redTeamFlowHtml();
+  if (last50.length === 0 && rtPanel) { area.innerHTML = rtPanel; return; }
   if (last50.length === 0) {
     area.innerHTML = state.jobId
       ? `<div style="padding:40px 24px;text-align:center;color:var(--text2)">
@@ -733,6 +740,7 @@ function renderLive() {
     else { detail = (orch ? orch+' ' : '') + status; }
     return `<div class="feed-entry"><span class="feed-ts">${t}</span><span class="feed-type ${cls}">${evtType}</span><span class="feed-detail">${detail}</span></div>`;
   }).join('');
+  if (rtPanel) area.innerHTML = rtPanel + area.innerHTML;
   area.scrollTop = area.scrollHeight;
 }
 
@@ -1309,7 +1317,11 @@ async function upload() {
   const demoSel = document.getElementById('demoSelect');
   const dt = document.getElementById('docType').value;
 
-  const isDemo = demoSel.value && !fi.files.length;
+  const atkSel = document.getElementById('attackSelect');
+  const chosen = demoSel.value || (atkSel ? atkSel.value : '');
+  const isDemo = chosen && !fi.files.length;
+  if (!(atkSel && atkSel.value && chosen === atkSel.value)) { state.redTeam = null; }
+  state.redTeamOutcome = null;
   const isFile = fi.files.length > 0;
   if (!isDemo && !isFile) { alert('Select a demo document or upload a file'); return; }
 
@@ -1341,7 +1353,7 @@ async function upload() {
     let resp;
     const sid = encodeURIComponent(state.sessionId || '');
     if (isDemo) {
-      resp = await fetch(`/jobs/demo/${demoSel.value}?session_id=${sid}`, { method: 'POST' });
+      resp = await fetch(`/jobs/demo/${encodeURIComponent(chosen)}?session_id=${sid}`, { method: 'POST' });
     } else {
       const fd = new FormData();
       fd.append('file', fi.files[0]);
@@ -1644,22 +1656,58 @@ fetch('/demos?set=attacks').then(r => r.json()).then(data => {
 
 function selectAttack() {
   const a = document.getElementById('attackSelect');
-  const sel = document.getElementById('demoSelect');
   const info = document.getElementById('demoInfo');
-  if (!a.value) { info.style.display = 'none'; return; }
-  let o = [...sel.options].find(x => x.value === a.value);
-  if (!o) { o = document.createElement('option'); o.value = a.value; o.textContent = a.options[a.selectedIndex].text; o.hidden = true; sel.appendChild(o); }
-  sel.value = a.value;
-  info.style.display = 'block';
-  info.innerHTML = '<span style="color:var(--red)">Red-team:</span> ' + esc(a.options[a.selectedIndex].text) +
-    '<br>Expected: ' + esc(a.options[a.selectedIndex].dataset.expected || '?') +
-    ` · <a href="/demos/${encodeURIComponent(a.value)}/view" target="_blank" rel="noopener" style="color:var(--accent)">view document</a>`;
+  document.getElementById('demoSelect').value = '';
   document.getElementById('fileInput').value = '';
+  if (!a.value) { state.redTeam = null; info.style.display = 'none'; if (state.activeTab === 'live') renderLive(); return; }
+  const opt = a.options[a.selectedIndex];
+  state.redTeam = {file: a.value, name: opt.text, expected: opt.dataset.expected || ''};
+  state.redTeamOutcome = null;
+  info.style.display = 'block';
+  info.innerHTML = '<span style="color:var(--red)">Red-team:</span> ' + esc(opt.text) +
+    ` · <a href="/demos/${encodeURIComponent(a.value)}/view" target="_blank" rel="noopener" style="color:var(--accent)">view document</a>`;
+  switchTab('live');
+}
+
+// Centre panel for a red-team run: the path the document travels, where it
+// is expected to stop, and (after Analyze) where it actually stopped.
+function redTeamFlowHtml() {
+  const rt = state.redTeam; if (!rt) return '';
+  const out = state.redTeamOutcome;            // null | {blocked, check, reason} | {passed: true}
+  const expectBlock = /^BLOCKED/.test(rt.expected);
+  const steps = [
+    ['Document', rt.name],
+    ['DAS Router', 'routes it to the JCIDS stage'],
+    ['k9x_Shield', 'stage-entry checks: input size · prompt injection · personal data'],
+    ['JCIDS agents', '3 squads, model calls'],
+    ['JROC review', 'a person decides in K9X HIL'],
+  ];
+  const stopAt = out ? (out.blocked ? 2 : 4) : (expectBlock ? 2 : 4);
+  const box = (i, [t, d]) => {
+    const reached = i <= stopAt;
+    const isStop = i === stopAt;
+    const red = isStop && (out ? !!out.blocked : expectBlock);
+    const col = red ? 'var(--red)' : isStop ? 'var(--orange)' : reached ? 'var(--accent)' : 'var(--border)';
+    return `<div style="flex:1;min-width:120px;border:1px solid ${col};border-radius:8px;padding:10px 12px;opacity:${reached ? 1 : 0.35};background:${red ? 'rgba(239,68,68,0.10)' : 'transparent'}">
+      <div style="font-weight:700;color:${reached ? 'var(--text)' : 'var(--text2)'};font-size:12px">${i + 1}. ${esc(t)}</div>
+      <div style="color:var(--text2);font-size:10.5px;margin-top:3px">${esc(d)}</div></div>`;
+  };
+  const arrow = '<div style="align-self:center;color:var(--text2)">→</div>';
+  const status = out
+    ? (out.blocked
+        ? `<span style="color:var(--red);font-weight:700">✋ Blocked by k9x_Shield (${esc(out.check || '')})</span> — no agent ran, no model was called, nothing reached HIL.<div style="margin-top:4px;font-size:10.5px">${esc(out.reason || '')}</div>`
+        : `<span style="color:var(--orange);font-weight:700">Passed the checks</span> — it continues to the agents and reaches the JROC reviewer, the human safeguard.`)
+    : `Expected: <b>${esc(rt.expected)}</b>. Click <b>Analyze</b> to run it.`;
+  return `<div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+    <div style="font-size:11px;letter-spacing:.08em;color:var(--red);font-weight:700;margin-bottom:8px">RED-TEAM RUN</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${steps.map((st, i) => box(i, st)).join(arrow)}</div>
+    <div style="margin-top:10px;color:var(--text2);font-size:12px">${status}</div></div>`;
 }
 
 function selectDemo() {
   const sel = document.getElementById('demoSelect');
   const atk = document.getElementById('attackSelect'); if (atk) atk.value = '';
+  state.redTeam = null; state.redTeamOutcome = null;
   const info = document.getElementById('demoInfo');
   const fi = document.getElementById('fileInput');
   if (sel.value) {
@@ -1674,6 +1722,7 @@ function selectDemo() {
 function clearDemo() {
   document.getElementById('demoSelect').value = '';
   const atk = document.getElementById('attackSelect'); if (atk) atk.value = '';
+  state.redTeam = null; state.redTeamOutcome = null;
   document.getElementById('demoInfo').style.display = 'none';
 }
 
