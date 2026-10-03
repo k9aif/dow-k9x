@@ -21,6 +21,16 @@
   header.top { border-bottom: 1px solid var(--border); background: rgba(17,26,46,0.94); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(6px); }
   header.top nav a.active { color: var(--amber); }
   section[id] { scroll-margin-top: 64px; }
+  /* Page contents: a quiet list in the left margin on wide screens */
+  .toc { position: fixed; left: 28px; top: 120px; width: 170px; display: none; z-index: 5; }
+  .toc ul { list-style: none; margin: 0; padding: 0; }
+  .toc li { margin: 0 0 9px; }
+  .toc a { color: var(--muted); text-decoration: none; font-size: 13px; display: flex; gap: 9px; align-items: baseline; opacity: .75; }
+  .toc a::before { content: "•"; color: var(--border); }
+  .toc a:hover { opacity: 1; color: var(--text); }
+  .toc a.active { color: var(--amber); opacity: 1; }
+  .toc a.active::before { color: var(--amber); }
+  @media (min-width: 1500px) { .toc { display: block; } }
   header.top .wrap { display: flex; align-items: center; gap: 14px; padding-block: 12px; flex-wrap: wrap; }
   .logo { font-weight: 800; letter-spacing: -.3px; font-size: 18px; }
   .logo span { color: var(--amber); }
@@ -114,6 +124,18 @@
     </nav>
   </div>
 </header>
+
+<nav class="toc" aria-label="On this page">
+  <ul>
+    <li><a href="#steps">What you'll see</a></li>
+    <li><a href="#flow">Flow</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#knowledge">Knowledge corpus</a></li>
+    <li><a href="#k9aif">K9-AIF framework</a></li>
+    <li><a href="#current">Staying current</a></li>
+    <li><a href="#limits">Scope</a></li>
+  </ul>
+</nav>
 
 <div class="hero-band">
 <div class="wrap">
@@ -273,12 +295,16 @@
     if (d.ollama_model) document.getElementById('model').textContent = d.ollama_model;
   }).catch(() => {});
   // Top menu: highlight the section being read
-  const links = [...document.querySelectorAll('header.top nav a[href^="#"]')];
-  const byId = Object.fromEntries(links.map(a => [a.getAttribute('href').slice(1), a]));
+  // Top menu and left contents: highlight the section being read
+  const links = [...document.querySelectorAll('header.top nav a[href^="#"], .toc a[href^="#"]')];
+  const ids = [...new Set(links.map(a => a.getAttribute('href').slice(1)))];
   const spy = new IntersectionObserver(entries => {
-    entries.forEach(e => { if (e.isIntersecting) { links.forEach(a => a.classList.remove('active')); byId[e.target.id]?.classList.add('active'); } });
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id));
+    });
   }, {rootMargin: '-45% 0px -50% 0px'});
-  Object.keys(byId).forEach(id => { const el = document.getElementById(id); if (el) spy.observe(el); });
+  ids.forEach(id => { const el = document.getElementById(id); if (el) spy.observe(el); });
   // Start Demo: open the app signed in as the demo user
   document.getElementById('startDemo').addEventListener('click', () => { location.href = '/app?start=demo'; });
   document.getElementById('startAdmin').addEventListener('click', () => { location.href = '/app?start=admin'; });
