@@ -89,6 +89,8 @@ spec:
       value: "http://<PODMAN_HOST_IP>:11434"
     - name: OLLAMA_MODEL
       value: "<OLLAMA_MODEL>"
+    - name: OLLAMA_NUM_CTX
+      value: "<OLLAMA_NUM_CTX>"
     - name: GRADER_MODEL
       value: "<GRADER_MODEL>"
     - name: DAS_RESUME_MODE
@@ -200,6 +202,8 @@ spec:
       value: "http://<PODMAN_HOST_IP>:11434"
     - name: OLLAMA_MODEL
       value: "<OLLAMA_MODEL>"
+    - name: OLLAMA_NUM_CTX
+      value: "<OLLAMA_NUM_CTX>"
     - name: POSTGRES_HOST
       value: "rhel-host"
     - name: POSTGRES_DB
@@ -239,6 +243,8 @@ spec:
       value: "http://<PODMAN_HOST_IP>:11434"
     - name: OLLAMA_MODEL
       value: "<OLLAMA_MODEL>"
+    - name: OLLAMA_NUM_CTX
+      value: "<OLLAMA_NUM_CTX>"
     - name: POSTGRES_HOST
       value: "rhel-host"
     - name: POSTGRES_PORT

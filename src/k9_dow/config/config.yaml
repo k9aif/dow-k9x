@@ -1,7 +1,8 @@
 # K9-AIF Standard Config — DoW Architecture Workbench
 
 inference:
-  # OLLAMA_MODEL (.env) sets the model for every DAS agent alias below
+  # OLLAMA_MODEL (.env) sets the model for every DAS agent alias below;
+  # OLLAMA_NUM_CTX (.env) sets their context window (config/runtime.py)
   # (default qwen3.8:27b) -- the same variable the UI badge (/llm) and the
   # ICD footer report, so all three always agree. think: false -- qwen3.x is a hybrid reasoning
   # model and can return an empty answer if its thinking budget runs out.
@@ -35,10 +36,11 @@ inference:
         think: false
         temperature: 0.2
         max_tokens: 8192
-        # 32768: its input (everything upstream) measured 15.3k-19.5k Qwen
-        # tokens on three real JCIDS runs (2026-10-03). At 16384 Ollama kept
-        # only the last 8,194 of 19,517 input tokens -- silently, no error.
-        num_ctx: 32768
+        # num_ctx for every agent alias comes from OLLAMA_NUM_CTX (.env, default
+        # 32768; config/runtime.py). This step's input (everything upstream)
+        # measured 15.3k-19.5k Qwen tokens on three real JCIDS runs (2026-10-03);
+        # at the old fixed 16384 Ollama kept only the last 8,194 of 19,517 input
+        # tokens -- silently, no error.
       # Independent grader for generated documents (a different model family
       # from the generator, so a model does not grade its own work).
       judge:

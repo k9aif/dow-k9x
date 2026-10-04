@@ -44,7 +44,8 @@ GROUP_ID = "dow-router"
 def _load_config() -> dict:
     config_path = Path(__file__).resolve().parents[1] / "config" / "config.yaml"
     try:
-        return load_yaml(config_path)
+        from k9_dow.config.runtime import apply_runtime_settings
+        return apply_runtime_settings(load_yaml(config_path))
     except Exception as exc:
         log.warning("Config load skipped: %s", exc)
         return {}

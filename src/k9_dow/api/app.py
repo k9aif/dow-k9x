@@ -37,7 +37,8 @@ app = FastAPI(
     version="0.2.0",
 )
 
-_config = load_yaml(settings.CONFIG_DIR / "config.yaml")
+from k9_dow.config.runtime import apply_runtime_settings  # noqa: E402
+_config = apply_runtime_settings(load_yaml(settings.CONFIG_DIR / "config.yaml"))
 _job_store: dict = {}
 _event_log: deque = deque(maxlen=500)
 _sse_clients: list = []

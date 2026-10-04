@@ -22,6 +22,10 @@ class Settings:
 
     OLLAMA_HOST = _env("OLLAMA_HOST", "http://localhost:11434")
     OLLAMA_MODEL = _env("OLLAMA_MODEL", "qwen3.8:27b")  # same default as config.yaml
+    # Context window for every agent model call (.env), one value for all agent
+    # aliases so the model never reloads between steps. Deployment setting:
+    # size it to the GPU (PowerAI's 5090: 32768 or 65536), not to the design.
+    OLLAMA_NUM_CTX = int(_env("OLLAMA_NUM_CTX", "32768"))
     OLLAMA_DISPLAY_NAME = _env("OLLAMA_DISPLAY_NAME", "")
 
     # Knowledge-corpus disclosure -- surfaced in every generated ICD (see
