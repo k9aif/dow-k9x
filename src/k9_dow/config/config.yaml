@@ -35,7 +35,10 @@ inference:
         think: false
         temperature: 0.2
         max_tokens: 8192
-        num_ctx: 16384
+        # 32768: its input (everything upstream) measured 15.3k-19.5k Qwen
+        # tokens on three real JCIDS runs (2026-10-03). At 16384 Ollama kept
+        # only the last 8,194 of 19,517 input tokens -- silently, no error.
+        num_ctx: 32768
       # Independent grader for generated documents (a different model family
       # from the generator, so a model does not grade its own work).
       judge:
