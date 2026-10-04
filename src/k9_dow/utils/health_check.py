@@ -43,6 +43,37 @@ def check_ollama_reachable(config: dict) -> dict:
         return {"reachable": False, "host": f"{host}:{port}", "error": str(exc)}
 
 
+def check_llm(base_url: str, model: str, configured: bool) -> dict:
+    """Is an LLM configured, reachable, and is the configured model available?
+
+    state: ok | model_missing | unreachable | not_configured, with a message the
+    UI shows as is. Asks Ollama for its model list (GET /api/tags) instead of only
+    opening a socket, so a wrong host, a stopped server and a model that was never
+    pulled are all reported before a job is submitted."""
+    import json
+    import urllib.request
+
+    base = (base_url or "").rstrip("/")
+    out = {"state": "ok", "host": base.replace("http://", "").replace("https://", ""), "model": model, "error": None}
+    if not configured or not base or not model:
+        out.update(state="not_configured",
+                   message="No LLM is configured. Set OLLAMA_HOST and OLLAMA_MODEL in .env and restart DAS.")
+        return out
+    try:
+        with urllib.request.urlopen(base + "/api/tags", timeout=3) as r:
+            names = {m.get("name") or m.get("model") for m in json.loads(r.read()).get("models", [])}
+    except Exception as exc:
+        out.update(state="unreachable", error=str(exc)[:200],
+                   message=f"The LLM at {out['host']} is not reachable. Check OLLAMA_HOST in .env and that Ollama is running.")
+        return out
+    if model not in names and f"{model}:latest" not in names:
+        out.update(state="model_missing",
+                   message=f"{model} is not available at {out['host']}. Pull it (ollama pull {model}) or set OLLAMA_MODEL in .env.")
+        return out
+    out["message"] = f"{model} @ {out['host']}"
+    return out
+
+
 def check_dependencies(config: dict, require_kafka: bool = False) -> bool:
     results = []
 

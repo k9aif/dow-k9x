@@ -502,6 +502,7 @@ function setJobInProgress(running) {
     btn.style.cursor = running ? 'not-allowed' : 'pointer';
     btn.innerHTML = running ? '<span class="k9-spinner"></span>Job Running...' : 'Analyze';
   }
+  if (!running) applyLlmGate();
   if (demoSel) demoSel.disabled = running;
   if (docType) docType.disabled = running;
   if (msg) msg.style.display = running ? 'block' : 'none';
@@ -517,15 +518,18 @@ async function checkLlmHealth() {
   try {
     const resp = await fetch('/health');
     const data = await resp.json();
-    const ollama = data.ollama || {};
+    const llm = data.llm || {state: (data.ollama || {}).reachable === false ? 'unreachable' : 'ok'};
+    state.llmOk = llm.state === 'ok';
     if (banner) {
-      if (ollama.reachable === false) {
+      if (!state.llmOk) {
         banner.style.display = 'block';
-        banner.textContent = `⚠ Backend LLM unreachable (${ollama.host}): ${ollama.error}`;
+        banner.textContent = '⚠ ' + (llm.message || 'Configure an LLM in .env first.') + ' Jobs cannot run until this is fixed.';
       } else {
         banner.style.display = 'none';
       }
     }
+    paintLlm(llm);
+    applyLlmGate();
     return data;
   } catch (err) {
     // No answer at all: usually DAS restarting (a redeploy) or a brief
@@ -1443,12 +1447,11 @@ async function upload() {
   // (confirm, not a hard stop) -- a transient health-check hiccup
   // shouldn't prevent a real job that would otherwise succeed.
   const health = await checkLlmHealth();
-  if (health && health.ollama && !health.ollama.reachable) {
-    const proceed = confirm(
-      `⚠ Backend LLM appears unreachable right now (${health.ollama.host}: ${health.ollama.error}).\n\n` +
-      `Submit anyway?`
-    );
-    if (!proceed) return;
+  const llm = (health && health.llm) || null;
+  if (!llm || llm.state !== 'ok') {
+    alert('⚠ ' + ((llm && llm.message) || 'DAS could not confirm an LLM is available.') +
+          '\n\nConfigure an LLM in .env first (OLLAMA_HOST, OLLAMA_MODEL), then restart DAS.');
+    return;
   }
 
   setJobInProgress(true);
@@ -1683,6 +1686,7 @@ fetch('/config/mode').then(r=>r.json()).then(cfg=>{
     if (demoMsg) demoMsg.style.display = 'none';
   } else {
     // Demo mode — pre-load the canned sample result for showcase
+    state.demoModeLocked = true;
     loadSamplePrefill();
   }
 }).catch(()=>{});
@@ -1870,10 +1874,33 @@ function clearDemo() {
   document.getElementById('demoInfo').style.display = 'none';
 }
 
-fetch('/llm').then(r=>r.json()).then(d=>{
+// Top-bar LLM light: from the server's live check (configured, reachable, model
+// pulled), never from .env alone. green = ready, amber = model missing,
+// red = unreachable or not configured.
+function paintLlm(chk) {
   const el = document.getElementById('llmInfo');
-  var hostLabel = d.ollama_display_name || (d.ollama_host||'?').replace('http://','');
-  if(el) el.innerHTML = '<span style="color:var(--green)">&#9679;</span> ' + (d.ollama_model||'?') + ' <span style="color:var(--text2)">@</span> ' + hostLabel;
+  if (!el || !chk) return;
+  const color = chk.state === 'ok' ? 'var(--green)' : chk.state === 'model_missing' ? 'var(--amber, #f59e0b)' : 'var(--red)';
+  const label = chk.state === 'not_configured' ? 'No LLM configured'
+              : chk.state === 'unreachable' ? 'LLM unreachable'
+              : (chk.model || '?') + ' <span style="color:var(--text2)">@</span> ' + (state.llmHostLabel || chk.host || '?');
+  el.innerHTML = '<span style="color:' + color + '">&#9679;</span> ' + label;
+  el.title = chk.message || '';
+}
+function applyLlmGate() {
+  const btn = document.getElementById('btnUpload');
+  if (!btn || state.jobInProgress || state.llmOk === undefined) return;
+  if (!state.llmOk) {
+    btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed';
+    btn.title = 'Configure an LLM in .env first';
+  } else if (btn.title === 'Configure an LLM in .env first') {
+    btn.title = ''; btn.disabled = state.demoModeLocked === true;
+    btn.style.opacity = btn.disabled ? '0.4' : '1'; btn.style.cursor = btn.disabled ? 'not-allowed' : 'pointer';
+  }
+}
+fetch('/llm').then(r=>r.json()).then(d=>{
+  state.llmHostLabel = d.ollama_display_name || (d.ollama_host||'?').replace('http://','');
+  if (d.check) { state.llmOk = d.check.state === 'ok'; paintLlm(d.check); applyLlmGate(); }
 }).catch(()=>{});
 </script>
 </body>

@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 import asyncio
 import os
 import uuid
-from typing import Optional
+from typing import Any, Dict, Optional
 from collections import deque
 
 from fastapi import Depends, FastAPI, File, Form, Header, UploadFile, HTTPException
@@ -401,23 +401,47 @@ async def health():
     # Previously hardcoded {"status": "ok"} with no actual check --
     # the UI had no way to warn before job submission that the backend
     # LLM was unreachable; it could only find out after a job failed.
-    ollama = check_ollama_reachable(_config)
+    chk = await asyncio.get_event_loop().run_in_executor(None, _llm_check)
+    ollama = {"reachable": chk["state"] == "ok", "host": chk["host"], "error": chk.get("error") or chk["message"]}
     return {
-        "status": "ok" if ollama["reachable"] else "degraded",
+        "status": "ok" if chk["state"] == "ok" else "degraded",
         "service": "das",
         "version": "0.2.0",
         "ollama": ollama,
+        "llm": chk,
     }
+
+
+_llm_cache: Dict[str, Any] = {"at": 0.0, "value": None}
+
+
+def _llm_check(max_age: float = 10.0) -> Dict[str, Any]:
+    """Configured, reachable, model available? Cached briefly (the UI polls)."""
+    import time as _t
+    from k9_dow.utils.health_check import check_llm
+    if _llm_cache["value"] is None or _t.time() - _llm_cache["at"] > max_age:
+        configured = bool(os.getenv("OLLAMA_HOST", "").strip() and os.getenv("OLLAMA_MODEL", "").strip())
+        _llm_cache.update(at=_t.time(), value=check_llm(_ollama_base(), settings.OLLAMA_MODEL, configured))
+    return _llm_cache["value"]
+
+
+def _require_llm() -> None:
+    """Refuse work that needs the model when none is usable (UI and direct API calls alike)."""
+    chk = _llm_check(max_age=2.0)
+    if chk["state"] != "ok":
+        raise HTTPException(status_code=503, detail=chk["message"])
 
 
 @app.get("/llm")
 async def llm_info():
+    chk = await asyncio.get_event_loop().run_in_executor(None, _llm_check)
     return {
         "active_llm": settings.ACTIVE_LLM,
         "ollama_host": settings.OLLAMA_HOST,
         "ollama_model": settings.OLLAMA_MODEL,
         "ollama_display_name": settings.OLLAMA_DISPLAY_NAME,
         "data_sources": settings.KNOWLEDGE_CORPUS_LABEL,
+        "check": chk,
     }
 
 
@@ -525,6 +549,7 @@ def list_job_queue():
 
 
 async def _submit_job(filename: str, text: str, document_type: str, session_id: str = ""):
+    await asyncio.get_event_loop().run_in_executor(None, _require_llm)
     if len(_active_jobs()) >= MAX_QUEUE_SIZE:
         return JSONResponse(status_code=429, content={
             "status": "rejected",
@@ -658,6 +683,7 @@ class AdvanceReq(BaseModel):
 async def advance_job(job_id: str, req: Optional[AdvanceReq] = None, admin: dict = Depends(require_admin)):
     """DAS admin starts the next stage of a job whose gate K9X HIL approved.
     Refuses unless an approval is on record and that stage hasn't started."""
+    _require_llm()
     from k9_dow.gates.hil_gateway import (gate_approved_event, job_history, load_stage_result,
                                           mark_started)
     loop = asyncio.get_event_loop()
