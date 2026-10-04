@@ -36,13 +36,10 @@ def _accounts() -> dict:
 
 
 def public_logins() -> dict:
-    """Shown on the sign-in page (public demonstration deployment)."""
-    out = {"demo": {"user": os.environ.get("DAS_DEMO_USER", "demo"),
-                    "password": os.environ.get("DAS_DEMO_PASSWORD", "demo")}}
-    if os.environ.get("DAS_ADMIN_PASSWORD") and os.environ.get("DAS_SHOW_ADMIN_LOGIN", "true").lower() == "true":
-        out["admin"] = {"user": os.environ.get("DAS_ADMIN_USER", "admin"),
-                        "password": os.environ["DAS_ADMIN_PASSWORD"]}
-    return out
+    """Shown on the sign-in page (public demonstration deployment): the demo login
+    only. The admin login is never published (IEEE reviewer 3, minor 6)."""
+    return {"demo": {"user": os.environ.get("DAS_DEMO_USER", "demo"),
+                     "password": os.environ.get("DAS_DEMO_PASSWORD", "demo")}}
 
 
 def login(username: str, password: str) -> Optional[dict]:
