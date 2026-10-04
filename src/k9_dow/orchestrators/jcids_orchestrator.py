@@ -112,6 +112,15 @@ class JcidsOrchestrator(BaseOrchestrator):
             from k9_aif_abb.k9_security.vulnerability.shield_governance import ShieldGovernance
             self._shield = ShieldGovernance({**self.config, "security": {**sec, "shield": screen}})
 
+        # Classification screen at stage entry (DAS SBB on the framework's check
+        # contract): DAS is UNCLASSIFIED; marked documents never enter the pipeline.
+        self._classification = None
+        cls_cfg = sec.get("classification") or {}
+        if cls_cfg.get("enabled") is True:
+            from k9_aif_abb.k9_security.vulnerability.vulnerability_chain import VulnerabilityChain
+            from k9_dow.security.classification_marking_check import ClassificationMarkingCheck
+            self._classification = VulnerabilityChain().add(ClassificationMarkingCheck(cls_cfg))
+
         self._governance = None
         if self.config.get("governance", {}).get("enabled"):
             from k9_dow.governance.guardian_governance import GuardianGovernance
@@ -164,6 +173,16 @@ class JcidsOrchestrator(BaseOrchestrator):
 
         flow_t0 = time.monotonic()
         self._emit("OrchestratorStarted", job_id=job_id, filename=filename, document_type=doc_type)
+
+        if self._classification is not None:
+            res = self._classification.run(payload)
+            if res.blocked:
+                hit = next(r for r in res.results if r.blocked)
+                reason = f"k9x_Shield blocked ingress [{hit.check_name}]: {hit.message}"
+                print(f"  ✋ Classification screen BLOCKED job={job_id}: {hit.message}", flush=True)
+                self._emit("ShieldBlocked", job_id=job_id, check=hit.check_name, reason=reason)
+                return {"job_id": job_id, "orchestrator": "jcids", "status": "blocked_by_shield",
+                        "check": hit.check_name, "reason": reason, "filename": filename}
 
         if self._shield is not None:
             try:

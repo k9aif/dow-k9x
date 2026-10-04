@@ -175,6 +175,14 @@ security:
       PIIBoundaryCheck:
         block_on_match: true
 
+  # Classification screen at JCIDS stage entry (security/classification_marking_check.py):
+  # DAS is an UNCLASSIFIED proof of concept, so documents marked above UNCLASSIFIED
+  # (banner, portion marking, NOFORN/ORCON/REL TO...) are refused before any model
+  # call. CUI is flagged; block_cui: true blocks it.
+  classification:
+    enabled: true
+    block_cui: false
+
 # Systems Engineering stage (reached after the PATHWAY-MILESTONE approval).
 # demo_stub: true = demonstration endpoint: SE is triggered and records the
 # next review (SRR) but its review squads are not run.
