@@ -245,7 +245,7 @@
     <div id="jobProgress" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 12px 12px;font-size:11px;color:var(--text2)">No job running. Select a document and click Analyze.</div>
 
     <h3 style="border-top:1px solid var(--border)">Job Queue (max 5)</h3>
-    <div id="jobQueueList" style="flex-shrink:0;max-height:150px;overflow-y:auto;overflow-x:hidden;padding:6px 12px 12px;font-size:11px;color:var(--text2)">Loading…</div>
+    <div id="jobQueueList" style="flex-shrink:0;max-height:40vh;overflow-y:auto;overflow-x:hidden;padding:6px 12px 12px;font-size:11px;color:var(--text2)">Loading…</div>
   </div>
 
 </div>
@@ -578,9 +578,9 @@ async function refreshJobQueue() {
       const name = j.filename || j.job_id;
       // Last 6 characters tell jobs apart (every ID that day shares the JOB-YYYYMMDD- prefix); full ID on hover.
       const shortId = String(j.job_id || '').slice(-6);
-      return `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
-        <span style="width:56px;flex:none;font-family:var(--mono);color:var(--text2);white-space:nowrap" title="${j.job_id}">${shortId}</span>
-        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">${name}</span>
+      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span style="width:56px;flex:none;font-family:var(--mono);color:var(--text2);white-space:nowrap" title="${esc(j.job_id)}">${esc(shortId)}</span>
+        <span style="flex:1;min-width:0;overflow-wrap:anywhere;line-height:1.35">${esc(name).replace(/_/g, '_<wbr>')}</span>
         <span style="color:${color};white-space:nowrap;font-weight:600">${jobQueueStatusIcon(j.status)} ${label}</span>
       </div>`;
     }).join('');
