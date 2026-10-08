@@ -1,5 +1,6 @@
 name: ViewGeneratorAgent
 class: ViewGeneratorAgent
+module: k9_dow.agents.src.view_generator_agent
 description: >
   Generates DoDAF 2.0 architecture views (OV, SV, CV families) from
   capability docs and requirements. Iterates until consistency checks pass.

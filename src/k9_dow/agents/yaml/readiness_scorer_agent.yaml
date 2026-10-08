@@ -1,5 +1,6 @@
 name: ReadinessScorerAgent
 class: ReadinessScorerAgent
+module: k9_dow.agents.src.readiness_scorer_agent
 description: >
   Scores gate readiness. Agents score; humans decide. The score informs
   the decision authority — it does not replace them.

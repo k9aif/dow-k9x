@@ -11,31 +11,21 @@ from k9_aif_abb.k9_core.orchestration.base_orchestrator import BaseOrchestrator
 from k9_aif_abb.k9_squad.squad_loader import SquadLoader
 
 from k9_dow.utils.agent_loader import AgentLoader
-from k9_dow.agents.src.model_extractor_agent import ModelExtractorAgent
-from k9_dow.agents.src.view_generator_agent import ViewGeneratorAgent
-from k9_dow.agents.src.view_consistency_checker_agent import ViewConsistencyCheckerAgent
-from k9_dow.agents.src.criteria_loader_agent import CriteriaLoaderAgent
-from k9_dow.agents.src.evidence_collector_agent import EvidenceCollectorAgent
-from k9_dow.agents.src.readiness_scorer_agent import ReadinessScorerAgent
-from k9_dow.agents.src.gap_reporter_agent import GapReporterAgent
-from k9_dow.agents.src.artifact_fetcher_agent import ArtifactFetcherAgent
-from k9_dow.agents.src.completeness_checker_agent import CompletenessCheckerAgent
-from k9_dow.agents.src.package_builder_agent import PackageBuilderAgent
 
 log = logging.getLogger(__name__)
 
-_JCIDS_AGENTS = {
-    "ModelExtractorAgent": ModelExtractorAgent,
-    "ViewGeneratorAgent": ViewGeneratorAgent,
-    "ViewConsistencyCheckerAgent": ViewConsistencyCheckerAgent,
-    "CriteriaLoaderAgent": CriteriaLoaderAgent,
-    "EvidenceCollectorAgent": EvidenceCollectorAgent,
-    "ReadinessScorerAgent": ReadinessScorerAgent,
-    "GapReporterAgent": GapReporterAgent,
-    "ArtifactFetcherAgent": ArtifactFetcherAgent,
-    "CompletenessCheckerAgent": CompletenessCheckerAgent,
-    "PackageBuilderAgent": PackageBuilderAgent,
-}
+_JCIDS_AGENTS = (
+    "ModelExtractorAgent",
+    "ViewGeneratorAgent",
+    "ViewConsistencyCheckerAgent",
+    "CriteriaLoaderAgent",
+    "EvidenceCollectorAgent",
+    "ReadinessScorerAgent",
+    "GapReporterAgent",
+    "ArtifactFetcherAgent",
+    "CompletenessCheckerAgent",
+    "PackageBuilderAgent",
+)
 
 
 class _ProgressMonitor:
@@ -129,7 +119,8 @@ class JcidsOrchestrator(BaseOrchestrator):
     def _load_squad(self, yaml_filename: str, squad_id: str):
         agent_loader = AgentLoader(self._agents_dir)
         registry = AgentRegistry()
-        for name, cls in _JCIDS_AGENTS.items():
+        for name in _JCIDS_AGENTS:
+            cls = agent_loader.resolve_class(name)
             registry.register(
                 name,
                 lambda c=cls, n=name: c(

@@ -1,5 +1,6 @@
 name: OrphanDetectorAgent
 class: OrphanDetectorAgent
+module: k9_dow.agents.src.orphan_detector_agent
 description: >
   Detects orphan entities in the traceability graph: rootless requirements,
   unlinked views, disconnected test cases.

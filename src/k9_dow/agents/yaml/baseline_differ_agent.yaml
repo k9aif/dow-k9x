@@ -1,5 +1,6 @@
 name: BaselineDifferAgent
 class: BaselineDifferAgent
+module: k9_dow.agents.src.baseline_differ_agent
 description: >
   Diffs JCIDS requirements against SE technical baseline to detect divergence.
 pattern: reasoning

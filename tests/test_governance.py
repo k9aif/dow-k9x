@@ -39,10 +39,14 @@ def test_config_enables_the_verified_shield_profile():
 @needs_1_15
 def test_every_das_agent_gets_shield_in_production():
     from k9_aif_abb.k9_security.vulnerability.shield_governance import ShieldGovernance
-    from k9_dow.orchestrators.jcids_orchestrator import _JCIDS_AGENTS
+    from k9_dow.utils.agent_loader import AgentLoader
+    import k9_dow
+    loader = AgentLoader(Path(k9_dow.__file__).parent / "agents" / "yaml")
+    names = loader.list_classes()
+    assert len(names) == 17
     with patch.dict(os.environ, {"K9_ENV": "production"}):
-        for name, cls in _JCIDS_AGENTS.items():
-            assert isinstance(_agent(cls).governance, ShieldGovernance), name
+        for name in names:      # resolved from YAML, as the orchestrators do
+            assert isinstance(_agent(loader.resolve_class(name)).governance, ShieldGovernance), name
 
 
 @needs_1_15

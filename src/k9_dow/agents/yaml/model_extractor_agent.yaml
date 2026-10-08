@@ -1,5 +1,6 @@
 name: ModelExtractorAgent
 class: ModelExtractorAgent
+module: k9_dow.agents.src.model_extractor_agent
 description: >
   Extracts structured model elements from source documents and maps
   them to traceability graph entities.

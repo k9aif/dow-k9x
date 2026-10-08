@@ -1,5 +1,6 @@
 name: LinkValidatorAgent
 class: LinkValidatorAgent
+module: k9_dow.agents.src.link_validator_agent
 description: >
   Validates proposed trace links for correctness. Reasons over graph shape,
   not free text — assertions are deterministic and re-checkable.

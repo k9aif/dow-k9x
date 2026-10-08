@@ -1,5 +1,6 @@
 name: EvidenceCollectorAgent
 class: EvidenceCollectorAgent
+module: k9_dow.agents.src.evidence_collector_agent
 description: >
   Collects evidence artifacts satisfying gate entry criteria. Assembles
   evidence package for human decision authority.

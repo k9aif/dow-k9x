@@ -1,5 +1,6 @@
 name: CompletenessCheckerAgent
 class: CompletenessCheckerAgent
+module: k9_dow.agents.src.completeness_checker_agent
 description: >
   Checks artifact package completeness against gate requirements.
 pattern: extraction

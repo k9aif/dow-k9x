@@ -1,5 +1,6 @@
 name: ArtifactFetcherAgent
 class: ArtifactFetcherAgent
+module: k9_dow.agents.src.artifact_fetcher_agent
 description: >
   Fetches artifacts from connectors and prior pipeline outputs. Deterministic.
 pattern: extraction

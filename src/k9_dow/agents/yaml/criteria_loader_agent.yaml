@@ -1,5 +1,6 @@
 name: CriteriaLoaderAgent
 class: CriteriaLoaderAgent
+module: k9_dow.agents.src.criteria_loader_agent
 description: >
   Loads gate entry criteria for the target review. Deterministic — no LLM.
 pattern: extraction

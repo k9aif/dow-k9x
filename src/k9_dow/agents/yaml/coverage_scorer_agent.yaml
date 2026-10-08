@@ -1,5 +1,6 @@
 name: CoverageScorerAgent
 class: CoverageScorerAgent
+module: k9_dow.agents.src.coverage_scorer_agent
 description: >
   Scores traceability coverage across the graph. Produces coverage report
   with verified vs unverified requirements and health score.

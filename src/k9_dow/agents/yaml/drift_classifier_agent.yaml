@@ -1,5 +1,6 @@
 name: DriftClassifierAgent
 class: DriftClassifierAgent
+module: k9_dow.agents.src.drift_classifier_agent
 description: >
   Classifies detected drifts by severity. Iterates to verify severity
   calibration before reporting.

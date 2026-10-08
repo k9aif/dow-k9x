@@ -1,5 +1,6 @@
 name: PackageBuilderAgent
 class: PackageBuilderAgent
+module: k9_dow.agents.src.package_builder_agent
 description: >
   Assembles final review-ready artifact package with provenance for HITL gate.
 pattern: reasoning

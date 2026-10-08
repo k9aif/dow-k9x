@@ -1,5 +1,6 @@
 name: FundingDifferAgent
 class: FundingDifferAgent
+module: k9_dow.agents.src.funding_differ_agent
 description: >
   Diffs requirements against PPBE funding lines to detect unfunded work
   or stale funding references.

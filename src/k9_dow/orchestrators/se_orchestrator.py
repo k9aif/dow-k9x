@@ -10,25 +10,18 @@ from k9_aif_abb.k9_core.orchestration.base_orchestrator import BaseOrchestrator
 from k9_aif_abb.k9_squad.squad_loader import SquadLoader
 
 from k9_dow.utils.agent_loader import AgentLoader
-from k9_dow.agents.src.criteria_loader_agent import CriteriaLoaderAgent
-from k9_dow.agents.src.evidence_collector_agent import EvidenceCollectorAgent
-from k9_dow.agents.src.readiness_scorer_agent import ReadinessScorerAgent
-from k9_dow.agents.src.gap_reporter_agent import GapReporterAgent
-from k9_dow.agents.src.artifact_fetcher_agent import ArtifactFetcherAgent
-from k9_dow.agents.src.completeness_checker_agent import CompletenessCheckerAgent
-from k9_dow.agents.src.package_builder_agent import PackageBuilderAgent
 
 log = logging.getLogger(__name__)
 
-_SE_AGENTS = {
-    "CriteriaLoaderAgent": CriteriaLoaderAgent,
-    "EvidenceCollectorAgent": EvidenceCollectorAgent,
-    "ReadinessScorerAgent": ReadinessScorerAgent,
-    "GapReporterAgent": GapReporterAgent,
-    "ArtifactFetcherAgent": ArtifactFetcherAgent,
-    "CompletenessCheckerAgent": CompletenessCheckerAgent,
-    "PackageBuilderAgent": PackageBuilderAgent,
-}
+_SE_AGENTS = (
+    "CriteriaLoaderAgent",
+    "EvidenceCollectorAgent",
+    "ReadinessScorerAgent",
+    "GapReporterAgent",
+    "ArtifactFetcherAgent",
+    "CompletenessCheckerAgent",
+    "PackageBuilderAgent",
+)
 
 SE_REVIEWS = ["SE-REVIEW-SRR", "SE-REVIEW-SFR", "SE-REVIEW-PDR", "SE-REVIEW-CDR", "SE-REVIEW-TRR"]
 
@@ -66,7 +59,8 @@ class SeOrchestrator(BaseOrchestrator):
     def _load_squad(self, yaml_filename: str, squad_id: str):
         agent_loader = AgentLoader(self._agents_dir)
         registry = AgentRegistry()
-        for name, cls in _SE_AGENTS.items():
+        for name in _SE_AGENTS:
+            cls = agent_loader.resolve_class(name)
             registry.register(
                 name,
                 lambda c=cls, n=name: c(config=agent_loader.merge_with_global(n, self.config)),

@@ -1,5 +1,6 @@
 name: ViewConsistencyCheckerAgent
 class: ViewConsistencyCheckerAgent
+module: k9_dow.agents.src.view_consistency_checker_agent
 description: >
   Checks cross-view consistency across DoDAF views. Flags incoherence
   between OV, SV, CV families.

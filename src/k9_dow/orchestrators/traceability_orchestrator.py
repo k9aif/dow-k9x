@@ -9,25 +9,18 @@ from k9_aif_abb.k9_core.orchestration.base_orchestrator import BaseOrchestrator
 from k9_aif_abb.k9_squad.squad_loader import SquadLoader
 
 from k9_dow.utils.agent_loader import AgentLoader
-from k9_dow.agents.src.link_proposer_agent import LinkProposerAgent
-from k9_dow.agents.src.link_validator_agent import LinkValidatorAgent
-from k9_dow.agents.src.orphan_detector_agent import OrphanDetectorAgent
-from k9_dow.agents.src.coverage_scorer_agent import CoverageScorerAgent
-from k9_dow.agents.src.baseline_differ_agent import BaselineDifferAgent
-from k9_dow.agents.src.funding_differ_agent import FundingDifferAgent
-from k9_dow.agents.src.drift_classifier_agent import DriftClassifierAgent
 
 log = logging.getLogger(__name__)
 
-_CROSS_CUTTING_AGENTS = {
-    "LinkProposerAgent": LinkProposerAgent,
-    "LinkValidatorAgent": LinkValidatorAgent,
-    "OrphanDetectorAgent": OrphanDetectorAgent,
-    "CoverageScorerAgent": CoverageScorerAgent,
-    "BaselineDifferAgent": BaselineDifferAgent,
-    "FundingDifferAgent": FundingDifferAgent,
-    "DriftClassifierAgent": DriftClassifierAgent,
-}
+_CROSS_CUTTING_AGENTS = (
+    "LinkProposerAgent",
+    "LinkValidatorAgent",
+    "OrphanDetectorAgent",
+    "CoverageScorerAgent",
+    "BaselineDifferAgent",
+    "FundingDifferAgent",
+    "DriftClassifierAgent",
+)
 
 
 class TraceabilityOrchestrator(BaseOrchestrator):
@@ -48,7 +41,8 @@ class TraceabilityOrchestrator(BaseOrchestrator):
     def _load_squad(self, yaml_filename: str, squad_id: str):
         agent_loader = AgentLoader(self._agents_dir)
         registry = AgentRegistry()
-        for name, cls in _CROSS_CUTTING_AGENTS.items():
+        for name in _CROSS_CUTTING_AGENTS:
+            cls = agent_loader.resolve_class(name)
             registry.register(
                 name,
                 lambda c=cls, n=name: c(config=agent_loader.merge_with_global(n, self.config)),

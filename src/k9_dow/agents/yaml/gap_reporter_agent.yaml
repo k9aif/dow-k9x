@@ -1,5 +1,6 @@
 name: GapReporterAgent
 class: GapReporterAgent
+module: k9_dow.agents.src.gap_reporter_agent
 description: >
   Reports gaps blocking gate readiness with remediation recommendations.
 pattern: reasoning

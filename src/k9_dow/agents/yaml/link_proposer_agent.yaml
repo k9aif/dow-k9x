@@ -1,5 +1,6 @@
 name: LinkProposerAgent
 class: LinkProposerAgent
+module: k9_dow.agents.src.link_proposer_agent
 description: >
   Proposes trace links between requirements, capability docs, test cases,
   and DoDAF views. Links are proposals — humans approve via HITL gate.
