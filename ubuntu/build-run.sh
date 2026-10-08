@@ -147,12 +147,24 @@ case "$cmd" in
     DAS_SESSION_SECRET="$(envval DAS_SESSION_SECRET)"
     GRADER_MODEL="$(envval GRADER_MODEL)"; GRADER_MODEL="${GRADER_MODEL:-deepseek-r1:32b}"
     OLLAMA_NUM_CTX="$(envval OLLAMA_NUM_CTX)"; OLLAMA_NUM_CTX="${OLLAMA_NUM_CTX:-32768}"
+    OLLAMA_DISPLAY_NAME="$(envval OLLAMA_DISPLAY_NAME)"; OLLAMA_DISPLAY_NAME="${OLLAMA_DISPLAY_NAME:-powerAI-5090}"
+    # OLLAMA_HOST from .env (or the shell), used as written. Only when it is unset or points at
+    # localhost/127.0.0.1 -- which inside a container is the container itself -- use this host's IP.
+    OLLAMA_HOST_CFG="${OLLAMA_HOST:-$(envval OLLAMA_HOST)}"
+    case "$OLLAMA_HOST_CFG" in
+      ""|*localhost*|*127.0.0.1*)
+        OLLAMA_HOST="http://${PODMAN_HOST_IP}:11434"
+        OLLAMA_SRC="this host's IP: .env OLLAMA_HOST is ${OLLAMA_HOST_CFG:-unset}, not reachable from a container" ;;
+      *)
+        OLLAMA_HOST="$OLLAMA_HOST_CFG"; OLLAMA_SRC=".env" ;;
+    esac
     sed -e "s/<PODMAN_HOST_IP>/${PODMAN_HOST_IP}/g" -e "s|<OLLAMA_MODEL>|${OLLAMA_MODEL}|g" \
         -e "s|<DAS_RESUME_MODE>|${DAS_RESUME_MODE}|g" -e "s|<DAS_ADMIN_USER>|${DAS_ADMIN_USER}|g" \
-        -e "s|<DAS_ADMIN_PASSWORD>|${DAS_ADMIN_PASSWORD}|g" -e "s|<DAS_SESSION_SECRET>|${DAS_SESSION_SECRET}|g" -e "s|<GRADER_MODEL>|${GRADER_MODEL}|g" -e "s|<OLLAMA_NUM_CTX>|${OLLAMA_NUM_CTX}|g" \
+        -e "s|<DAS_ADMIN_PASSWORD>|${DAS_ADMIN_PASSWORD}|g" -e "s|<DAS_SESSION_SECRET>|${DAS_SESSION_SECRET}|g" -e "s|<GRADER_MODEL>|${GRADER_MODEL}|g" -e "s|<OLLAMA_NUM_CTX>|${OLLAMA_NUM_CTX}|g" -e "s|<OLLAMA_HOST>|${OLLAMA_HOST}|g" -e "s|<OLLAMA_DISPLAY_NAME>|${OLLAMA_DISPLAY_NAME}|g" \
       "$DAS_DIR/ubuntu/das-pod.yaml" > "$RENDERED_YAML"
     [ -n "$DAS_ADMIN_PASSWORD" ] || echo "Note: DAS_ADMIN_PASSWORD not set in .env -- no admin login (nobody can start the next stage in manual mode)."
     echo "Deploying pod: $POD_NAME (3 containers, host IP ${PODMAN_HOST_IP}, model ${OLLAMA_MODEL}, num_ctx ${OLLAMA_NUM_CTX}) ..."
+    echo "Ollama: ${OLLAMA_HOST} (from ${OLLAMA_SRC})"
     sudo podman play kube "$RENDERED_YAML" --replace
     echo ""
     echo "Pod running. Containers:"

@@ -14,8 +14,8 @@
 #   ElasticMQ  -> rhel-host:9324 (SQS-compatible job queue, app-backend only)
 #
 # SETUP (run once):
-#   # 0. Replace <PODMAN_HOST_IP> in hostAliases and OLLAMA_HOST below with
-#   #    this host's LAN IP
+#   # 0. build-run.sh up fills <PODMAN_HOST_IP> (hostAliases) and <OLLAMA_HOST>
+#   #    (OLLAMA_HOST from .env; this host's IP only if .env leaves it unset or localhost)
 #   # 1. Build the image
 #   podman build -t k9-aif-das:latest -f ubuntu/Containerfile .
 #
@@ -86,7 +86,7 @@ spec:
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: "rhel-host:9092"
     - name: OLLAMA_HOST
-      value: "http://<PODMAN_HOST_IP>:11434"
+      value: "<OLLAMA_HOST>"
     - name: OLLAMA_MODEL
       value: "<OLLAMA_MODEL>"
     - name: OLLAMA_NUM_CTX
@@ -142,7 +142,7 @@ spec:
     - name: DEMO_MODE
       value: "OFF"
     - name: OLLAMA_DISPLAY_NAME
-      value: "powerAI-5090"
+      value: "<OLLAMA_DISPLAY_NAME>"
     - name: K9_ENV
       value: "production"
 
@@ -199,7 +199,7 @@ spec:
           name: das-s3-secret-key
           key: das-s3-secret-key
     - name: OLLAMA_HOST
-      value: "http://<PODMAN_HOST_IP>:11434"
+      value: "<OLLAMA_HOST>"
     - name: OLLAMA_MODEL
       value: "<OLLAMA_MODEL>"
     - name: OLLAMA_NUM_CTX
@@ -240,7 +240,7 @@ spec:
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: "rhel-host:9092"
     - name: OLLAMA_HOST
-      value: "http://<PODMAN_HOST_IP>:11434"
+      value: "<OLLAMA_HOST>"
     - name: OLLAMA_MODEL
       value: "<OLLAMA_MODEL>"
     - name: OLLAMA_NUM_CTX
