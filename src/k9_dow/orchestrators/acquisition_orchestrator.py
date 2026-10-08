@@ -70,7 +70,8 @@ class AcquisitionOrchestrator(BaseOrchestrator):
 
     def execute_flow(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         from k9_dow.gates.gate_registry import DAS_GATES
-        from k9_dow.gates.hil_gateway import load_stage_result, publish_gate_task, save_stage_result
+        from k9_dow.gates.hil_gateway import (gate_decision_evidence, load_stage_result,
+                                              publish_gate_task, save_stage_result)
 
         job_id = payload.get("job_id", "unknown")
         decision = payload.get("decision") or {}
@@ -80,7 +81,8 @@ class AcquisitionOrchestrator(BaseOrchestrator):
                    approved_by=decision.get("actor"))
 
         jcids = load_stage_result(self.config, job_id, "jcids") or {}
-        prior = {**(jcids.get("gate_readiness") or {}), **(jcids.get("review_package") or {})}
+        prior = {**gate_decision_evidence("JROC-VALIDATION", decision),
+                 **(jcids.get("gate_readiness") or {}), **(jcids.get("review_package") or {})}
         stage_payload = {
             **payload,
             "gate_id": self.GATE_ID,

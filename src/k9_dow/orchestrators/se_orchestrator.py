@@ -101,11 +101,14 @@ class SeOrchestrator(BaseOrchestrator):
         gate_squad = self._load_squad("gate_readiness_squad.yaml", "GateReadinessSquad")
         package_squad = self._load_squad("package_assembly_squad.yaml", "PackageAssemblySquad")
 
-        gate_payload = {**payload, "gate_id": target_review}
+        from k9_dow.gates.hil_gateway import gate_decision_evidence
+        decision_evidence = gate_decision_evidence("PATHWAY-MILESTONE", decision)
+        gate_payload = {**payload, "gate_id": target_review, "prior_outputs": decision_evidence}
         gate_result = gate_squad.execute(gate_payload)
         log.info("[SE] Gate readiness scored for %s", target_review)
 
-        package_payload = {**payload, "prior_outputs": gate_result, "gate_id": target_review}
+        package_payload = {**payload, "prior_outputs": {**decision_evidence, **gate_result},
+                           "gate_id": target_review}
         package_result = package_squad.execute(package_payload)
         log.info("[SE] Package assembled for %s", target_review)
 

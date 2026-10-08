@@ -72,6 +72,8 @@ def test_acquisition_resumes_from_stored_jcids_and_raises_its_gate(monkeypatch):
     assert result["jroc_decision"]["actor"] == "reviewer@k9x.ai" and result["input_found"]
     first = squads["GateReadinessSquad"].seen[0]
     assert first["gate_id"] == "PATHWAY-MILESTONE" and "Funding line identified" in first["gate_criteria"]
+    jroc = first["prior_outputs"]["JROC-VALIDATION decision (human, of record)"]
+    assert jroc["outcome"] == "APPROVED" and jroc["decided_by"] == "reviewer@k9x.ai"
     assert stored["acquisition"]["job_id"] == "job-7"
     assert published[0][0] == "PATHWAY-MILESTONE" and published[0][1] == "job-7"
     types = [e["type"] for e in events]
@@ -265,3 +267,39 @@ def test_auth_me_restores_session(monkeypatch):
     with pytest.raises(HTTPException) as e:
         asyncio.run(app_mod.auth_me(authorization="Bearer bad.token"))
     assert e.value.status_code == 401
+
+
+# ── The human gate decision is evidence for the next stage ──
+
+def test_gate_decision_evidence_shapes():
+    from k9_dow.gates.hil_gateway import gate_decision_evidence
+    assert gate_decision_evidence("JROC-VALIDATION", {}) == {}
+    rej = gate_decision_evidence("JROC-VALIDATION", hil_reply("j", action="reject"))
+    assert rej["JROC-VALIDATION decision (human, of record)"]["outcome"] == "REJECT"
+
+
+def test_acquisition_evidence_collector_sees_the_jroc_approval(monkeypatch):
+    """Regression: the human approved JROC, but Acquisition's agents saw only JCIDS's automated
+    'NOT READY' assessment and scored 'JROC validation approved' as NOT MET (JOB-20261003-C7D7EF)."""
+    from k9_dow.gates.gate_registry import DAS_GATES
+    from k9_dow.gates.hil_gateway import gate_decision_evidence
+    prior = {**gate_decision_evidence("JROC-VALIDATION", hil_reply("j")),
+             "readiness_score": {"output": "Gate Disposition: NOT READY / BLOCKED"}}
+    _, prompts = _run_squad_with_fake_llm(monkeypatch, "gate_readiness_squad.yaml", "GateReadinessSquad",
+        {"job_id": "j", "gate_id": "PATHWAY-MILESTONE",
+         "gate_criteria": DAS_GATES["PATHWAY-MILESTONE"].entry_criteria, "prior_outputs": prior})
+    ev = next(p for a, p in prompts.items() if "Evidence" in a)
+    assert "JROC-VALIDATION decision (human, of record)" in ev and "APPROVED" in ev
+    assert "reviewer@k9x.ai" in ev and "superseded" in ev
+
+
+def test_se_review_squads_see_the_milestone_approval(monkeypatch):
+    """With the SE squads switched on (se.demo_stub: false), the PATHWAY-MILESTONE decision is evidence."""
+    from k9_dow.orchestrators.se_orchestrator import SeOrchestrator
+    squads = {}
+    orch = SeOrchestrator(config={"se": {"demo_stub": False}})
+    monkeypatch.setattr(orch, "_load_squad", lambda f, sid: squads.setdefault(sid, FakeSquad(sid)))
+    orch.execute_flow(gate_approved_event("PATHWAY-MILESTONE", hil_reply("job-7", actor="mda@k9x.ai")))
+    for sid in ("GateReadinessSquad", "PackageAssemblySquad"):
+        ev = squads[sid].seen[0]["prior_outputs"]["PATHWAY-MILESTONE decision (human, of record)"]
+        assert ev["outcome"] == "APPROVED" and ev["decided_by"] == "mda@k9x.ai"

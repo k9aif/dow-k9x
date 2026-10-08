@@ -106,6 +106,27 @@ def gate_approved_event(gate_id: str, reply: Dict[str, Any]) -> Dict[str, Any]:
 GATE_NEXT_STAGE = {"JROC-VALIDATION": "acquisition", "PATHWAY-MILESTONE": "se"}
 
 
+def gate_decision_evidence(gate_id: str, decision: Dict[str, Any]) -> Dict[str, Any]:
+    """The human decision at a gate, as evidence for the next stage's squad.
+
+    It is the decision of record. The automated readiness assessment in the review package was
+    input to that decision; without this item the next stage's agents see only that assessment
+    and score "gate approved" from it, contradicting the human who approved."""
+    if not decision:
+        return {}
+    action = decision.get("action")
+    return {f"{gate_id} decision (human, of record)": {
+        "gate": gate_id,
+        "outcome": "APPROVED" if action == "complete" else str(action or "unknown").upper(),
+        "decided_by": decision.get("actor"),
+        "decided_at": decision.get("decided_at"),
+        "comment": decision.get("comment"),
+        "note": ("Decision of record by the human decision authority in K9X HIL. The automated "
+                 "readiness assessment in the earlier review package was input to this decision "
+                 "and is superseded by it."),
+    }}
+
+
 def resume_mode() -> str:
     """DAS_RESUME_MODE: "manual" (default) — a HIL approval is recorded and the
     DAS admin starts the next stage from Jobs in Pipeline; "auto" — the
