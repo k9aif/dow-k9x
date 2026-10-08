@@ -514,6 +514,9 @@ async def run_demo(demo_filename: str, document_type: str = "capability_gap", se
 
 
 MAX_QUEUE_SIZE = 5
+# One browser session may hold at most this many queued/running jobs, so one visitor cannot fill the
+# shared queue and lock everyone else out. Submissions without a session id share one allowance.
+MAX_JOBS_PER_SESSION = int(os.getenv("DAS_MAX_JOBS_PER_SESSION", "2"))
 _ACTIVE_JOB_STATUSES = {"queued", "running"}
 
 
@@ -550,10 +553,18 @@ def list_job_queue():
 
 async def _submit_job(filename: str, text: str, document_type: str, session_id: str = ""):
     await asyncio.get_event_loop().run_in_executor(None, _require_llm)
-    if len(_active_jobs()) >= MAX_QUEUE_SIZE:
+    active = _active_jobs()
+    if len(active) >= MAX_QUEUE_SIZE:
         return JSONResponse(status_code=429, content={
             "status": "rejected",
             "error": f"Job queue is full ({MAX_QUEUE_SIZE} max) -- try again once a running job finishes.",
+        })
+    mine = [j for j in active if (j.get("session_id") or None) == (session_id or None)]
+    if len(mine) >= MAX_JOBS_PER_SESSION:
+        return JSONResponse(status_code=429, content={
+            "status": "rejected",
+            "error": (f"You already have {len(mine)} jobs queued or running ({MAX_JOBS_PER_SESSION} per visitor, "
+                      "so the shared demo stays available to others) -- submit another when one finishes."),
         })
     job_id = generate_job_id()
     log.info("[API] Submit: %s (%d bytes) type=%s job=%s", filename, len(text), document_type, job_id)
