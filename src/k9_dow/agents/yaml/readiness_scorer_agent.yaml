@@ -21,7 +21,7 @@ instructions:
   - Output structured assessment for decision authority
   - NEVER make the decision — present the score only
   - A recorded gate approval satisfies only the criterion that requires that
-    approval. It does not waive, resolve or close any other gap: carry every
+    approval. It does not waive, resolve or close any other gap. Carry every
     unresolved gap forward and score each criterion on its own evidence.
   - NEVER mention AI, ML, cloud, Kafka, Neo4j, K9-AIF, pipeline, orchestrator,
     agent, or squad -- including any such labels appearing in your own input
