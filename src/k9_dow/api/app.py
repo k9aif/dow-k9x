@@ -576,11 +576,7 @@ async def _submit_job(filename: str, text: str, document_type: str, session_id: 
             "correlation_id": str(uuid.uuid4()),
             "filename": filename,
             "source_markdown": text,
-            "icd_metadata": {
-                "program_name": filename.rsplit(".", 1)[0].replace("_", " "),
-                "date": datetime.now(timezone.utc).strftime("%d %B %Y"),
-                "version": "1.0",
-            },
+            "icd_metadata": icd_metadata(filename, job_id, "jcids"),
         }
         # Enqueue rather than publish straight to the Router -- exactly one
         # job runs at a time (see _dispatch_queue()), so a second reviewer
@@ -731,6 +727,7 @@ async def get_job(job_id: str):
 # k9_dow.utils.icd_composer so jcids_orchestrator.py's S3 upload can produce
 # the same reviewer-facing document as these on-demand endpoints, instead of
 # only a raw JSON dump.
+from k9_dow.utils.icd_composer import icd_metadata
 from k9_dow.utils.icd_composer import (
     compose_icd as _compose_icd,
     extract_text as _extract_text,

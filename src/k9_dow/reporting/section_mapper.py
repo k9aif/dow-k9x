@@ -73,12 +73,7 @@ class SectionMapper:
         diagrams = []
 
         views = prior_outputs.get("generated_views", {})
-        if isinstance(views, dict):
-            view_output = views.get("output", "")
-        elif isinstance(views, str):
-            view_output = views
-        else:
-            view_output = ""
+        view_output = self._extract_text(views)
 
         if view_output and "OV-1" in str(views):
             diagrams.append(DiagramSpec(
@@ -90,11 +85,15 @@ class SectionMapper:
         return diagrams
 
     @staticmethod
-    def _extract_text(output: Any) -> str:
+    def _extract_text(output: Any, _depth: int = 0) -> str:
+        """Text of an agent result. Loop agents (K9ValidationLoopAgent) wrap the final agent's
+        result, so the text can sit one or more levels down: {"output": {"output": "..."}}."""
         if isinstance(output, str):
             return output.strip()
-        if isinstance(output, dict):
+        if isinstance(output, dict) and _depth < 4:
             for key in ("output", "content", "text", "body"):
-                if key in output and isinstance(output[key], str):
-                    return output[key].strip()
+                if key in output:
+                    text = SectionMapper._extract_text(output[key], _depth + 1)
+                    if text:
+                        return text
         return ""

@@ -50,7 +50,10 @@ class IcdReportBuilder:
             from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
             store = ObjectStorageFactory.create(cfg)
             program = metadata.get("program_name", "unknown").replace(" ", "_").lower()
-            key = f"icd/{program}/ICD_{program}.docx"
+            # Job id and stage in the key: two visitors analysing the same document, or the
+            # Acquisition stage after JCIDS, must not overwrite each other's Word ICD.
+            scope = "/".join(p for p in (metadata.get("job_id"), metadata.get("stage")) if p) or program
+            key = f"icd/{scope}/ICD_{program}.docx"
             uri = store.upload("dow-reports", key, docx_bytes, {"type": "ICD", "program": program})
             log.info("[IcdReportBuilder] Stored ICD at %s", uri)
             return uri

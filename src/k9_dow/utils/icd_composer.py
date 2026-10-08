@@ -13,6 +13,18 @@ from datetime import datetime
 from typing import Any, Optional
 
 
+def icd_metadata(filename: str, job_id: str = "", stage: str = "") -> dict:
+    """Metadata for the Word ICD: program name from the input file name; job id and stage keep each
+    job's (and each stage's) Word file separate in object storage."""
+    return {
+        "program_name": (filename or "document").rsplit(".", 1)[0].replace("_", " "),
+        "date": datetime.now().strftime("%d %B %Y"),
+        "version": "1.0",
+        "job_id": job_id,
+        "stage": stage,
+    }
+
+
 def extract_source_title(source_markdown: str) -> str:
     """Pull the input document's own title from its first Markdown heading
     (e.g. "# CAPABILITY DEVELOPMENT DOCUMENT (CDD) FOR IRONCLAD INCREMENT 1"),

@@ -70,6 +70,7 @@ class AcquisitionOrchestrator(BaseOrchestrator):
 
     def execute_flow(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         from k9_dow.gates.gate_registry import DAS_GATES
+        from k9_dow.utils.icd_composer import icd_metadata
         from k9_dow.gates.hil_gateway import (gate_decision_evidence, load_stage_result,
                                               publish_gate_task, save_stage_result)
 
@@ -88,6 +89,7 @@ class AcquisitionOrchestrator(BaseOrchestrator):
             "gate_id": self.GATE_ID,
             "gate_criteria": DAS_GATES[self.GATE_ID].entry_criteria,
             "document_title": jcids.get("document_title"),
+            "icd_metadata": icd_metadata(jcids.get("filename") or "", job_id, "acquisition"),
             "prior_outputs": prior,
         }
 
