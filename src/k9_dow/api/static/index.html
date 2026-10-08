@@ -567,15 +567,20 @@ async function refreshJobQueue() {
       el.innerHTML = '<div style="color:var(--text2)">No jobs yet.</div>';
       return;
     }
-    el.innerHTML = jobs.map(j => {
+    const header = `<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0 4px;border-bottom:1px solid var(--border);color:var(--text2);font-size:10px;letter-spacing:.05em">
+        <span style="width:56px;flex:none;white-space:nowrap">JOB ID</span><span style="flex:1">DOCUMENT</span><span>STATUS</span></div>`;
+    el.innerHTML = header + jobs.map(j => {
       const done = j.status === 'complete';
       const failed = j.status === 'error';
       const running = j.status === 'running';
       const color = done ? 'var(--green)' : failed ? 'var(--red)' : running ? 'var(--accent)' : 'var(--text2)';
       const label = done ? 'done' : failed ? 'failed' : running ? 'Running...' : 'waiting...';
       const name = j.filename || j.job_id;
+      // Last 6 characters tell jobs apart (every ID that day shares the JOB-YYYYMMDD- prefix); full ID on hover.
+      const shortId = String(j.job_id || '').slice(-6);
       return `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">${name}</span>
+        <span style="width:56px;flex:none;font-family:var(--mono);color:var(--text2);white-space:nowrap" title="${j.job_id}">${shortId}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${name}">${name}</span>
         <span style="color:${color};white-space:nowrap;font-weight:600">${jobQueueStatusIcon(j.status)} ${label}</span>
       </div>`;
     }).join('');
