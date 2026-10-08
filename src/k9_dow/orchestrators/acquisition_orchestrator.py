@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
@@ -10,6 +11,8 @@ from k9_aif_abb.k9_core.orchestration.base_orchestrator import BaseOrchestrator
 from k9_aif_abb.k9_squad.squad_loader import SquadLoader
 
 from k9_dow.utils.agent_loader import AgentLoader
+from k9_dow.gates.gate_registry import DAS_GATES
+from k9_dow.gates.review_summary import summarize_readiness
 
 log = logging.getLogger(__name__)
 
@@ -69,7 +72,6 @@ class AcquisitionOrchestrator(BaseOrchestrator):
         return result
 
     def execute_flow(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        from k9_dow.gates.gate_registry import DAS_GATES
         from k9_dow.utils.icd_composer import icd_metadata
         from k9_dow.gates.hil_gateway import (gate_decision_evidence, load_stage_result,
                                               publish_gate_task, save_stage_result)
@@ -114,6 +116,7 @@ class AcquisitionOrchestrator(BaseOrchestrator):
 
         uri = save_stage_result(self.config, job_id, "acquisition", result)
         readiness = gate_result.get("readiness_score", {})
+        das = os.environ.get("DAS_PUBLIC_URL", "https://das.k9x.ai").rstrip("/")
         if publish_gate_task(
             self.config, self.GATE_ID, job_id,
             title=f"PATHWAY-MILESTONE review — {job_id}",
@@ -121,11 +124,13 @@ class AcquisitionOrchestrator(BaseOrchestrator):
                         "decision authority review requested. Approval starts Systems Engineering.",
             source_orchestrator="AcquisitionOrchestrator",
             source_topic="das.acquisition",
-            payload={
-                "readiness_score": readiness.get("output") if isinstance(readiness, dict) else None,
-                "jroc_approved_by": decision.get("actor"),
-            },
-            artifacts=[uri],
+            # Name-value summary for the reviewer; the full assessment is in the Milestone review
+            # package (View / .docx links below), rendered by DAS like the JROC task's ICD.
+            payload={"Gate": self.GATE_ID,
+                     **summarize_readiness(readiness.get("output") if isinstance(readiness, dict) else "",
+                                           DAS_GATES[self.GATE_ID].entry_criteria),
+                     "JROC approved by": decision.get("actor")},
+            artifacts=[f"{das}/jobs/{job_id}/view/milestone", f"{das}/jobs/{job_id}/docx/milestone", uri],
         ):
             self._emit("HilTaskPublished", job_id=job_id, topic="workflow.hil.das.pathway",
                        gate_id=self.GATE_ID, artifact=uri)

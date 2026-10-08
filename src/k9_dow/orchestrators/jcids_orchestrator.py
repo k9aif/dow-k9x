@@ -11,6 +11,8 @@ from k9_aif_abb.k9_core.orchestration.base_orchestrator import BaseOrchestrator
 from k9_aif_abb.k9_squad.squad_loader import SquadLoader
 
 from k9_dow.utils.agent_loader import AgentLoader
+from k9_dow.gates.gate_registry import DAS_GATES
+from k9_dow.gates.review_summary import summarize_readiness
 
 log = logging.getLogger(__name__)
 
@@ -304,7 +306,6 @@ class JcidsOrchestrator(BaseOrchestrator):
         # Keyed by the squad's own result_key (readiness_score/gap_report),
         # not the agent class name -- matches app.py's _compose_icd(),
         # which navigates the same gate_readiness dict the same way.
-        gap_report = result.get("gate_readiness", {}).get("gap_report", {})
         readiness = result.get("gate_readiness", {}).get("readiness_score", {})
         published = publish_gate_task(
             self.config, "JROC-VALIDATION", job_id,
@@ -314,10 +315,11 @@ class JcidsOrchestrator(BaseOrchestrator):
                         "pipeline at Acquisition.",
             source_orchestrator="JcidsOrchestrator",
             source_topic="das.jcids",
-            payload={
-                "readiness_score": readiness.get("output") if isinstance(readiness, dict) else None,
-                "gap_summary": gap_report.get("output") if isinstance(gap_report, dict) else None,
-            },
+            # Name-value summary a reviewer can read at a glance; the full readiness assessment and
+            # gap report are in the ICD behind the View link below.
+            payload={"Gate": "JROC-VALIDATION", **summarize_readiness(
+                readiness.get("output") if isinstance(readiness, dict) else "",
+                DAS_GATES["JROC-VALIDATION"].entry_criteria)},
             # DAS's own /view/icd endpoint renders on demand from
             # _job_store, independent of whether S3 storage succeeded --
             # always include it so an approver always has something
