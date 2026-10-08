@@ -124,16 +124,22 @@ class MyAgent(BaseAgent):
 
 ## Orchestrator Pattern (from EOC example)
 
+An orchestrator module never imports agent classes. Every agent YAML carries `class:` and
+`module:`; check with `k9aif inspect .` (k9-aif >= 1.15) before committing.
+
 ```python
 from k9_aif_abb.k9_agents.registry.agent_registry import AgentRegistry
 from k9_aif_abb.k9_core.orchestration.base_orchestrator import BaseOrchestrator
 from k9_aif_abb.k9_squad.squad_loader import SquadLoader
 
 class DodafOrchestrator(BaseOrchestrator):
+    # Agents are named, never imported: each class resolves from its agent YAML's
+    # class + module (k9_inspect rule K9-DEC-001, three-layer decoupling).
     def _load_squad(self, squads_yaml_path):
-        agent_loader = AgentLoader(agents_yaml_dir)
+        agent_loader = AgentLoader(agents_yaml_dir)      # k9_dow.utils.agent_loader
         agent_registry = AgentRegistry()
-        for name, cls in [("MyAgent", MyAgent), ...]:
+        for name in ("MyAgent", ...):
+            cls = agent_loader.resolve_class(name)
             agent_registry.register(
                 name,
                 lambda c=cls, n=name: c(config=agent_loader.merge_with_global(n, self.config)),
