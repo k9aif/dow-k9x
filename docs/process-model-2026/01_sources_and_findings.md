@@ -44,11 +44,12 @@ Ravi downloads them in a browser).
 5. **JAR** (Joint Acceleration Reserve) is a CAPE-held portion of Fiscal Guidance from the FY2027
    budget cycle. "All other elements of the Planning, Programming, Budgeting, and Execution
    (PPBE) system shall continue." (Att. 3)
-6. **Joint validation that remains is only what statute requires** (10 U.S.C. §181). "A capability
+6. **Interim (transition) rule**: joint validation that remains is only what statute requires (10 U.S.C. §181). "A capability
    document only qualifies as a 'joint performance requirement' upon receipt of a signed VCJCS
    memorandum citing the appropriate legal basis … All other validations devolve to the
    sponsoring Military Service." Qualifying submissions are adjudicated "within 15 days with a
-   single round of comment resolution". (Att. 4)
+   single round of comment resolution". (Att. 4) **This 15-day mechanism is interim guidance for
+   the JCIDS phase-out; it does not appear in CJCSI 5123.01J or CJCSM 5123.01A.**
 7. **Combatant Command needs** continue to be received and prioritized by the Joint Staff; the
    urgent and emergent need process (JUON/JEON) is to be simplified. (Att. 4)
 8. **The Services review their own requirements processes** to strengthen force design, engage
@@ -75,8 +76,9 @@ Ravi downloads them in a browser).
 3. **The JROC's re-oriented focus**: **Joint Force Design (JFD)**, **Joint Capability Integration (JCI)**
    and **Combatant Command (CCMD) Requirements**, "through a lens of **Joint Operational Problems
    (JOPs)** underpinned by its analytic engine, **Capability Portfolio Management (CPM)**". JOPs are
-   prioritized annually. Note the term: the 2025 memo said "Key Operational Problems (KOP)";
-   the 2026 instruction uses **"Joint Operational Problems (JOPs)"**. (para 1.a; Encl. D 1.a)
+   prioritized annually. **Not a simple rename**: NDS- and JWC-directed
+   **Key Operational Problems (KOPs)** remain *inputs*; the JROC compiles, refines and ranks **Joint
+   Operational Problems (JOPs)** (CJCSM 5123.01A Encl. A 1). (para 1.a; Encl. D 1.a)
 4. **Joint capability requirements the JROC recommends** must "describe the joint operational
    problem", "propose **nonprescriptive** solutions" and ensure interoperability. (Encl. A 1.a(6))
 5. **CCMD requirements**: immediate requirements go through the **Joint Immediate Combatant
@@ -87,8 +89,9 @@ Ravi downloads them in a browser).
    COTS alternatives and trade space, and make recommendations. (Encl. D 1.a(4))
 7. **Legacy JCIDS documents**: previously JROC-validated requirements "remain valid"; updates go
    "through the **solution sponsor's internal validation procedures**". (Encl. A para 7)
-8. **Portfolio Acquisition Executives** are named JROC ad hoc advisors (Encl. A 2.d(5)), which
-   confirms the Nov 2025 PEO-to-PAE change appears in policy.
+8. **Portfolio Acquisition Executives** are named JROC ad hoc advisors in **CJCSI 5123.01J Encl. A
+   2.d(5)**. The PEO-to-PAE restructuring itself (Nov 2025 memo, S7) is **not verified from a primary
+   document**; DoWI 5000.02 Change 2 still describes the PEO (3.2).
 9. **KM/DS** is "the authoritative system for processing, coordinating, tasking, and archiving all DoW
    requirements documents". (Encl. A 6.b)
 
@@ -102,8 +105,11 @@ Ravi downloads them in a browser).
 
 ## Step 3 findings: S3, CJCSM 5123.01A, 5 Aug 2026 (verified)
 
-1. **There are no ICDs or CDDs at the joint level any more.** "Initial Capabilities Document" does not
-   appear in the manual. The **Joint Force Requirements (JFR) documents** are:
+1. **The joint document types are new**: the **Joint Force Requirements (JFR) documents** are listed
+   below. *Correction (independent review)*: ICD/CDD terms **do** still appear, as "Initial Capability
+   Document (or equivalent)" and "Capability Development Document (or equivalent)" (Encl. A 12.b,
+   rapid-fielding context), as Service/legacy equivalents. They are no longer joint validation
+   documents. The JFR documents are:
    - **Capstone Requirements Document (CRD)**: top-down, overarching Joint Force needs, captured as
      Joint Capability Requirements (JCRs) and prioritized within a portfolio for CPM analysis;
    - **Joint DOTmLPF-P Change Request (JDCR)**: non-materiel solutions;
@@ -127,8 +133,11 @@ Ravi downloads them in a browser).
      **TRLs and MRLs**, projected cost, schedule and quantity);
    - joint integration (force design impacts, interoperability, inter-Service dependencies,
      DOTmLPF-P). (Encl. A 6.a-b)
-5. **The outcome is an endorsement, not a validation**: the JROC or a subordinate board publishes a
-   **JROCM** that endorses "all, some, or none" of the Service document as a JFR; identifies
+5. **The outcome is an endorsement, not a validation**, and it runs **after Service validation and in
+   parallel with Service acquisition processes** ("JCI will occur after Service/component requirements
+   validation and in parallel with Service acquisition processes to prevent unnecessary time delays",
+   Encl. A 6.d). The JROC or a subordinate board publishes a **JROCM** that endorses "all, some, or none"
+   (Encl. A 6.c; Encl. B states the board action as "endorse or reject") of the Service document as a JFR; identifies
    critical JCRs "to inform **Warfighting Acquisition System (WAS)** trade-space decisions";
    establishes **tripwires and comebacks**; and forwards recommendations to Service
    requirements/acquisition boards and the **RRAB**. (Encl. A 6.c)
@@ -139,7 +148,10 @@ Ravi downloads them in a browser).
      CCMD-sponsored documents;
    - **FCB Interest**;
    - **Service Information**.
-   The JSD sets "the staffing process and final review authority". (Encl. B 2.b)
+   The JSD sets "the staffing process and final review authority". It is based on **five criteria**
+   (joint force design impact, reliance on external solutions, uniqueness, resource impact incl. ACAT,
+   previous designation; Encl. B 2.b(2)), recommended by the sponsor and set through the Joint
+   Requirements Coordinator (J-8). (Encl. B 2.b)
 7. USSOCOM (SOFCIDS) and USCYBERCOM (CCIDS) keep their own validation authority; the JROC keeps
    awareness through JCI. (Encl. A 7)
 
@@ -242,17 +254,21 @@ program risk." Every decision is documented by the MDA in an **Acquisition Decis
    acquisition program baseline (APB)". "Validated capability requirements are required for all
    programs."
 
-### Where this 2021 instruction is superseded (precedence: S1-S4 over S5's JCIDS wording)
+### Reading the 2021 instruction's JCIDS wording (an interpretive reading, not a formal supersession)
 - "ICD", "CDD" and "requirements validation authority" are JCIDS-era terms. Under the JFRP (S2, S3)
   the validated document is the **Service's own requirement document**, validated by the
-  **Service**. S5 itself allows this ("or equivalent"). The joint step is the JCI endorsement review
-  (Step 3).
-- DoWI 5000.02 Change 2 (S4) removed JCIDS references; 5000.85 has not been reissued.
+  **Service**. S5 absorbs this through its own words: "a validated requirements document (e.g., an initial
+  capabilities document (ICD) **or equivalent**)" (3.5.a) and "validate the CDD (**or equivalent**
+  requirements document)" (3.8.c). DAS reads S5 *through* "or equivalent". CJCSI 5123.01J 1.b: the JFRP
+  "does not delineate actions required to satisfy acquisitions rules and regulations".
+- DoWI 5000.02 Change 2 (S4) removed JCIDS references; the 5000.85 PDF used is the Nov 2021 Change 1
+  (a later reissue cannot be ruled out from the files alone).
 
 ### Systems engineering reviews within MCA (S6, SE Guidebook 2022, verified)
-- **ASR** (3.1): in the MSA phase; "leads to a **draft performance specification for the preferred
+- **ASR** (3.1): "This is a best practice review" (not a mandatory Milestone A criterion); in the MSA phase; "leads to a **draft performance specification for the preferred
   materiel solution**". It informs Milestone A.
-- **SRR** (3.2): "after the selection of the preferred solution and after sufficient analysis has
+- **SRR** (3.2; also "a best practice review", while "A SRR or SFR is mandatory per DoDI 5000.88"):
+  a government SRR on the draft RFP may precede RFP release; "after the selection of the preferred solution and after sufficient analysis has
   occurred to develop a draft performance specification"; held with each developer when "competing
   contractual efforts during the **TMRR phase**". Mandatory per DoDI 5000.88 (SRR or SFR). It
   follows Milestone A.
@@ -261,3 +277,9 @@ program risk." Every decision is documented by the MDA in an **Acquisition Decis
 ## Open questions: all answered above (Steps 2-5)
 Remaining minor item: the Nov 2025 WAS/PAE memo (S7) as a primary document. It is reflected in
 CJCSM 5123.01A's terms; DoWI 5000.02 Change 2 still uses DAS/PEO. Not blocking.
+
+## Independent review (2026-10-09)
+A second model (Sonnet) checked this file and the design against the primary PDFs
+(`03_independent_review.md`): 14 errors, 14 omissions, 26 claims verified. The claims re-checked in
+the primary text (E1 parallel JCI, E6 ICD/CDD "or equivalent", E7 KOPs as inputs, E8 "best practice
+review", E12 "endorse or reject", the pre-RFP SRR) were confirmed. This file is corrected accordingly.

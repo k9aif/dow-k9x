@@ -5,47 +5,63 @@ Every stage and gate below cites `01_sources_and_findings.md` (S1-S6 = primary d
 **Milestone A and the SRR**. Later phases and the other pathways are defined in the process file
 but not built.
 
-## 1. The flow
+## 1. The flow (revised after the independent review, 03_independent_review.md)
 
 ```
- 1  Service capability requirement document        [agents draft]      S3 Encl. A 6.b, Encl. C 3.f
- 2  Service Requirements Validation          ◆ HUMAN  Service board       S1 p.1, Att.4; S2 1.b
- 3  Joint review (JCI): JSD + endorsement     ◆ HUMAN  JROC/JCB/FCB by JSD S3 Encl. A 6, Encl. B 2.b
- 4  Materiel Development Decision (MDD)       ◆ HUMAN  MDA                 S5 3.5
-      (pathway + phase of entry; AoA study guidance/plan; ADM)        S4 4.1, S5 3.5.c
- 5  MSA phase                                       [agents]          S5 3.6
-      AoA summary · affordability · early SE analysis
-      SE: Alternative Systems Review (ASR) → draft performance specification   S6 3.1
-      draft CDD-equivalent (Service-approved)                          S5 3.7.a(1)
- 6  Milestone A package                             [agents]          S5 3.7.a(2), 3.7.b
- 7  Milestone A                               ◆ HUMAN  MDA (ADM)           S5 3.7.c
- 8  TMRR phase, SE: System Requirements Review (SRR)  [agents prepare]  S6 3.2; S5 3.8
- 9  SRR technical review                      ◆ HUMAN  chief engineer/PM   S6 3.2
+ 1  Service capability requirement document (Service format)  [agents draft]   S3 A 6.b, E 1.b
+ 2  Service Requirements Validation          ◆ HUMAN  Service board              S1 p.1; S2 1.b
+        │
+        ├──► 2J  Joint Capability Integration review   ◆ HUMAN (JROC/JCB/FCB per JSD)
+        │        PARALLEL, non-blocking: "after Service/component requirements validation
+        │        and in parallel with Service acquisition processes"            S3 A 6.c-d, B 2.b
+        │        → JROCM: endorse (all/some/none) or reject; tripwires; critical JCRs,
+        │          carried into Milestone A as evidence when available
+        ▼
+ 3  Materiel Development Decision (MDD)      ◆ HUMAN  MDA                       S5 3.5
+        inputs: validated requirement document (ICD "or equivalent"), AoA study guidance + plan
+        ADM: phase of entry, initial review milestone                       S5 3.5.c
+ 4  MSA phase                                        [agents]               S5 3.6
+        AoA summary · affordability · early SE analysis · product support planning
+        SE: Alternative Systems Review (best-practice review) → draft performance spec   S6 3.1
+        draft CDD-equivalent, Component-approved                        S5 3.7.a(1)
+        proposed acquisition strategy matched to a pathway (PM)          S4 4.1
+ 5  Milestone A package                              [agents]               S5 3.7.a-b
+ 6  Milestone A                              ◆ HUMAN  MDA (ADM)                  S5 3.7.c
+        approves the acquisition strategy (incl. pathway match), TMRR entry, RFP release
+ 7  TMRR phase, SE: System Requirements Review package   [agents prepare]   S6 3.2; S5 3.8
+ 8  SRR technical review                     ◆ HUMAN  review chair (Service-appointed);
+                                                       criteria tailored by the Chief Engineer   S6 3.2
  ── designed, not built: SFR → PDR → CDD-equivalent validation → Development RFP Release →
-    Milestone B (S5 3.8-3.10); MTA, Software and other pathways (S4 4.2)
+    Milestone B (S5 3.8-3.10); MTA, Software and other pathways (S4 4.2); RRAB / Joint
+    Acceleration Reserve path for joint KOP/JOP-driven needs (S1 Att. 1, 3); JCI tripwires,
+    breaches and comebacks (S3 A 9); SOFCIDS/CCIDS, CCMD-derived (CDR) and JICR paths (S2, S3)
 ```
 
-**Why this order** (the domain point Gemini raised, corrected against the sources):
-- Requirements are validated by the **Service** (S1, S2). The joint step is an **endorsement review**
-  sized by the JSD, not a universal JROC gate (S3).
-- The **MDD** is the mandatory entry to MCA and is where the MDA sets the phase of entry (S5 3.5).
-- **Systems engineering feeds the milestone**: the ASR runs in MSA and produces the draft performance
-  specification behind Milestone A (S6 3.1). The **SRR follows Milestone A**, in TMRR (S6 3.2). This
-  is the correction to Gemini's "SRR before the milestone", which holds only for Milestone B.
+**Why this order** (the domain point raised by Gemini, corrected against the sources and the review):
+- Requirements are validated by the **Service** (S1, S2). **Joint Capability Integration runs in parallel**
+  and does not hold up acquisition (S3 A 6.d). It is an endorsement-or-reject review whose
+  reviewer is set by the Joint Staffing Designator (S3).
+- The **MDD** is the mandatory entry to MCA; it sets the phase of entry and the initial review milestone
+  (S5 3.5.c). **The pathway is not an MDD output**: the PM matches the acquisition strategy to a
+  pathway, and **the MDA approves the acquisition strategy at Milestone A** (S4 4.1; S5 3.7.c).
+- **Systems engineering informs the milestone**: the ASR (a best-practice review) runs in MSA and yields
+  the draft performance specification (S6 3.1). The developer **SRR follows Milestone A** in TMRR; a
+  government SRR on the draft RFP may come earlier (S6 3.2).
 
 ## 2. Gates (human decisions; all through K9X HIL)
 
-| Gate id | Who decides (role) | Entry criteria (from the sources) | Decision record |
+| Gate id | Who decides | Entry criteria | Decision record |
 |---|---|---|---|
-| `SERVICE-VALIDATION` | Service requirements board | JFRP minimum content complete: operational context (task, CONOPS); SIC/DIA threat with CIPs; capability requirements/performance attributes traceable to gaps; TRL/MRL; projected cost, schedule, quantity; joint integration (S3 A 6.b) | Service validation memo |
-| `JOINT-REVIEW` | JROC / JCB / FCB per JSD; "Service Information" = no joint review | JSD assigned from ACAT and joint dependencies (S3 B 2.b); JCRs in the official format (S3 C 3.f(2)) | JROCM: endorse all / some / none; tripwires; critical JCRs (S3 A 6.c) |
-| `MDD` | MDA | validated requirement document; AoA study guidance and study plan (S5 3.5.a) | ADM: phase of entry, initial review milestone (S5 3.5.c) |
-| `MILESTONE-A` | MDA | ASR complete with a draft performance spec; AoA; affordability (fully funded in the FYDP); risks with funded mitigation; acquisition strategy; test strategy; Component-approved draft CDD-equivalent; ICE/ITRA for MDAPs (S5 3.6-3.7, S6 3.1) | ADM: materiel solution, TMRR strategy, RFP release, TMRR exit / EMD entry criteria (S5 3.7.c) |
-| `SE-REVIEW-SRR` | Chief engineer / PM (technical review) | SRR criteria (S6 3.2, Table 3-2): requirements consistent with the preferred solution and technology plans, measurable and testable, traceable | Review minutes, action items |
+| `SERVICE-VALIDATION` | Service requirements board | **Service-defined** (each Service owns its criteria, S2 1.b). DAS's demo check: the document carries what the Service must later submit to JCI (S3 A 6.b): operational context; SIC/DIA threat, CIPs; capability requirements/performance attributes traceable to gaps; TRL/MRL; projected cost, schedule, quantity; joint integration. **Performance attribute certifications are Service-owned** (net-ready, intelligence supportability, sustainment, energy, survivability/cyber survivability, exportability; S3 E 2) | Service validation record |
+| `JCI-REVIEW` (parallel) | JROC / JCB / FCB per JSD; "Service Information" = awareness only | JSD **recommended by the sponsor and set through the Joint Requirements Coordinator (J-8)** on the five criteria of S3 B 2.b(2); the JRC may return a document to the Service | JROCM: endorse (all/some/none) or reject; tripwires; critical JCRs; recommendations to Service boards and the RRAB (S3 A 6.c) |
+| `MDD` | MDA (Service Chief concurrence for MDAPs, S5 2.3.b) | validated requirement document ("or equivalent"); AoA study guidance and study plan (S5 3.5.a) | ADM: phase of entry, initial review milestone (S5 3.5.c) |
+| `MILESTONE-A` | MDA (Service Chief concurrence for MDAPs, S5 2.3.b) | S5 3.7.a-b: justification, affordability and feasibility of the preferred solution; technologies to mature; requirement trade space; technical/cost/schedule risks with funded mitigation; **acquisition strategy (pathway match, IP, program protection, exportability)**; **cybersecurity** (S4 4.1.b(3)); test strategy; mission data plan and threat; **Should Cost** targets; framing assumptions; affordability (fully funded in the FYDP); Component-approved draft CDD-equivalent; for MDAPs: ICE, ITRA, goals approved (S5 3C), and the **10 U.S.C. 2366a** technology-delay determination. ASR results as evidence (best practice, S6 3.1); JCI JROCM and tripwires when available | ADM: materiel solution, acquisition strategy, TMRR strategy, final RFP release, TMRR exit / EMD entry criteria (S5 3.7.c) |
+| `SE-REVIEW-SRR` | Review chair appointed by the Service; criteria tailored by the Chief Engineer | S6 3.2 body (requirements consistent with the preferred solution and technology plans, measurable, testable, traceable) and Table 3-2 products as tailored | Review minutes, action items |
 
-`JOINT-REVIEW` is **non-blocking by design** (an endorsement, S3 A 6.c). A job proceeds when the
-JROCM is recorded, whatever it endorses; its tripwires and critical JCRs carry forward as evidence.
-`ACAT` and joint dependencies come from the input document.
+Requirement statements: DAS writes Service capability requirements in a **Service format**. The JCR
+statement format ("The ability to … against … in order to achieve … under … in accordance with …";
+S3 C 3.f(2)) belongs to **joint** documents (CRD, JDCR, CDR) and is used only where DAS drafts a joint
+document. It is not a criterion for a Service requirement.
 
 ## 3. Process definition as configuration (versioned, "as of")
 
@@ -74,7 +90,7 @@ past jobs.
 | Today | Becomes | Notes |
 |---|---|---|
 | `JcidsOrchestrator` (ICD + DoDAF views) | `RequirementOrchestrator` | Same squads (ViewGeneration, GateReadiness). The output is a **Service capability requirement document** with JFRP minimum content and JCR statements; DoDAF views (OV-1, etc.) stay as supporting architecture |
-| gate `JROC-VALIDATION` | `SERVICE-VALIDATION` + `JOINT-REVIEW` | Two HIL tasks; the JSD is computed and shown |
+| gate `JROC-VALIDATION` | `SERVICE-VALIDATION` + parallel `JCI-REVIEW` | Two HIL tasks; the JCI task runs alongside the acquisition flow; DAS proposes a JSD for the reviewer to confirm |
 | — (new) | `MDD` gate | HIL task; ADM fields |
 | `AcquisitionOrchestrator` | `MsaOrchestrator` (AoA summary, affordability, SE: ASR) + Milestone A package | The GateReadiness and PackageAssembly squads are reused; **new ASR agents** (preferred solution, draft performance spec, technical risks) |
 | gate `PATHWAY-MILESTONE` | `MILESTONE-A` | Criteria from S5 3.7 / S6 3.1; the computed readiness score stays |
@@ -87,16 +103,17 @@ Demo-mode behaviour (shared queue, 2 jobs per visitor, own Generated Docs) is **
 ## 5. Inputs
 
 The current demo documents (FIREBIRD, IRONCLAD, SENTINEL, F-22, Kestrel) are written as ICD/CDD-style
-documents. Each stays usable: DAS treats it as a **Service capability requirement document (legacy
-JCIDS format)**, which S2 Encl. A 7 explicitly allows. Optionally, new demo inputs can use the JFRP
+documents. Each stays usable as a **Service capability requirement document**: "Services/components will use
+Service/component document formats" (S3 A 6.b, E 1.b), so a legacy ICD-style layout is acceptable as
+the Service's own format. (CJCSI Encl. A 7 covers documents *previously validated* under JCIDS.) Optionally, new demo inputs can use the JFRP
 minimum-content headings.
 
 ## 6. Verification
 
 1. **Second-model review of this design** against the source excerpts in `01_sources_and_findings.md`
    (independent of the author model), before code.
-2. Unit tests: process file loads; every stage and gate cites a source; gate order; the joint review
-   is non-blocking; criteria present.
+2. Unit tests: process file loads; every stage and gate cites a source; gate order; the JCI review
+   runs in parallel and never blocks the MDD or Milestone A; criteria present.
 3. `k9aif inspect`: still compliant (no new violations).
 4. **Live end-to-end runs** on the deployment through all four human gates plus the SRR review,
    recorded like S15.
