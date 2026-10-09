@@ -134,5 +134,5 @@ minimum-content headings.
 ## 8. Decisions for Ravi
 
 1. Scope: MCA through Milestone A + SRR (recommended), other pathways designed only?
-2. JOINT-REVIEW non-blocking (an endorsement, as the manual says)? Recommended yes.
+2. JCI review as a **parallel**, non-blocking human review (CJCSM Encl. A 6.d: "in parallel with Service acquisition processes")? Recommended yes.
 3. Rollout via a second URL first?
