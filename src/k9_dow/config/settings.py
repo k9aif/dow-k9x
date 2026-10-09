@@ -51,7 +51,7 @@ class Settings:
     S3_ACCESS_KEY = _env("S3_ACCESS_KEY", "")
     S3_SECRET_KEY = _env("S3_SECRET_KEY", "")
 
-    DOCLING_ENDPOINT = _env("DOCLING_ENDPOINT", "http://localhost:5001/v1/parse")
+    DOCLING_ENDPOINT = _env("DOCLING_ENDPOINT", "http://localhost:5001/v1/convert/file")
 
     OUTPUT_DIR = _PROJECT_ROOT / "output_reports"
     CONFIG_DIR = _BASE_DIR

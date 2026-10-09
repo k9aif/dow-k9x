@@ -14,7 +14,7 @@ authors = [
 ]
 
 dependencies = [
-    "k9-aif[s3]==1.15.0",
+    "k9-aif[s3]==1.15.2",
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "python-multipart>=0.0.9",

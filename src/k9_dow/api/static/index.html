@@ -199,7 +199,7 @@
       </select>
       </details>
       <div id="demoInfo" style="font-size:10px;color:var(--text2);margin-bottom:8px;display:none"></div>
-      <input type="file" id="fileInput" style="display:none">
+      <input type="file" id="fileInput" accept=".md,.markdown,.txt,.pdf,.docx,.pptx,.xlsx,.html,.htm,.png,.jpg,.jpeg,.tif,.tiff" style="display:none">
       <label>Document Type</label>
       <select id="docType" disabled>
         <option value="capability_gap">Capability Gap / Needs</option>
@@ -1487,7 +1487,7 @@ async function upload() {
       // the existing enqueue-failure path -- both previously fell through
       // into the success branch below with no job_id, showing a
       // nonsensical "undefined SUBMITTED" badge.
-      setJobResultText('Error: ' + (data.error || 'Submission failed.'));
+      setJobResultText('Error: ' + (data.error || data.detail || 'Submission failed.'));
       setJobInProgress(false);
       return;
     }

@@ -551,7 +551,8 @@ def list_job_queue():
     })
 
 
-async def _submit_job(filename: str, text: str, document_type: str, session_id: str = ""):
+async def _submit_job(filename: str, text: str, document_type: str, session_id: str = "",
+                      original: Optional[bytes] = None, normalization: Optional[dict] = None):
     await asyncio.get_event_loop().run_in_executor(None, _require_llm)
     active = _active_jobs()
     if len(active) >= MAX_QUEUE_SIZE:
@@ -577,7 +578,12 @@ async def _submit_job(filename: str, text: str, document_type: str, session_id: 
             "filename": filename,
             "source_markdown": text,
             "icd_metadata": icd_metadata(filename, job_id, "jcids"),
+            "normalization": normalization or {"method": "text", "chars": len(text)},
         }
+        if original is not None:
+            from k9_dow.retrieval.normalize import save_original
+            event["original_uri"] = await asyncio.get_event_loop().run_in_executor(
+                None, save_original, _config, job_id, filename, original)
         # Enqueue rather than publish straight to the Router -- exactly one
         # job runs at a time (see _dispatch_queue()), so a second reviewer
         # opening a second tab (or one person double-clicking) can't starve
@@ -613,7 +619,16 @@ async def upload_document(
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Empty file")
-    return await _submit_job(file.filename, content.decode("utf-8", errors="ignore"), document_type, session_id)
+    # Stage NORMALIZE: PDF / Word / scanned input -> Markdown via Docling (OCR).
+    from k9_dow.retrieval.normalize import NormalizationError, normalize_upload
+    try:
+        norm = await asyncio.get_event_loop().run_in_executor(
+            None, normalize_upload, _config, file.filename, content)
+    except NormalizationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    markdown = norm.pop("markdown")
+    return await _submit_job(file.filename, markdown, document_type, session_id,
+                             original=content, normalization=norm)
 
 
 def _get_job(job_id: str) -> Optional[dict]:
