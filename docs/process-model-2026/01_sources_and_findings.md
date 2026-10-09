@@ -15,7 +15,7 @@ Ravi downloads them in a browser).
 | S2 | CJCSI 5123.01J, Charter of the JROC and the Joint Force Requirements Process, 15 Jan 2026, **CH 1, 5 Aug 2026** | `data/policy/CJCSI 5123.01J CH 1.pdf` | VERIFIED |
 | S3 | **CJCSM 5123.01A**, Manual for the JROC and the JFRP, **5 Aug 2026** (112 pp; supersedes the Jan 2026 CJCSM 5123.01) | `data/policy/CJCSM 5123.01A.pdf` | VERIFIED (Encl. A 6, B 2.b, C) |
 | S4 | DoWI 5000.02, Operation of the Adaptive Acquisition Framework, 23 Jan 2020, Change 2, 8 Apr 2026 | `data/policy/500002p.pdf` | VERIFIED (1.5, 3, 4.1, 4.2) |
-| S5 | DoDI 5000.85, Major Capability Acquisition, 6 Aug 2020, Change 1, 4 Nov 2021 (not reissued since) | `data/policy/500085p.pdf` | obtained |
+| S5 | DoDI 5000.85, Major Capability Acquisition, 6 Aug 2020, Change 1, 4 Nov 2021 (not reissued since) | `data/policy/500085p.pdf` | VERIFIED (3.4-3.10) |
 | S8 | Joint Staff briefing "Implementation of CJCSI 5123.01J & CJCSM 5123.01" (14 pp, Aug 2026) | `data/policy/JFRP_overview_mhsrs.pdf` | obtained (cross-check only) |
 | S6 | DoD Systems Engineering Guidebook, Feb 2022 | `data/SE-Guidebook-Feb2022.pdf` | VERIFIED (sections 3.1, 3.2) |
 | S7 | "Transforming the Warfighting Acquisition System" memo, 7 Nov 2025 | — | PENDING (secondary reports only) |
@@ -197,11 +197,67 @@ Ravi downloads them in a browser).
 - SE technical reviews belong *inside* the pathway, producing the technical baselines decisions
   rely on.
 
-## Open questions, to be answered from S2-S5 (do not assume)
-- What does the **Joint Force Requirements Process** (S2/S3) call the requirement documents now?
-  Is the ICD or CDD retained, renamed or replaced?
-- The exact validation authorities and designators in the JFRP.
-- **DoDI 5000.02 Change 2** (S4): are pathways, decision points and the Milestone Decision
-  Authority unchanged? How do Portfolio Acquisition Executives (S7) appear in it?
-- **DoDI 5000.85** (S5): current MDD, MSA, Milestone A, TMRR and Milestone B content and the
-  required technical reviews.
+## Step 5 findings: S5, DoDI 5000.85 Major Capability Acquisition, Change 1, Nov 2021 (verified)
+
+Sequence (3.4, Figure 2): **MDD → MSA phase → Milestone A → TMRR phase → (CDD validation) →
+Development RFP Release decision point → Milestone B → EMD → Milestone C → P&D → FRP/FD → O&S.**
+"Acquisition decisions will be made at the lowest authorized level, commensurate with the ACAT and
+program risk." Every decision is documented by the MDA in an **Acquisition Decision Memorandum
+(ADM)**.
+
+1. **MDD** (3.5): "the mandatory entry point into the major capability acquisition process … informed
+   by a **validated requirements document (e.g., an initial capabilities document (ICD) or
+   equivalent)** and the completion of the **AoA study guidance and the AoA study plan**." DCAPE
+   (or the Component equivalent for ACAT II and below) presents the AoA study guidance, and the
+   Component presents the study plan. **The MDA determines the phase of entry and the initial review
+   milestone** (ADM, with the AoA guidance and plan attached).
+2. **MSA phase** (3.6): "conduct the **AoA** and other activities needed to choose the concept … begin
+   translating validated capability gaps into system-specific requirements, and conduct planning to
+   support a decision on the acquisition strategy". Focus: alternatives, measures of effectiveness,
+   cost-capability trades, life-cycle cost, schedule, CONOPS, risk; the AoA informs and is informed
+   by affordability, sustainment, **early systems engineering analysis**, threat and interoperability.
+   The CAE selects a PM and program office. For MDAPs, an **Independent Cost Estimate (ICE) and an
+   Independent Technical Risk Assessment (ITRA)** come before Milestone A. Product support planning
+   begins.
+3. **Milestone A** (3.7): approves entry into TMRR, the **acquisition strategy**, and release of the
+   final RFP for TMRR. "A **draft CDD approved by the DoD Component** informs the acquisition
+   strategy and the RFP for TMRR."
+   - Principal considerations: justification, affordability and feasibility of the preferred
+     solution; technologies to mature in TMRR; requirement trade space and priorities; technical,
+     cost and schedule risks with funded mitigation; acquisition strategy (IP, program protection,
+     exportability); test strategy; life-cycle mission data plan and threat.
+   - At the review: acquisition strategy, business approach, "Should Cost" targets, framing
+     assumptions, risk assessment, initial product support planning, and an **affordability
+     analysis** showing the program is **fully funded within the FYDP** (quantitative for MDAPs).
+   - Decisions (ADM): materiel solution, TMRR strategy, final RFP release, TMRR exit criteria and
+     EMD entry criteria.
+4. **TMRR phase** (3.8): reduces technology, engineering, integration and life-cycle cost risk, with
+   design and requirements trades in "close collaboration with the requirements community". **PDR
+   before Milestone B** unless waived; ICE and ITRA before Milestone B for MDAPs; competitive
+   prototyping is normal.
+5. **CDD validation** (3.8.c): "the requirements validation authority will validate the **CDD (or
+   equivalent requirements document)**", before the Development RFP Release.
+6. **Development RFP Release decision point** (3.9) and **Milestone B** (3.10): firm requirements,
+   reduced risk, affordability. Milestone B "formally initiate[s] the program by approving the
+   acquisition program baseline (APB)". "Validated capability requirements are required for all
+   programs."
+
+### Where this 2021 instruction is superseded (precedence: S1-S4 over S5's JCIDS wording)
+- "ICD", "CDD" and "requirements validation authority" are JCIDS-era terms. Under the JFRP (S2, S3)
+  the validated document is the **Service's own requirement document**, validated by the
+  **Service**. S5 itself allows this ("or equivalent"). The joint step is the JCI endorsement review
+  (Step 3).
+- DoWI 5000.02 Change 2 (S4) removed JCIDS references; 5000.85 has not been reissued.
+
+### Systems engineering reviews within MCA (S6, SE Guidebook 2022, verified)
+- **ASR** (3.1): in the MSA phase; "leads to a **draft performance specification for the preferred
+  materiel solution**". It informs Milestone A.
+- **SRR** (3.2): "after the selection of the preferred solution and after sufficient analysis has
+  occurred to develop a draft performance specification"; held with each developer when "competing
+  contractual efforts during the **TMRR phase**". Mandatory per DoDI 5000.88 (SRR or SFR). It
+  follows Milestone A.
+- **SFR → PDR** in TMRR, with the **PDR before Milestone B** (S5 3.8.b).
+
+## Open questions: all answered above (Steps 2-5)
+Remaining minor item: the Nov 2025 WAS/PAE memo (S7) as a primary document. It is reflected in
+CJCSM 5123.01A's terms; DoWI 5000.02 Change 2 still uses DAS/PEO. Not blocking.
