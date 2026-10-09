@@ -108,6 +108,22 @@ Service/component document formats" (S3 A 6.b, E 1.b), so a legacy ICD-style lay
 the Service's own format. (CJCSI Encl. A 7 covers documents *previously validated* under JCIDS.) Optionally, new demo inputs can use the JFRP
 minimum-content headings.
 
+## 5a. Stage 0: document normalization (Ravi, 2026-10-09)
+
+Real Service requirement documents arrive as PDF or Word, but DAS today decodes uploads as UTF-8 text.
+
+| Upload | Handling |
+|---|---|
+| `.md`, `.txt` | used as is |
+| `.pdf`, `.docx`, `.pptx` (born-digital) | Docling-Serve → Markdown (headings, numbered sections, tables preserved) |
+| scanned PDF | Docling with OCR enabled |
+
+- Use the framework's governed `DoclingParser` agent (`k9_aif_abb/k9_agents/retrieval/docling_parser.py`),
+  endpoint `DOCLING_ENDPOINT` from `.env`; Docling-Serve as a Podman container in `ubuntu/build-run.sh`.
+- Keep the original file in object storage beside the converted Markdown; show both to reviewers.
+- Conversion check: stop the job with a clear message if the extracted text is empty or implausibly short.
+- k9x Shield screens the converted text (unchanged ingress screening).
+
 ## 6. Verification
 
 1. **Second-model review of this design** against the source excerpts in `01_sources_and_findings.md`
