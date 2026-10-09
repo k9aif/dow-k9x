@@ -4,6 +4,7 @@ from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
 from k9_dow.agents.src.squad_context import gate_criteria, step_output
+from k9_dow.gates.readiness import align_score, computed_score
 
 
 class PackageBuilderAgent(BaseAgent):
@@ -35,21 +36,24 @@ class PackageBuilderAgent(BaseAgent):
                 "4. Traceability coverage score\n"
                 "5. Drift alerts (if any)\n"
                 "6. Recommendation (but NOT a decision — that's for the human)\n\n"
+                "State the Overall Readiness Score exactly as the readiness assessment gives it;\n"
+                "never recompute it.\n"
                 "Output as structured package ready for decision authority review."
             ),
             metadata={"agent": self.layer},
             task_type=self.config.get("model", "reasoning"),
         )
         resp = llm_invoke(self.config, req)
+        output = align_score(resp.output or "", computed_score(prior))
 
-        result = {"agent": self.layer, "output": resp.output}
+        result = {"agent": self.layer, "output": output}
 
         if self.config.get("emit_icd_docx", True):
             try:
                 from k9_dow.reporting.icd_report_builder import IcdReportBuilder
                 builder = IcdReportBuilder(config=self.config)
                 metadata = payload.get("icd_metadata", {})
-                all_outputs = {**prior, "review_package": {"output": resp.output}}
+                all_outputs = {**prior, "review_package": {"output": output}}
                 uri = builder.build_and_store(
                     prior_outputs=all_outputs,
                     metadata=metadata,

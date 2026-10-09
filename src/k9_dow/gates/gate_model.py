@@ -21,6 +21,10 @@ class GateDefinition(BaseModel):
     agent_role: str = "PREPARE_ONLY"
     human_role: str = "DECISION_AUTHORITY"
     entry_criteria: list[str] = Field(default_factory=list)
+    # Weight of each entry criterion in the readiness score, in the same order (sum 100).
+    # Empty means equal weights. The score is computed in code from the scorer's per-criterion
+    # verdicts (gates/readiness.py), never by the language model.
+    criterion_weights: list[int] = Field(default_factory=list)
     human_actions: list[GateAction] = Field(
         default_factory=lambda: [GateAction.APPROVE, GateAction.REJECT, GateAction.RETURN_FOR_REWORK]
     )

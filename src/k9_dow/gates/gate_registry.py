@@ -29,6 +29,7 @@ DAS_GATES: dict[str, GateDefinition] = {
             "No critical invariant violations",
             "Evidence package assembled",
         ],
+        criterion_weights=[20, 20, 20, 30, 10],
         non_delegable=True,
     ),
     "PATHWAY-MILESTONE": GateDefinition(
@@ -40,8 +41,9 @@ DAS_GATES: dict[str, GateDefinition] = {
             "JROC validation approved",
             "Pathway recommendation prepared",
             "Funding line identified",
-            "Artifact package complete for milestone",
+            "JCIDS review package available (ICD, readiness assessment, artifact manifest)",
         ],
+        criterion_weights=[25, 25, 25, 25],
         non_delegable=True,
     ),
     "SE-REVIEW-SRR": GateDefinition(

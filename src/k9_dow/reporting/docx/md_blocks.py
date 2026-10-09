@@ -10,6 +10,12 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from k9_dow.reporting.models import DiagramSpec
 
 
+_BULLET = re.compile(r"^(\s*)[-*+]\s+(.*)$")
+_NUMBERED = re.compile(r"^(\s*)(\d+)[.)]\s+(.*)$")
+_RULE = re.compile(r"^\s*(?:-{3,}|\*{3,}|_{3,})\s*$")
+_INLINE = re.compile(r"(\*\*.+?\*\*|__.+?__|`[^`]+`|<br\s*/?>|(?<![\w*])\*(?!\s)[^*]+?\*(?![\w*]))", re.I)
+
+
 def render_markdown_to_docx(doc: Document, md: str, diagrams: dict[str, bytes] | None = None) -> None:
     diagrams = diagrams or {}
     lines = md.split("\n")
@@ -20,8 +26,8 @@ def render_markdown_to_docx(doc: Document, md: str, diagrams: dict[str, bytes] |
     while i < len(lines):
         line = lines[i]
 
-        if line.startswith("|") and "|" in line[1:]:
-            table_buffer.append(line)
+        if line.lstrip().startswith("|") and "|" in line.lstrip()[1:]:
+            table_buffer.append(line.strip())
             in_table = True
             i += 1
             continue
@@ -34,25 +40,30 @@ def render_markdown_to_docx(doc: Document, md: str, diagrams: dict[str, bytes] |
             i += 1
             continue
 
-        if line.startswith("# "):
-            doc.add_heading(line[2:].strip(), level=1)
-        elif line.startswith("## "):
-            doc.add_heading(line[3:].strip(), level=2)
-        elif line.startswith("### "):
-            doc.add_heading(line[4:].strip(), level=3)
-        elif line.startswith("#### "):
-            doc.add_heading(line[5:].strip(), level=4)
+        heading = re.match(r"^(#{1,6})\s+(.*)$", line)
+        bullet = _BULLET.match(line)
+        numbered = _NUMBERED.match(line)
+        if heading:
+            doc.add_heading(_plain(heading.group(2)), level=min(len(heading.group(1)), 4))
+        elif _RULE.match(line):
+            pass
         elif line.startswith("> "):
             p = doc.add_paragraph(style="Intense Quote")
             _add_formatted_runs(p, line[2:].strip())
-        elif line.startswith("- ") or line.startswith("* "):
-            p = doc.add_paragraph(style="List Bullet")
-            _add_formatted_runs(p, line[2:].strip())
-        elif re.match(r"^\d+\.\s", line):
-            p = doc.add_paragraph(style="List Number")
-            _add_formatted_runs(p, re.sub(r"^\d+\.\s", "", line).strip())
-        elif line.startswith("---"):
-            pass
+        elif bullet:
+            indent = len(bullet.group(1).expandtabs(4))
+            level = 0 if indent < 2 else 1 if indent < 6 else 2       # 2- or 4-space nesting
+            p = doc.add_paragraph(style="List Bullet" if level == 0 else f"List Bullet {level + 1}")
+            _add_formatted_runs(p, bullet.group(2).strip())
+        elif numbered:
+            # The source's own number, with a hanging indent. Word's "List Number" style keeps
+            # counting across the whole document (5…, 10–13, 14–17 in the Milestone package).
+            indent = len(numbered.group(1).expandtabs(4)) // 2
+            p = doc.add_paragraph()
+            p.paragraph_format.left_indent = Inches(0.3 + 0.25 * indent)
+            p.paragraph_format.first_line_indent = Inches(-0.3)
+            p.add_run(f"{numbered.group(2)}.\t")
+            _add_formatted_runs(p, numbered.group(3).strip())
         elif line.startswith("![") and "](" in line:
             _add_diagram_placeholder(doc, line)
         else:
@@ -65,21 +76,38 @@ def render_markdown_to_docx(doc: Document, md: str, diagrams: dict[str, bytes] |
         _flush_table(doc, table_buffer)
 
 
-def _add_formatted_runs(paragraph, text: str) -> None:
-    parts = re.split(r"(\*\*.*?\*\*)", text)
-    for part in parts:
-        if part.startswith("**") and part.endswith("**"):
-            run = paragraph.add_run(part[2:-2])
-            run.bold = True
+def _plain(text: str) -> str:
+    """Text without Markdown emphasis or code marks (headings)."""
+    return re.sub(r"\*\*|__|`", "", text).strip()
+
+
+def _add_formatted_runs(paragraph, text: str, bold: bool = False) -> None:
+    """Bold, italic, code and <br> line breaks as Word runs, not literal Markdown."""
+    for part in _INLINE.split(text):
+        if not part:
+            continue
+        if re.fullmatch(r"<br\s*/?>", part, re.I):
+            paragraph.add_run().add_break()
+        elif (part.startswith("**") and part.endswith("**")) or (part.startswith("__") and part.endswith("__")):
+            _add_formatted_runs(paragraph, part[2:-2], bold=True)
+        elif part.startswith("`") and part.endswith("`"):
+            run = paragraph.add_run(part[1:-1])
+            run.bold = bold
+            run.font.name = "Consolas"
+        elif part.startswith("*") and part.endswith("*") and len(part) > 2:
+            run = paragraph.add_run(part[1:-1])
+            run.italic = True
+            run.bold = bold
         else:
-            paragraph.add_run(part)
+            run = paragraph.add_run(part)
+            run.bold = bold
 
 
 def _flush_table(doc: Document, rows: list[str]) -> None:
     parsed = []
     for row in rows:
         cells = [c.strip() for c in row.strip().strip("|").split("|")]
-        if all(re.match(r"^[-:]+$", c) for c in cells):
+        if all(re.match(r"^:?-+:?$", c) for c in cells if c):
             continue
         parsed.append(cells)
 
@@ -91,14 +119,9 @@ def _flush_table(doc: Document, rows: list[str]) -> None:
     table.style = "Table Grid"
 
     for ri, row_data in enumerate(parsed):
-        for ci, cell_text in enumerate(row_data):
-            if ci < ncols:
-                cell = table.cell(ri, ci)
-                cell.text = cell_text
-                if ri == 0:
-                    for p in cell.paragraphs:
-                        for run in p.runs:
-                            run.bold = True
+        for ci, cell_text in enumerate(row_data[:ncols]):
+            paragraph = table.cell(ri, ci).paragraphs[0]
+            _add_formatted_runs(paragraph, cell_text, bold=(ri == 0))
 
 
 def _add_diagram_placeholder(doc: Document, line: str) -> None:

@@ -1021,10 +1021,12 @@ def _compose_milestone_package(job_id: str) -> Optional[str]:
     it started from, the PATHWAY-MILESTONE criteria, and each agent's findings."""
     from k9_dow.gates.gate_registry import DAS_GATES
     from k9_dow.gates.hil_gateway import load_stage_result
-    from k9_dow.utils.icd_composer import extract_text
+    from k9_dow.utils.dodaf_views import relabel_views
+    from k9_dow.utils.icd_composer import extract_text, nest_section, with_computed_score
     acq = load_stage_result(_config, job_id, "acquisition")
     if not acq:
         return None
+    acq = with_computed_score(acq, "PATHWAY-MILESTONE", job_id)
     d = acq.get("jroc_decision") or {}
     lines = [f"# Milestone Review Package — {acq.get('document_title') or job_id}", "",
              f"**Job ID:** {job_id}",
@@ -1049,8 +1051,8 @@ def _compose_milestone_package(job_id: str) -> Optional[str]:
                 continue
             text = extract_text(val.get("output", val))
             if text and text.strip():
-                lines += [f"### {titles.get(key, key.replace('_', ' ').capitalize())}", "", text.strip(), ""]
-    return "\n".join(lines)
+                lines += [f"### {titles.get(key, key.replace('_', ' ').capitalize())}", "", nest_section(text), ""]
+    return relabel_views("\n".join(lines))
 
 
 def _render_icd_html(job_id: str, md_content: str):

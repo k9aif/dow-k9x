@@ -11,7 +11,7 @@ left out rather than guessed; if nothing can be read, the summary points to the 
 from __future__ import annotations
 
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 _SCORE = re.compile(r"(?:Overall\s+Readiness\s+Score|Total)\**\s*:?\**\s*\**\s*(\d{1,3}(?:\.\d+)?)\s*/\s*100", re.I)
 _STATUS = re.compile(r"\*\*(?:Status|Gate\s+Disposition)\s*:\*\*\s*([A-Z][A-Z /_-]*[A-Z])", re.I)
@@ -83,15 +83,17 @@ def _recommendation(text: str) -> str:
     return ""
 
 
-def summarize_readiness(assessment: str, criteria: List[str]) -> Dict[str, str]:
-    """Ordered name-value pairs for the HIL task payload."""
+def summarize_readiness(assessment: str, criteria: List[str], score: Optional[int] = None) -> Dict[str, str]:
+    """Ordered name-value pairs for the HIL task payload. ``score`` is the computed readiness score
+    (gates/readiness.py); when given it is the one shown."""
     text = assessment or ""
     summary: Dict[str, str] = {}
 
-    score = _SCORE.search(text)
+    stated = _SCORE.search(text)
+    value = str(score) if score is not None else (stated.group(1) if stated else "")
     status = _STATUS.search(text)
-    if score or status:
-        parts = [f"{score.group(1)} / 100" if score else "", _clean(status.group(1)).upper() if status else ""]
+    if value or status:
+        parts = [f"{value} / 100" if value else "", _clean(status.group(1)).upper() if status else ""]
         summary["Readiness"] = " — ".join(p for p in parts if p)
 
     for i, criterion in enumerate(criteria, 1):

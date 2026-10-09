@@ -10,6 +10,8 @@ import json
 import os
 import re
 from datetime import datetime
+
+from k9_dow.utils.dodaf_views import label_view, relabel_views
 from typing import Any, Optional
 
 
@@ -150,11 +152,66 @@ def extract_text(obj) -> str:
     return str(obj)
 
 
+def nest_section(text: str, level: int = 3, drop_title: bool = True) -> str:
+    """An agent's Markdown placed under a DAS section heading of ``level``: its own leading title
+    (redundant with the section heading) is dropped and its headings are demoted below ``level``."""
+    lines = (text or "").strip().split("\n")
+    if drop_title and lines and re.match(r"^#{1,6}\s", lines[0]):
+        lines = lines[1:]
+        while lines and not lines[0].strip():
+            lines = lines[1:]
+    levels = [len(m.group(1)) for line in lines if (m := re.match(r"^(#{1,6})\s", line))]
+    if levels:
+        shift = level + 1 - min(levels)
+        lines = [re.sub(r"^(#{1,6})(?=\s)", lambda m: "#" * max(1, min(6, len(m.group(1)) + shift)), line)
+                 for line in lines]
+    return "\n".join(lines).strip()
+
+
+def _job_date(job_id: str) -> str:
+    m = re.search(r"(\d{4})(\d{2})(\d{2})", job_id or "")
+    return f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else datetime.now().strftime("%Y-%m-%d")
+
+
+def with_computed_score(stage_result: dict, gate_id: str, job_id: str = "") -> dict:
+    """The stage result with one readiness score throughout: the computed one (gates/readiness.py).
+    Jobs stored before the score was computed in code get it computed here from the stored verdicts;
+    every later section restating a score is aligned to it; date placeholders are filled."""
+    from k9_dow.gates.gate_registry import DAS_GATES
+    from k9_dow.gates.readiness import align_score, apply_computed_score
+
+    when = _job_date(job_id or stage_result.get("job_id", ""))
+    gate = dict(stage_result.get("gate_readiness") or {})
+    rs = gate.get("readiness_score")
+    if not isinstance(rs, dict):
+        return stage_result
+    score = rs.get("score")
+    if score is None:
+        loaded = gate.get("criteria") if isinstance(gate.get("criteria"), dict) else {}
+        criteria = list(loaded.get("criteria")
+                        or (DAS_GATES[gate_id].entry_criteria if gate_id in DAS_GATES else []))
+        scored = apply_computed_score(extract_text(rs), gate_id, criteria, when)
+        score = scored["score"]
+        rs = {**rs, "output": scored["output"], "score": score, "verdicts": scored["verdicts"]}
+    gate["readiness_score"] = rs
+
+    def aligned(part: dict) -> dict:
+        return {k: ({**v, "output": align_score(extract_text(v), score, when)}
+                    if isinstance(v, dict) and k != "readiness_score" and extract_text(v) else v)
+                for k, v in part.items()}
+
+    out = {**stage_result, "gate_readiness": aligned(gate)}
+    if isinstance(stage_result.get("review_package"), dict):
+        out["review_package"] = aligned(stage_result["review_package"])
+    return out
+
+
 def compose_icd(job_data: dict) -> str:
     """Compose a single ICD markdown document from all pipeline outputs."""
     result = job_data.get("result", job_data)
     job_id = result.get("job_id", "unknown")
     gate_id = result.get("gate_id", "")
+    result = with_computed_score(result, gate_id or "JROC-VALIDATION", job_id)
     date_str = datetime.now().strftime("%d %B %Y")
     document_title = result.get("document_title") or ""
 
@@ -186,7 +243,7 @@ def compose_icd(job_data: dict) -> str:
     sections = [
         ("view_generation", "1. Architecture Views", {
             "model_elements": "1.1 Model Elements (Capabilities, Requirements, Systems)",
-            "generated_views": "1.2 Operational View (OV-1)",
+            "generated_views": "1.2 OV-1 High-Level Operational Concept Graphic",
             "consistency_report": "1.3 Cross-View Consistency Report",
         }),
         ("gate_readiness", "2. Gate Readiness Assessment", {
@@ -215,13 +272,17 @@ def compose_icd(job_data: dict) -> str:
                 if isinstance(agent_output, str) and agent_output.strip():
                     lines.append(f"### {subsection_title}")
                     lines.append("")
-                    lines.append(strip_json_blocks(agent_output.strip()))
+                    lines.append(nest_section(strip_json_blocks(agent_output.strip()),
+                                              drop_title=agent_key != "generated_views"))
                     lines.append("")
                 continue
             output_text = strip_json_blocks(extract_text(agent_output)) or "*No output generated.*"
+            if agent_key == "generated_views":
+                vt = re.search(r"View(?:\s+ID)?:\**\s*((?:AV|CV|OV|SV|SvcV|TV|DIV|PV|StdV)-\d+[a-z]?)", output_text)
+                output_text = label_view(output_text, vt.group(1) if vt else "OV-1")
             lines.append(f"### {subsection_title}")
             lines.append("")
-            lines.append(str(output_text))
+            lines.append(nest_section(str(output_text), drop_title=agent_key != "generated_views"))
             lines.append("")
 
     lines.append("---")
@@ -229,4 +290,4 @@ def compose_icd(job_data: dict) -> str:
     lines.append(f"*Generated by DAS (Defense Acquisition System) — Built on K9-AIF Framework*")
     lines.append(f"*{date_str} | {job_id}*")
 
-    return "\n".join(lines)
+    return relabel_views("\n".join(lines))

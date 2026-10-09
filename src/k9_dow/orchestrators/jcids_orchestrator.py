@@ -319,7 +319,8 @@ class JcidsOrchestrator(BaseOrchestrator):
             # gap report are in the ICD behind the View link below.
             payload={"Gate": "JROC-VALIDATION", **summarize_readiness(
                 readiness.get("output") if isinstance(readiness, dict) else "",
-                DAS_GATES["JROC-VALIDATION"].entry_criteria)},
+                DAS_GATES["JROC-VALIDATION"].entry_criteria,
+                readiness.get("score") if isinstance(readiness, dict) else None)},
             # DAS's own /view/icd endpoint renders on demand from
             # _job_store, independent of whether S3 storage succeeded --
             # always include it so an approver always has something

@@ -128,7 +128,8 @@ class AcquisitionOrchestrator(BaseOrchestrator):
             # package (View / .docx links below), rendered by DAS like the JROC task's ICD.
             payload={"Gate": self.GATE_ID,
                      **summarize_readiness(readiness.get("output") if isinstance(readiness, dict) else "",
-                                           DAS_GATES[self.GATE_ID].entry_criteria),
+                                           DAS_GATES[self.GATE_ID].entry_criteria,
+                                           readiness.get("score") if isinstance(readiness, dict) else None),
                      "JROC approved by": decision.get("actor")},
             artifacts=[f"{das}/jobs/{job_id}/view/milestone", f"{das}/jobs/{job_id}/docx/milestone", uri],
         ):

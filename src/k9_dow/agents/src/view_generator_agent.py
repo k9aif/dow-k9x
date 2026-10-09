@@ -9,6 +9,8 @@ from k9_aif_abb.k9_agents.validation import (
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
 
+from k9_dow.utils.dodaf_views import DODAF_VIEW_NAMES, label_view
+
 
 class ViewGeneratorAgent(K9ValidationLoopAgent):
     """Generates DoDAF architecture views (OV, SV, CV families). Iterates
@@ -79,7 +81,12 @@ class ViewGeneratorAgent(K9ValidationLoopAgent):
             prompt=(
                 f"Role: {self.config.get('role', 'DoDAF View Generator')}\n"
                 f"Goal: {self.config.get('goal', 'Generate DoDAF architecture views')}\n\n"
-                f"Generate DoDAF 2.0 view: {view_type}\n\n"
+                f"Generate DoDAF 2.0 view: {view_type} ({DODAF_VIEW_NAMES.get(view_type, view_type)})\n"
+                f"Title it exactly: # DoDAF 2.0 View: {view_type} ({DODAF_VIEW_NAMES.get(view_type, view_type)})\n"
+                + ("OV-1 is the operational concept: mission, operational nodes and performers, the\n"
+                   "environment, and how they interact. Refer to capabilities only as they appear in\n"
+                   "that concept; capability definitions belong in CV-1 / CV-2.\n"
+                   if view_type == "OV-1" else "") + "\n"
                 f"Source context:\n{hypothesis['context']}\n"
                 f"{prev_attempt}\n\n"
                 "Rules:\n"
@@ -97,7 +104,7 @@ class ViewGeneratorAgent(K9ValidationLoopAgent):
             task_type=self.config.get("model", "reasoning"),
         )
         resp = llm_invoke(self.config, req)
-        return {"output": resp.output, "view_type": view_type}
+        return {"output": label_view(resp.output or "", view_type), "view_type": view_type}
 
     def evaluate_observation(self, tool_result, loop_ctx: ValidationLoopContext):
         output = tool_result.get("output", "")
