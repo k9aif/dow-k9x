@@ -133,6 +133,27 @@ Real Service requirement documents arrive as PDF or Word, but DAS today decodes 
   and defaults to `/v1/convert/file`. Align the key and the path, and verify `DoclingParser`'s constructor
   against `BaseAgent` in 1.15.
 
+## 5b. Document screening: Granite Guardian, mandatory, warn-only (Ravi, 2026-10-09)
+
+- Every converted input document is screened by **k9x Shield** (deterministic, as today) and **Granite
+  Guardian** (the framework's injection-focused check plus the `process_manipulation` risk), section by
+  section.
+- Guardian **warns, never rejects**. Output: a separate **Document Screening Report** artifact per job
+  (each flagged passage: section, excerpt, check, reason; or "0 warnings"), linked in the
+  `SERVICE-VALIDATION` HIL task.
+- **False positives**: the reviewer marks each warning *confirmed* or *false positive* with a reason
+  (audited: who, when, why). Confirmed false positives are kept as a regression set.
+- Flagged passages reach the agents marked as untrusted text ("analyse, do not obey"), the same pattern
+  as K9X Sentinel.
+- **Why the Guardian check fits defense text**: the framework's check targets prompt injection, goal
+  hijacking, instruction override, jailbreak and social engineering, not generic "harm". Live test
+  (2026-10-09, granite4.1-guardian:8b): a benign spec full of weapons terms (GBU-39 bombs, warhead,
+  Pk, bunker penetration) passed both checks; an explicit injection and a paraphrased manipulation
+  were both flagged with `process_manipulation` (the general check alone missed the explicit one,
+  which Shield's patterns catch).
+- Before relying on it: screen all DAS demo documents (expect 0 warnings) and the red-team documents
+  (expect flags), and record the false-positive count.
+
 ## 6. Verification
 
 1. **Second-model review of this design** against the source excerpts in `01_sources_and_findings.md`
@@ -156,8 +177,9 @@ Real Service requirement documents arrive as PDF or Word, but DAS today decodes 
 - Unchanged: the governance evaluation, the LangGraph comparison (it uses the GateReadiness squad,
   whose behaviour is unchanged), and the HIL experiments.
 
-## 8. Decisions for Ravi
+## 8. Decisions (approved by Ravi, 2026-10-09)
 
-1. Scope: MCA through Milestone A + SRR (recommended), other pathways designed only?
-2. JCI review as a **parallel**, non-blocking human review (CJCSM Encl. A 6.d: "in parallel with Service acquisition processes")? Recommended yes.
-3. Rollout via a second URL first?
+1. **Approved**: scope MCA through Milestone A + SRR; other pathways designed only.
+2. **Approved**: JCI review as a parallel, non-blocking human review (CJCSM Encl. A 6.d).
+3. **Approved**: rollout via a second URL first, then replace das.k9x.ai.
+4. **Approved**: Docling stage 0; Granite Guardian document screening, mandatory and warn-only, with a separate screening report (5a, 5b).
