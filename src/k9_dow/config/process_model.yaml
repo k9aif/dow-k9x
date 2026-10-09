@@ -1,0 +1,147 @@
+# SPDX-License-Identifier: Apache-2.0
+# DAS process model: the requirements-to-acquisition flow DAS runs, current as of the date below.
+# The process changes (JCIDS ended in 2025-26), so it lives here, versioned, with its sources, and
+# the gate registry, orchestrators, HIL task names and UI read it. A future reform is a new version
+# of this file; past jobs keep the version they ran under.
+# Design and evidence: docs/process-model-2026/ (01 sources, 02 design, 03 independent review).
+
+process_model:
+  id: mca-2026-10
+  as_of: "2026-10-09"
+  pathway: major_capability_acquisition
+  pathway_title: Major Capability Acquisition
+
+  sources:
+    S1: {title: "SecDef/DepSecDef memo, Reforming the Joint Requirements Process to Accelerate Fielding of Warfighting Capabilities", date: "2025-08-20", file: data/policy/SecDef_Memo_2025-08-20_requirements.pdf}
+    S2: {title: "CJCSI 5123.01J, Charter of the JROC and the Joint Force Requirements Process (CH 1)", date: "2026-08-05", file: "data/policy/CJCSI 5123.01J CH 1.pdf", url: "https://www.jcs.mil/Library/CJCS-Instructions/"}
+    S3: {title: "CJCSM 5123.01A, Manual for the JROC and the Joint Force Requirements Process", date: "2026-08-05", file: "data/policy/CJCSM 5123.01A.pdf", url: "https://www.jcs.mil/library/cjcs-manuals/"}
+    S4: {title: "DoWI 5000.02, Operation of the Adaptive Acquisition Framework (Change 2)", date: "2026-04-08", file: data/policy/500002p.pdf}
+    S5: {title: "DoDI 5000.85, Major Capability Acquisition (Change 1)", date: "2021-11-04", file: data/policy/500085p.pdf}
+    S6: {title: "DoD Systems Engineering Guidebook", date: "2022-02", file: data/SE-Guidebook-Feb2022.pdf}
+
+  # Built stages, in order. kind: agents (DAS squads prepare) | gate (a person decides, via K9X HIL).
+  stages:
+    - id: NORMALIZE
+      title: Document normalization
+      kind: agents
+      summary: "PDF, Word or scanned input converted to Markdown by Docling (layout and OCR); original kept"
+      sources: []
+    - id: SCREEN
+      title: Document screening
+      kind: agents
+      summary: "k9x Shield and Granite Guardian screen every section; warnings go to the Document Screening Report, never a rejection"
+      sources: []
+    - id: REQUIREMENT
+      title: Service capability requirement
+      kind: agents
+      summary: "Service-format requirement document with the content the Service later submits for joint review"
+      sources: ["S3 Encl. A 6.b", "S3 Encl. E 1.b"]
+    - id: SERVICE-VALIDATION
+      title: Service Requirements Validation
+      kind: gate
+      sources: ["S1 p.1", "S2 para 1.b"]
+    - id: JCI-REVIEW
+      title: Joint Capability Integration review
+      kind: gate
+      parallel: true            # runs alongside the acquisition flow; never blocks MDD or Milestone A
+      sources: ["S3 Encl. A 6.c-d", "S3 Encl. B 2.b"]
+    - id: MDD
+      title: Materiel Development Decision
+      kind: gate
+      sources: ["S5 3.5"]
+    - id: MSA
+      title: Materiel Solution Analysis
+      kind: agents
+      summary: "AoA summary, affordability, early systems engineering; SE: Alternative Systems Review (best-practice review) yielding a draft performance specification; draft CDD-equivalent; proposed acquisition strategy matched to a pathway"
+      sources: ["S5 3.6", "S5 3.7.a(1)", "S6 3.1", "S4 4.1"]
+    - id: MILESTONE-A-PACKAGE
+      title: Milestone A package
+      kind: agents
+      sources: ["S5 3.7.a-b"]
+    - id: MILESTONE-A
+      title: Milestone A
+      kind: gate
+      sources: ["S5 3.7.c"]
+    - id: TMRR-SRR
+      title: "TMRR: System Requirements Review package"
+      kind: agents
+      sources: ["S6 3.2", "S5 3.8"]
+    - id: SE-REVIEW-SRR
+      title: System Requirements Review
+      kind: gate
+      sources: ["S6 3.2"]
+
+  gates:
+    SERVICE-VALIDATION:
+      authority: Service requirements board
+      blocking: true
+      entry_criteria:
+        - "Operational context: joint and/or Service task; CONOPS or CONEMP"
+        - "Threat: SIC/DIA-approved threat assessment; critical intelligence parameters; intelligence supportability"
+        - "Capability requirements and/or performance attributes, traceable to capability gaps"
+        - "Technology and manufacturing readiness levels (TRL, MRL)"
+        - "Projected cost, schedule and quantity"
+        - "Joint integration: force design impacts, interoperability, inter-Service dependencies, DOTmLPF-P impacts"
+        - "Service-owned performance attribute certifications identified (net-ready, intelligence supportability, sustainment, energy, survivability and cyber survivability, exportability)"
+      criteria_note: "Validation criteria are Service-defined (S2 1.b). DAS checks the content the Service must later submit for joint review (S3 Encl. A 6.b) and the Service-owned certifications (S3 Encl. E 2)."
+      decision_record: Service validation record
+      sources: ["S2 para 1.b", "S3 Encl. A 6.b", "S3 Encl. E 2"]
+    JCI-REVIEW:
+      authority: "JROC, JCB or FCB by Joint Staffing Designator (Service Information: awareness only)"
+      blocking: false
+      entry_criteria:
+        - "Joint Staffing Designator recommended by the sponsor, set through the Joint Requirements Coordinator (J-8) on the five criteria of CJCSM 5123.01A Encl. B 2.b(2)"
+        - "Service-validated requirement submitted with the joint-review minimum content"
+      decision_record: "JROCM: endorse (all, some or none) or reject; tripwires; critical joint capability requirements; recommendations to Service boards and the RRAB"
+      sources: ["S3 Encl. A 6.c-d", "S3 Encl. B 2.b"]
+    MDD:
+      authority: "Milestone Decision Authority (Service Chief concurrence for MDAPs)"
+      blocking: true
+      entry_criteria:
+        - "Validated requirement document (an ICD or equivalent; under the JFRP, the Service-validated requirement)"
+        - "AoA study guidance"
+        - "AoA study plan"
+      decision_record: "Acquisition Decision Memorandum: phase of entry and initial review milestone; AoA study guidance and plan attached"
+      sources: ["S5 3.5", "S5 2.3.b"]
+    MILESTONE-A:
+      authority: "Milestone Decision Authority (Service Chief concurrence for MDAPs)"
+      blocking: true
+      entry_criteria:
+        - "Justification, affordability and feasibility of the preferred materiel solution"
+        - "Technologies that must be matured in TMRR"
+        - "Capability requirement trade space and its priorities"
+        - "Technical, cost and schedule risks with funded mitigation plans"
+        - "Acquisition strategy matched to a pathway, including IP, program protection and exportability"
+        - "Cybersecurity addressed early in program planning"
+        - "Test strategy"
+        - "Life-cycle mission data plan and projected threat"
+        - "Should Cost targets and framing assumptions"
+        - "Affordability analysis: program fully funded within the FYDP"
+        - "Draft CDD-equivalent approved by the Component"
+        - "For MDAPs: independent cost estimate, independent technical risk assessment, program goals, 10 U.S.C. 2366a technology determination"
+      evidence: ["Alternative Systems Review results (best practice, S6 3.1)", "JCI JROCM, tripwires and critical joint requirements, when available"]
+      decision_record: "Acquisition Decision Memorandum: materiel solution, acquisition strategy, TMRR strategy, final RFP release, TMRR exit and EMD entry criteria"
+      sources: ["S5 3.6-3.7", "S4 4.1", "S6 3.1"]
+    SE-REVIEW-SRR:
+      authority: "Technical review chair appointed by the Service; criteria tailored by the Chief Engineer"
+      blocking: true
+      entry_criteria:
+        - "System requirements consistent with the preferred materiel solution and its support concept"
+        - "Consistent with technology maturation plans"
+        - "Maturity of interdependent systems considered"
+        - "Requirements clearly stated, measurable and testable"
+        - "Requirements traceable to the requirement document; prior reviews complete and their actions closed"
+      decision_record: "Review minutes and action items"
+      sources: ["S6 3.2"]
+
+  # Defined in policy, not built in this version.
+  designed:
+    - {id: SFR, title: System Functional Review, sources: ["S6 3"]}
+    - {id: PDR, title: "Preliminary Design Review (before Milestone B)", sources: ["S5 3.8.b"]}
+    - {id: CDD-VALIDATION, title: "CDD-equivalent validation", sources: ["S5 3.8.c"]}
+    - {id: DEV-RFP-RELEASE, title: Development RFP Release decision point, sources: ["S5 3.9"]}
+    - {id: MILESTONE-B, title: Milestone B, sources: ["S5 3.10"]}
+    - {id: OTHER-PATHWAYS, title: "Middle Tier, Software, Urgent, Business Systems, Services pathways", sources: ["S4 4.2"]}
+    - {id: RRAB-JAR, title: "RRAB and Joint Acceleration Reserve path for joint KOP/JOP-driven needs", sources: ["S1 Att. 1", "S1 Att. 3"]}
+    - {id: JCI-TRIPWIRES, title: "JCI tripwires, breaches and comebacks", sources: ["S3 Encl. A 9"]}
+    - {id: SPECIAL-PATHS, title: "SOFCIDS, CCIDS, CCMD-derived requirements and JICR", sources: ["S2", "S3"]}
