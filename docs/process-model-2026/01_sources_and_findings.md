@@ -12,10 +12,11 @@ Ravi downloads them in a browser).
 | # | Source | File | Status |
 |---|---|---|---|
 | S1 | SecDef/DepSecDef memo, "Reforming the Joint Requirements Process to Accelerate Fielding of Warfighting Capabilities", 20 Aug 2025 (9 pp) | `data/policy/SecDef_Memo_2025-08-20_requirements.pdf` | VERIFIED |
-| S2 | CJCSI 5123.01J, Charter of the JROC and the Joint Force Requirements Process, 15 Jan 2026 | — | PENDING |
-| S3 | CJCSM 5123.01, Manual for the JROC and the JFRP, 15 Jan 2026 | — | PENDING |
-| S4 | DoDI 5000.02, Operation of the Adaptive Acquisition Framework, Change 2, 8 Apr 2026 | — | PENDING |
-| S5 | DoDI 5000.85, Major Capability Acquisition | — | PENDING |
+| S2 | CJCSI 5123.01J, Charter of the JROC and the Joint Force Requirements Process, 15 Jan 2026, **CH 1, 5 Aug 2026** | `data/policy/CJCSI 5123.01J CH 1.pdf` | VERIFIED |
+| S3 | **CJCSM 5123.01A**, Manual for the JROC and the JFRP, **5 Aug 2026** (supersedes the Jan 2026 CJCSM 5123.01) | — | PENDING |
+| S4 | DoWI 5000.02, Operation of the Adaptive Acquisition Framework, 23 Jan 2020, Change 2, 8 Apr 2026 | `data/policy/500002p.pdf` | obtained |
+| S5 | DoDI 5000.85, Major Capability Acquisition, 6 Aug 2020, Change 1, 4 Nov 2021 (not reissued since) | `data/policy/500085p.pdf` | obtained |
+| S8 | Joint Staff briefing "Implementation of CJCSI 5123.01J & CJCSM 5123.01" (14 pp, Aug 2026) | `data/policy/JFRP_overview_mhsrs.pdf` | obtained (cross-check only) |
 | S6 | DoD Systems Engineering Guidebook, Feb 2022 | `data/SE-Guidebook-Feb2022.pdf` | VERIFIED (sections 3.1, 3.2) |
 | S7 | "Transforming the Warfighting Acquisition System" memo, 7 Nov 2025 | — | PENDING (secondary reports only) |
 
@@ -60,6 +61,44 @@ Ravi downloads them in a browser).
 - Upstream of a program: **KOP ranking (JROC) → RRAB resourcing → MEIA mission engineering**.
   This is the joint, top-down path, distinct from a Service's own requirement.
 - PPBE continues; the RRAB and JAR integrate with it.
+
+## Step 2 findings: S2, CJCSI 5123.01J with Change 1 (verified)
+
+1. **The JFRP "replaces the JCIDS in its entirety"**: "In the JFRP, Service- and
+   Component-specific requirement validation is the responsibility of the respective Services and
+   Components." CJCSI 5123.01I and the JCIDS Manual (30 Oct 2021) are "rescinded in their
+   entirety". (para 1.b, para 7)
+2. **The JFRP is requirements only**: it "does not delineate actions required to satisfy acquisitions
+   rules and regulations. Services and Components must ensure their programs meet and satisfy
+   the statutory and regulatory requirements". So acquisition stays under the DoW 5000 series
+   (S4, S5). (para 1.b)
+3. **The JROC's re-oriented focus**: **Joint Force Design (JFD)**, **Joint Capability Integration (JCI)**
+   and **Combatant Command (CCMD) Requirements**, "through a lens of **Joint Operational Problems
+   (JOPs)** underpinned by its analytic engine, **Capability Portfolio Management (CPM)**". JOPs are
+   prioritized annually. Note the term: the 2025 memo said "Key Operational Problems (KOP)";
+   the 2026 instruction uses **"Joint Operational Problems (JOPs)"**. (para 1.a; Encl. D 1.a)
+4. **Joint capability requirements the JROC recommends** must "describe the joint operational
+   problem", "propose **nonprescriptive** solutions" and ensure interoperability. (Encl. A 1.a(6))
+5. **CCMD requirements**: immediate requirements go through the **Joint Immediate Combatant
+   Command Requirement (JICR)** process, which (CH 1, Aug 2026) replaces JUON/JEON. Integrated
+   Priority Lists are prioritized through the Capability Gap Assessment, plus CCMD Derived
+   Requirements. (CH 1 summary; Encl. D 1.a(3))
+6. **Capability Portfolio Management Reviews** assess requirements, existing solutions, gaps, risks,
+   COTS alternatives and trade space, and make recommendations. (Encl. D 1.a(4))
+7. **Legacy JCIDS documents**: previously JROC-validated requirements "remain valid"; updates go
+   "through the **solution sponsor's internal validation procedures**". (Encl. A para 7)
+8. **Portfolio Acquisition Executives** are named JROC ad hoc advisors (Encl. A 2.d(5)), which
+   confirms the Nov 2025 PEO-to-PAE change appears in policy.
+9. **KM/DS** is "the authoritative system for processing, coordinating, tasking, and archiving all DoW
+   requirements documents". (Encl. A 6.b)
+
+### What this means for DAS
+- DAS's **default path is a Service requirement validated by the Service** (the "solution sponsor").
+  The joint path applies only when the requirement is a joint capability requirement (JCI or JOP
+  driven) or a CCMD requirement.
+- The JROC is no longer a gate on a Service program. Its recommendations reach programs through
+  JCI and CPM reviews (changes, alternatives, cancellations).
+- Requirement document names: **open**, to be read in the manual (S3, CJCSM 5123.01A).
 
 ## Open questions, to be answered from S2-S5 (do not assume)
 - What does the **Joint Force Requirements Process** (S2/S3) call the requirement documents now?
