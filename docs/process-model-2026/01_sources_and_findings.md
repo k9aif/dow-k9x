@@ -14,7 +14,7 @@ Ravi downloads them in a browser).
 | S1 | SecDef/DepSecDef memo, "Reforming the Joint Requirements Process to Accelerate Fielding of Warfighting Capabilities", 20 Aug 2025 (9 pp) | `data/policy/SecDef_Memo_2025-08-20_requirements.pdf` | VERIFIED |
 | S2 | CJCSI 5123.01J, Charter of the JROC and the Joint Force Requirements Process, 15 Jan 2026, **CH 1, 5 Aug 2026** | `data/policy/CJCSI 5123.01J CH 1.pdf` | VERIFIED |
 | S3 | **CJCSM 5123.01A**, Manual for the JROC and the JFRP, **5 Aug 2026** (112 pp; supersedes the Jan 2026 CJCSM 5123.01) | `data/policy/CJCSM 5123.01A.pdf` | VERIFIED (Encl. A 6, B 2.b, C) |
-| S4 | DoWI 5000.02, Operation of the Adaptive Acquisition Framework, 23 Jan 2020, Change 2, 8 Apr 2026 | `data/policy/500002p.pdf` | obtained |
+| S4 | DoWI 5000.02, Operation of the Adaptive Acquisition Framework, 23 Jan 2020, Change 2, 8 Apr 2026 | `data/policy/500002p.pdf` | VERIFIED (1.5, 3, 4.1, 4.2) |
 | S5 | DoDI 5000.85, Major Capability Acquisition, 6 Aug 2020, Change 1, 4 Nov 2021 (not reissued since) | `data/policy/500085p.pdf` | obtained |
 | S8 | Joint Staff briefing "Implementation of CJCSI 5123.01J & CJCSM 5123.01" (14 pp, Aug 2026) | `data/policy/JFRP_overview_mhsrs.pdf` | obtained (cross-check only) |
 | S6 | DoD Systems Engineering Guidebook, Feb 2022 | `data/SE-Guidebook-Feb2022.pdf` | VERIFIED (sections 3.1, 3.2) |
@@ -153,6 +153,49 @@ Ravi downloads them in a browser).
   authority follows from the JSD (JROC, JCB, FCB or Service Information). It is not a blocking
   validation, but its endorsements, tripwires and critical JCRs feed acquisition trade space.
 - The term **Warfighting Acquisition System (WAS)** is official (used in the manual).
+
+## Step 4 findings: S4, DoWI 5000.02, Change 2, 8 Apr 2026 (verified)
+
+1. **Change 2 is administrative**: it "updates the issuance to reflect the disestablishment of the
+   Joint Capabilities Integration and Development System in accordance with the August 20, 2025
+   Secretary of Defense Memorandum", updates language per an Oct 10, 2025 Secretary of War
+   memo (the DoD-to-DoW renaming), and refreshes references. (1.5)
+2. **Terminology in the governing instruction**: it still says **"Defense Acquisition System (DAS)"**
+   (1.1.b, 1.2) and **"Program Executive Officer (PEO)"** (3.2), while CJCSM 5123.01A (Aug 2026) uses
+   "Warfighting Acquisition System (WAS)" and names "Portfolio Acquisition Executives". **Both are
+   current**: DAS keeps its name as the instruction's term; note WAS/PAE as the newer usage.
+3. **Six AAF pathways** (4.2):
+   - **Urgent Capability Acquisition**: field in under 2 years;
+   - **Middle Tier of Acquisition (MTA)**: rapid prototyping (residual capability within 5 years)
+     or rapid fielding (production within 6 months, fielding within 5 years); DoDI 5000.80;
+   - **Major Capability Acquisition (MCA)**: "military unique programs that provide enduring
+     capability"; "structured analyze, design, develop, integrate, test, evaluate, produce, and
+     support approach"; software-intensive components may use the Software pathway; DoDI 5000.85;
+   - **Software Acquisition**: DoDI 5000.87;
+   - **Defense Business Systems**;
+   - **Acquisition of Services**.
+4. **Acquisition strategy and decision authority**: "PMs will develop an acquisition strategy for
+   **MDA approval** that matches the acquisition pathway … to the character and risk of the
+   capability." The **MDA/DA is the program decision authority** and tailors decision points,
+   phase content and reviews; tailoring decisions are recorded in an **acquisition decision
+   memorandum**. Multiple pathways may be combined, with defined transition points.
+   (4.1, 3.1)
+5. **Systems engineering in all pathways**: PMs "develop engineering plans … conduct necessary
+   systems engineering tradeoffs, and produce and manage appropriate technical baselines through
+   the use of **systems engineering technical reviews**". (4.1.b(7))
+6. **The requirements hand-off**: USW(R&E) "confirms that a materiel solution that addresses the
+   **validated need or capability gap** for the MDAP is technically feasible and achievable", and
+   advises on analysis-of-alternatives guidance. The instruction no longer names a JCIDS document.
+   The input is a "validated need". (2.2.b)
+
+### What this means for DAS
+- **Pathway selection is real and explicit**: the PM proposes an acquisition strategy matched to a
+  pathway, and the **MDA approves it** (human gate) and records it in an acquisition decision
+  memorandum. DAS can recommend a pathway from the requirement's character (urgency, enduring vs
+  prototype, software-intensive).
+- The **validated need** comes from the Service's validation (Step 3), not from a JCIDS ICD.
+- SE technical reviews belong *inside* the pathway, producing the technical baselines decisions
+  rely on.
 
 ## Open questions, to be answered from S2-S5 (do not assume)
 - What does the **Joint Force Requirements Process** (S2/S3) call the requirement documents now?
