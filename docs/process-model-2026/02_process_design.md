@@ -159,6 +159,30 @@ Real Service requirement documents arrive as PDF or Word, but DAS today decodes 
     passing all document text to agents as data, not instructions.
   - Note: in DAS's profile, Shield *flags* PII without raising, so 06 shows no Shield block.
 
+## 5c. Diagrams and UI (Ravi, 2026-10-09)
+
+The flow diagram (`das-hil-flow*.svg`, paper Fig. 7), the Architecture tab and the landing cards
+are regenerated from the process file and show the full front end:
+
+```
+Upload (PDF / Word / scanned / Markdown)
+  → Docling (layout + OCR) → Markdown; original kept in object storage
+  → Screening: k9x Shield (patterns) + Granite Guardian (manipulation) → Document Screening Report (warn-only)
+  → Service capability requirement → Service Validation ◆ → [parallel JCI review ◆] → MDD ◆
+  → MSA (AoA, ASR) → Milestone A package → Milestone A ◆ → TMRR: SRR package → SRR review ◆
+```
+
+## 5d. Build order (each step tested before the next)
+
+1. `process_model.yaml` + loader + tests (stages, gates, criteria, sources; order; parallel JCI).
+2. Stage 0: Docling normalization (framework `DoclingParser`, fixed if needed) + screening report.
+3. Gate registry driven by the process file (5 gates).
+4. Orchestrators: Requirement (from JCIDS), MSA (AoA + ASR agents), Milestone A package, TMRR/SRR.
+5. HIL plumbing for the new gates, incl. the parallel JCI task.
+6. UI: flow diagram, Architecture tab, landing cards, HIL task names.
+7. Full tests on k9-aif 1.15.1; `k9aif inspect`; deploy to a second URL; live end-to-end runs.
+8. Paper, supplementary and letter updates; rebuild; independent re-audit.
+
 ## 6. Verification
 
 1. **Second-model review of this design** against the source excerpts in `01_sources_and_findings.md`
