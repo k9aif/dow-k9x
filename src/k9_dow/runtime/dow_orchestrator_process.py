@@ -21,10 +21,11 @@ except ImportError:
 
 from k9_aif_abb.k9_utils.config_loader import load_yaml
 from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
-from k9_dow.orchestrators.jcids_orchestrator import JcidsOrchestrator
-from k9_dow.orchestrators.acquisition_orchestrator import AcquisitionOrchestrator
-from k9_dow.orchestrators.se_orchestrator import SeOrchestrator
+from k9_dow.orchestrators.requirement_orchestrator import RequirementOrchestrator
+from k9_dow.orchestrators.msa_orchestrator import MsaOrchestrator
+from k9_dow.orchestrators.tmrr_orchestrator import TmrrOrchestrator
 from k9_dow.orchestrators.traceability_orchestrator import TraceabilityOrchestrator
+from k9_dow.routers.das_router import DAS_TOPICS
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,13 +33,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("dow.orchestrator_process")
 
-DOMAIN_TOPICS = [
-    "das.jcids",
-    "das.acquisition",
-    "das.se",
-    "das.traceability",
-    "das.drift",
-]
+DOMAIN_TOPICS = [DAS_TOPICS[k] for k in ("requirement", "mdd_package", "msa", "tmrr", "traceability", "drift")]
 RESULTS_TOPIC = "das.results"
 GROUP_ID = "dow-orchestrator"
 
@@ -101,16 +96,18 @@ async def main() -> None:
     from k9_aif_abb.k9_utils.llm_invoke import register_trace_callback
     register_trace_callback(_publish_progress)
 
-    jcids_orch = JcidsOrchestrator(config=config, progress_callback=_publish_progress)
-    acq_orch = AcquisitionOrchestrator(config=config, progress_callback=_publish_progress)
-    se_orch = SeOrchestrator(config=config, progress_callback=_publish_progress)
+    requirement_orch = RequirementOrchestrator(config=config, progress_callback=_publish_progress)
+    msa_orch = MsaOrchestrator(config=config, progress_callback=_publish_progress)
+    tmrr_orch = TmrrOrchestrator(config=config, progress_callback=_publish_progress)
     trace_orch = TraceabilityOrchestrator(config=config)
 
+    # Topic → orchestrator. The MSA orchestrator owns two runs (MDD package, MSA).
     handlers = {
-        "das.jcids": jcids_orch,
-        "das.acquisition": acq_orch,
-        "das.se": se_orch,
-        "das.traceability": trace_orch,
+        DAS_TOPICS["requirement"]: requirement_orch,
+        DAS_TOPICS["mdd_package"]: msa_orch,
+        DAS_TOPICS["msa"]: msa_orch,
+        DAS_TOPICS["tmrr"]: tmrr_orch,
+        DAS_TOPICS["traceability"]: trace_orch,
     }
 
     log.info(
@@ -129,19 +126,9 @@ async def main() -> None:
         corr = payload.get("correlation_id", "")
         topic = payload.get("_topic", "")
 
-        # `_topic` is stamped by the DAS Router process (the stage it routed to);
-        # gate_approved events resume a later stage, so event_type alone can't pick it.
-        orch = None
-        for topic_prefix, orchestrator in handlers.items():
-            if topic == topic_prefix or event_type.startswith(topic_prefix.split(".")[-1]):
-                orch = orchestrator
-                break
-
-        if not orch:
-            if "capability_gap" in event_type or "conops" in event_type:
-                orch = jcids_orch
-            else:
-                orch = jcids_orch
+        # `_topic` is stamped by the DAS Router process (the run it routed to);
+        # gate_approved events resume a later run, so event_type alone can't pick it.
+        orch = handlers.get(topic) or requirement_orch
 
         orch_name = orch.__class__.__name__
         print(

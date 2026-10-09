@@ -90,8 +90,15 @@ process_model:
       owner: tmrr
       sources: ["S6 3.2"]
 
+  # Runs: requirement, mdd_package, msa, tmrr (one orchestrator run each; results kept by job id).
+  # prepared_by: the run whose package the gate reviews; approval_starts: the run an approval
+  # starts (null: the flow ends, or the gate records a decision only, as JCI-REVIEW does).
+  # hil_queue: K9X HIL task topic workflow.hil.<hil_queue>; decisions on <hil_queue>.replies.
   gates:
     SERVICE-VALIDATION:
+      prepared_by: requirement
+      approval_starts: mdd_package
+      hil_queue: das.service-validation
       authority: Service requirements board
       blocking: true
       entry_criteria:
@@ -106,6 +113,9 @@ process_model:
       decision_record: Service validation record
       sources: ["S2 para 1.b", "S3 Encl. A 6.b", "S3 Encl. E 2"]
     JCI-REVIEW:
+      prepared_by: requirement
+      approval_starts: null
+      hil_queue: das.jci-review
       authority: "JROC, JCB or FCB by Joint Staffing Designator (Service Information: awareness only)"
       blocking: false
       entry_criteria:
@@ -114,6 +124,9 @@ process_model:
       decision_record: "JROCM: endorse (all, some or none) or reject; tripwires; critical joint capability requirements; recommendations to Service boards and the RRAB"
       sources: ["S3 Encl. A 6.c-d", "S3 Encl. B 2.b"]
     MDD:
+      prepared_by: mdd_package
+      approval_starts: msa
+      hil_queue: das.mdd
       authority: "Milestone Decision Authority (Service Chief concurrence for MDAPs)"
       blocking: true
       entry_criteria:
@@ -123,10 +136,13 @@ process_model:
       decision_record: "Acquisition Decision Memorandum: phase of entry and initial review milestone; AoA study guidance and plan attached"
       sources: ["S5 3.5", "S5 2.3.b"]
     MILESTONE-A:
+      prepared_by: msa
+      approval_starts: tmrr
+      hil_queue: das.milestone-a
       authority: "Milestone Decision Authority (Service Chief concurrence for MDAPs)"
       blocking: true
       entry_criteria:
-        - "Justification, affordability and feasibility of the preferred materiel solution"
+        - "Justification for, and affordability and feasibility of, the preferred military solution"
         - "Technologies that must be matured in TMRR"
         - "Capability requirement trade space and its priorities"
         - "Technical, cost and schedule risks with funded mitigation plans"
@@ -142,6 +158,9 @@ process_model:
       decision_record: "Acquisition Decision Memorandum: materiel solution, acquisition strategy, TMRR strategy, final RFP release, TMRR exit and EMD entry criteria"
       sources: ["S5 3.6-3.7", "S4 4.1", "S6 3.1"]
     SE-REVIEW-SRR:
+      prepared_by: tmrr
+      approval_starts: null
+      hil_queue: das.srr
       type: REVIEW_APPROVE      # a technical review; the others are PREPARE_DECIDE (agents prepare, a person decides)
       authority: "Technical review chair appointed by the Service; criteria tailored by the Chief Engineer"
       blocking: true

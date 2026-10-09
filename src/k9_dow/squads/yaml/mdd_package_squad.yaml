@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+# Process model mca-2026-10 (config/process_model.yaml)
+
+squads:
+  MddPackageSquad:
+    description: >
+      Drafts the AoA study guidance and study plan that, with the validated requirement, inform the Materiel Development Decision (DoDI 5000.85 3.5).
+    agents:
+      - AoaStudyPlanAgent
+    flow:
+      - agent: AoaStudyPlanAgent
+        result_key: aoa_study_plan

@@ -2,18 +2,22 @@
 # K9-AIF Framework
 """DAS ↔ K9X HIL gate round trip.
 
-A stage that ends at a non-delegable gate publishes a HIL task
+A run that ends at a non-delegable gate publishes a HIL task
 (``publish_gate_task``). K9X HIL publishes the human decision to the gate's
 reply topic (HIL v1.2.0+, transactional outbox). The DAS Router process
 consumes those reply topics and turns an approval into a ``gate_approved``
-event, which DasRouter routes to the next stage's topic:
+event, which DasRouter routes to the next run's topic. Gates, topics and the
+run each approval starts come from the process model (config/process_model.yaml):
 
-    JCIDS ──▶ JROC-VALIDATION ──(approve)──▶ Acquisition
-    Acquisition ──▶ PATHWAY-MILESTONE ──(approve)──▶ Systems Engineering
+    requirement ─▶ SERVICE-VALIDATION ─(approve)─▶ mdd_package ─▶ MDD ─(approve)─▶ msa
+        └─▶ JCI-REVIEW (parallel; decision recorded)      msa ─▶ MILESTONE-A ─(approve)─▶ tmrr
+                                                          tmrr ─▶ SE-REVIEW-SRR ─(approve)─▶ complete
 
-Stage outputs are kept in object storage by job id (``save_stage_result`` /
-``load_stage_result``) because a decision can arrive days after the stage
-that produced the package, in a different process.
+Run results are kept in object storage by job id (``save_stage_result`` /
+``load_stage_result``) because a decision can arrive days after the run that
+produced the package, in a different process. JCIDS-era jobs (jcids →
+JROC-VALIDATION → acquisition → PATHWAY-MILESTONE → se) still display in the
+history and their late decisions are recorded, but they start no run.
 """
 
 from __future__ import annotations
@@ -25,10 +29,20 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
-# gate_id → where its HIL task goes and where HIL publishes the decision
-GATE_TOPICS: Dict[str, Dict[str, str]] = {
+from k9_dow.config.process_model import load_process_model
+
+_PM = load_process_model()
+
+# JCIDS-era gates: their decisions are still recorded (jobs in flight at the switch), never resumed.
+LEGACY_GATE_TOPICS: Dict[str, Dict[str, str]] = {
     "JROC-VALIDATION": {"task_topic": "workflow.hil.das.jroc", "reply_topic": "das.jroc.replies"},
     "PATHWAY-MILESTONE": {"task_topic": "workflow.hil.das.pathway", "reply_topic": "das.pathway.replies"},
+}
+
+# gate_id → where its HIL task goes and where HIL publishes the decision
+GATE_TOPICS: Dict[str, Dict[str, str]] = {
+    **LEGACY_GATE_TOPICS,
+    **{g.id: {"task_topic": g.task_topic, "reply_topic": g.reply_topic} for g in _PM.gates.values()},
 }
 REPLY_TOPIC_TO_GATE: Dict[str, str] = {v["reply_topic"]: k for k, v in GATE_TOPICS.items()}
 
@@ -102,8 +116,8 @@ def gate_approved_event(gate_id: str, reply: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-# Stage each gate's approval starts.
-GATE_NEXT_STAGE = {"JROC-VALIDATION": "acquisition", "PATHWAY-MILESTONE": "se"}
+# Run each gate's approval starts (gates that start nothing are absent).
+GATE_NEXT_STAGE: Dict[str, str] = {g.id: g.approval_starts for g in _PM.gates.values() if g.approval_starts}
 
 
 def gate_decision_evidence(gate_id: str, decision: Dict[str, Any]) -> Dict[str, Any]:
@@ -159,8 +173,9 @@ def save_stage_result(config: Dict[str, Any], job_id: str, stage: str, result: D
         return None
 
 
-# The stage whose stored package a gate's decision resumes from.
-GATE_INPUT_STAGE = {"JROC-VALIDATION": "jcids", "PATHWAY-MILESTONE": "acquisition"}
+# The run whose stored package a gate reviews (a decision is recorded only if it exists).
+GATE_INPUT_STAGE: Dict[str, str] = {"JROC-VALIDATION": "jcids", "PATHWAY-MILESTONE": "acquisition",
+                                    **{g.id: g.prepared_by for g in _PM.gates.values()}}
 
 
 def stage_result_exists(config: Dict[str, Any], job_id: str, stage: str) -> bool:
@@ -187,7 +202,20 @@ def load_stage_result(config: Dict[str, Any], job_id: str, stage: str) -> Option
 
 # ── Job history (survives app restarts; read by the UI's Jobs tab) ──
 
-STAGE_ORDER = ["jcids", "gate-JROC-VALIDATION", "acquisition", "gate-PATHWAY-MILESTONE", "se"]
+LEGACY_STAGE_ORDER = ["jcids", "gate-JROC-VALIDATION", "acquisition", "gate-PATHWAY-MILESTONE", "se"]
+
+
+def _process_stage_order() -> List[str]:
+    """Runs and gates in order: each run, then the gates it prepares (blocking first)."""
+    order: List[str] = []
+    for run in _PM.runs():
+        order.append(run)
+        gates = sorted(_PM.gates_prepared_by(run), key=lambda g: not g.blocking)
+        order += [f"gate-{g.id}" for g in gates]
+    return order
+
+
+STAGE_ORDER = _process_stage_order()
 
 
 def mark_started(config: Dict[str, Any], job_id: str, stage: str, by: str) -> None:
@@ -217,28 +245,33 @@ def list_job_ids(config: Dict[str, Any]) -> Dict[str, List[str]]:
 def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]] = None) -> Dict[str, Any]:
     """Stage-by-stage view of one job: what ran, what each gate decided, what's pending."""
     stages = stages if stages is not None else list_job_ids(config).get(job_id, [])
+    legacy = "jcids" in stages and "requirement" not in stages
+    order = LEGACY_STAGE_ORDER if legacy else STAGE_ORDER
     data = {name: load_stage_result(config, job_id, name) for name in stages}
-    jcids = data.get("jcids") or {}
+    first = data.get("jcids" if legacy else "requirement") or {}
     steps = []
-    for name in STAGE_ORDER:
+    for name in order:
         rec = data.get(name)
         if name.startswith("gate-"):
             gate_id = name[5:]
-            if not rec:
+            if not rec and legacy:
                 # Decided before the Router kept decision files: the next stage
                 # records the approval that started it.
                 nxt, key = {"JROC-VALIDATION": ("acquisition", "jroc_decision"),
                             "PATHWAY-MILESTONE": ("se", "milestone_decision")}[gate_id]
                 rec = (data.get(nxt) or {}).get(key) or None
+            step = {"step": gate_id, "kind": "gate"}
+            if not legacy and not _PM.gate(gate_id).blocking:
+                step["parallel"] = True
             if rec:
                 state = ("approved" if rec.get("action") == "complete" and rec.get("accepted", True)
                          else "ignored" if not rec.get("accepted", True) else rec.get("action") or "decided")
-                steps.append({"step": gate_id, "kind": "gate", "state": state, "actor": rec.get("actor"),
+                steps.append({**step, "state": state, "actor": rec.get("actor"),
                               "comment": rec.get("comment"), "decided_at": rec.get("decided_at")})
             elif data.get(GATE_INPUT_STAGE[gate_id]):
-                steps.append({"step": gate_id, "kind": "gate", "state": "pending"})
+                steps.append({**step, "state": "pending"})
             else:
-                steps.append({"step": gate_id, "kind": "gate", "state": "not_reached"})
+                steps.append({**step, "state": "not_reached"})
         else:
             state = ("done" if rec and rec.get("status") not in (None, "error") else
                      "error" if rec else "not_reached")
@@ -246,9 +279,9 @@ def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]]
             if rec and rec.get("demo_stub"):
                 step["demo"] = True
             steps.append(step)
-    # What happens next: an approved gate whose next stage hasn't started
+    # What happens next: an approved gate whose next run hasn't started (current process only)
     next_action = None
-    for gate_id, nxt in GATE_NEXT_STAGE.items():
+    for gate_id, nxt in ({} if legacy else GATE_NEXT_STAGE).items():
         gate = next(s for s in steps if s["step"] == gate_id)
         stage = next(s for s in steps if s["step"] == nxt)
         if gate["state"] == "approved" and stage["state"] == "not_reached":
@@ -258,10 +291,13 @@ def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]]
                 stage["started_by"] = started.get("by")
             else:
                 next_action = {"gate": gate_id, "stage": nxt}
+    complete = not legacy and any(s["step"] == "SE-REVIEW-SRR" and s["state"] == "approved" for s in steps)
     return {
         "job_id": job_id,
-        "document_title": jcids.get("document_title"),
-        "filename": jcids.get("filename"),
+        "process_model": "jcids-legacy" if legacy else _PM.id,
+        "document_title": first.get("document_title"),
+        "filename": first.get("filename"),
         "steps": steps,
         "next_action": next_action,
+        "complete": complete,
     }

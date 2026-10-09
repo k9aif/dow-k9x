@@ -112,3 +112,31 @@ def test_rejects_an_unknown_owner(raw):
     bad["process_model"]["stages"][2]["owner"] = "jcids"
     with pytest.raises(ProcessModelError):
         parse_process_model(bad)
+
+
+def test_runs_chain_through_the_blocking_gates(pm):
+    chain = [(g.prepared_by, g.approval_starts) for g in (pm.gate(i) for i in pm.blocking_gates())]
+    assert chain == [("requirement", "mdd_package"), ("mdd_package", "msa"), ("msa", "tmrr"), ("tmrr", None)]
+    jci = pm.gate("JCI-REVIEW")
+    assert jci.prepared_by == "requirement" and jci.approval_starts is None
+
+
+def test_hil_topics_unique(pm):
+    topics = [g.task_topic for g in pm.gates.values()] + [g.reply_topic for g in pm.gates.values()]
+    assert len(topics) == len(set(topics))
+    assert pm.gate("MDD").task_topic == "workflow.hil.das.mdd"
+    assert pm.gate("MDD").reply_topic == "das.mdd.replies"
+
+
+def test_rejects_an_approval_that_goes_backwards(raw):
+    bad = copy.deepcopy(raw)
+    bad["process_model"]["gates"]["MILESTONE-A"]["approval_starts"] = "requirement"
+    with pytest.raises(ProcessModelError):
+        parse_process_model(bad)
+
+
+def test_rejects_a_non_blocking_gate_that_starts_a_run(raw):
+    bad = copy.deepcopy(raw)
+    bad["process_model"]["gates"]["JCI-REVIEW"]["approval_starts"] = "msa"
+    with pytest.raises(ProcessModelError):
+        parse_process_model(bad)

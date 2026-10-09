@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+# Process model mca-2026-10 (config/process_model.yaml)
+
+squads:
+  JointReviewSquad:
+    description: >
+      Proposes the Joint Staffing Designator the sponsor submits with the Service-validated requirement for the JCI review (CJCSM 5123.01A Encl. B 2).
+    agents:
+      - JsdRecommenderAgent
+    flow:
+      - agent: JsdRecommenderAgent
+        result_key: jsd

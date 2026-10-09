@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """HIL review tasks carry a readable name-value summary, not the scorer's raw Markdown, and link to a
-human-readable document (JROC: ICD; PATHWAY-MILESTONE: Milestone package view and .docx)."""
+human-readable document (SERVICE-VALIDATION: requirement package; MDD, MILESTONE-A, SRR: run package view and .docx)."""
 
 from k9_dow.gates import hil_gateway
 from k9_dow.gates.gate_registry import DAS_GATES
@@ -57,8 +57,8 @@ def test_unreadable_assessment_points_to_the_package():
         "Readiness assessment": "See the review package (View link under Artifacts)"}
 
 
-def test_pathway_task_payload_and_links(monkeypatch):
-    from k9_dow.orchestrators import acquisition_orchestrator as acq_mod
+def test_milestone_a_task_payload_and_links(monkeypatch):
+    from k9_dow.orchestrators.msa_orchestrator import MsaOrchestrator
     published = []
 
     class Squad:
@@ -70,33 +70,36 @@ def test_pathway_task_payload_and_links(monkeypatch):
 
     monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: {"filename": "F22.md"})
     monkeypatch.setattr(hil_gateway, "save_stage_result", lambda cfg, job, stage, res: "s3://jcids-output/x.json")
-    monkeypatch.setattr(hil_gateway, "publish_gate_task", lambda cfg, gate, job, **kw: published.append(kw) or True)
-    orch = acq_mod.AcquisitionOrchestrator(config={})
-    gate = Squad({"readiness_score": {"output": PATHWAY_TABLE}})
+    monkeypatch.setattr(hil_gateway, "publish_gate_task", lambda cfg, gate, job, **kw: published.append((gate, kw)) or True)
+    orch = MsaOrchestrator(config={})
+    gate = Squad({"readiness_score": {"output": PATHWAY_TABLE, "score": 75}})
     monkeypatch.setattr(orch, "_load_squad", lambda f, sid: gate if sid == "GateReadinessSquad" else Squad({}))
-    orch.execute_flow(hil_gateway.gate_approved_event("JROC-VALIDATION", {
-        "correlation_id": "job-7", "action": "complete", "actor": "reviewer@k9x.ai", "status": "completed",
+    orch.execute_flow(hil_gateway.gate_approved_event("MDD", {
+        "correlation_id": "job-7", "action": "complete", "actor": "mda@k9x.ai", "status": "completed",
         "comment": None, "result": None, "decided_at": "2026-10-08T12:00:00+00:00"}))
-    kw = published[0]
-    assert kw["payload"]["Gate"] == "PATHWAY-MILESTONE"
-    assert kw["payload"]["Readiness"] == "75 / 100 — BLOCKED"
-    assert kw["payload"]["JROC approved by"] == "reviewer@k9x.ai"
+    gate_id, kw = published[0]
+    assert gate_id == "MILESTONE-A" and kw["payload"]["Gate"] == "MILESTONE-A"
+    assert kw["payload"]["MDD approved by"] == "mda@k9x.ai"
     assert "readiness_score" not in kw["payload"]                       # no raw Markdown in the task
-    assert kw["artifacts"][0].endswith("/jobs/job-7/view/milestone")
-    assert kw["artifacts"][1].endswith("/jobs/job-7/docx/milestone")
+    assert kw["artifacts"][0].endswith("/jobs/job-7/view/msa")
+    assert kw["artifacts"][1].endswith("/jobs/job-7/docx/msa")
+    assert "Milestone Decision Authority" in kw["description"]
 
 
-def test_jroc_task_payload(monkeypatch):
-    from k9_dow.orchestrators import jcids_orchestrator as jc_mod
+def test_requirement_publishes_service_validation_and_parallel_jci(monkeypatch):
+    from k9_dow.orchestrators.requirement_orchestrator import RequirementOrchestrator
     published = []
-    monkeypatch.setattr(jc_mod, "publish_gate_task", lambda cfg, gate, job, **kw: published.append(kw) or True,
-                        raising=False)
-    monkeypatch.setattr(hil_gateway, "publish_gate_task", lambda cfg, gate, job, **kw: published.append(kw) or True)
-    orch = jc_mod.JcidsOrchestrator.__new__(jc_mod.JcidsOrchestrator)
-    orch.config, orch._progress = {}, (lambda e: None)
-    orch._publish_hil_task("job-9", {"gate_readiness": {"readiness_score": {"output": JROC_HEADINGS}}}, "s3://x/ICD.md")
-    kw = published[0]
-    assert kw["payload"]["Gate"] == "JROC-VALIDATION"
-    assert kw["payload"]["Readiness"] == "67.5 / 100"
-    assert "gap_summary" not in kw["payload"] and "readiness_score" not in kw["payload"]
-    assert kw["artifacts"][0].endswith("/jobs/job-9/view/icd")
+    monkeypatch.setattr(hil_gateway, "publish_gate_task", lambda cfg, gate, job, **kw: published.append((gate, kw)) or True)
+    monkeypatch.setattr(hil_gateway, "save_stage_result", lambda cfg, job, stage, res: None)
+    orch = RequirementOrchestrator(config={})
+    orch._publish_hil_tasks("job-9", {
+        "gate_readiness": {"readiness_score": {"output": JROC_HEADINGS}},
+        "joint_review": {"jsd": {"output": "## Recommended Joint Staffing Designator\nFCB Interest"}},
+        "screening": {"status": "clean", "sections_screened": 7, "report_uri": "s3://r.md"}}, "s3://x/req.md")
+    (g1, sv), (g2, jci) = published
+    assert g1 == "SERVICE-VALIDATION" and sv["payload"]["Gate"] == "SERVICE-VALIDATION"
+    assert sv["payload"]["Document screening"] == "no warnings (7 sections)"
+    assert sv["artifacts"][0].endswith("/jobs/job-9/view/requirement") and "s3://r.md" in sv["artifacts"]
+    assert "gap_summary" not in sv["payload"] and "readiness_score" not in sv["payload"]
+    assert g2 == "JCI-REVIEW" and jci["payload"]["Recommended JSD"] == "FCB Interest"
+    assert "never holds" in jci["description"] and jci["artifacts"][0].endswith("/jobs/job-9/view/jsd")

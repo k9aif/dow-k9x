@@ -4,11 +4,12 @@
 # Async Kafka consumer that routes events from dow.router.in
 # to the correct pipeline topic via DasRouter.
 #
-# Also consumes the HIL gate reply topics (das.jroc.replies,
-# das.pathway.replies): K9X HIL publishes each human decision there, and an
-# approval becomes a gate_approved event that DasRouter routes to the next
-# stage (JROC → Acquisition, PATHWAY-MILESTONE → SE). Keeps the K9-AIF rule
-# that only the Router publishes to domain topics. See gates/hil_gateway.py.
+# Also consumes the HIL gate reply topics (one per gate of the process model,
+# config/process_model.yaml): K9X HIL publishes each human decision there, and an
+# approval becomes a gate_approved event that DasRouter routes to the run that
+# gate's approval starts. A gate that starts nothing (JCI-REVIEW, SE-REVIEW-SRR,
+# JCIDS-era gates) is recorded only. Keeps the K9-AIF rule that only the Router
+# publishes to domain topics. See gates/hil_gateway.py.
 #
 # Usage:
 #   python -m k9_dow.runtime.dow_router_process
@@ -147,7 +148,18 @@ async def main() -> None:
             })
             if not accepted:
                 return
-            if action == "complete" and resume_mode() == "manual":
+            if action == "complete" and gate_id not in GATE_NEXT_STAGE:
+                # Recorded above; nothing to start (parallel JCI review, final SRR, legacy gate).
+                print(f"\n  ✔ HIL  {gate_id} decided by {reply.get('actor')}  job={job_id}  → recorded\n",
+                      flush=True)
+                if gate_id == "SE-REVIEW-SRR":
+                    _result_event({
+                        "event_type": "gate_decision", "job_id": job_id, "correlation_id": job_id,
+                        "orchestrator": "DasRouter",
+                        "result": {"status": "pipeline_complete", "gate_id": gate_id,
+                                   "actor": reply.get("actor"), "orchestrator": "router"},
+                    })
+            elif action == "complete" and resume_mode() == "manual":
                 # Recorded (gate file above); the DAS admin starts the next
                 # stage from Jobs in Pipeline (POST /jobs/<id>/advance).
                 print(f"\n  ✔ HIL  {gate_id} approved by {reply.get('actor')}  job={job_id}"
@@ -158,8 +170,9 @@ async def main() -> None:
                 await loop.run_in_executor(None, mark_started, config, job_id,
                                            GATE_NEXT_STAGE[gate_id], "auto")
                 await handle(gate_approved_event(gate_id, reply))
-            else:
-                # reject / expire: the pipeline stops at this gate
+            elif gate_id in GATE_NEXT_STAGE or gate_id == "SE-REVIEW-SRR":
+                # reject / expire on a blocking gate: the pipeline stops there. (A JCI-REVIEW
+                # rejection is recorded above; it never holds the acquisition flow.)
                 _result_event({
                     "event_type": "gate_decision", "job_id": job_id, "correlation_id": job_id,
                     "orchestrator": "DasRouter",

@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0
+# Process model mca-2026-10 (config/process_model.yaml)
+
+squads:
+  MsaAnalysisSquad:
+    description: >
+      Materiel Solution Analysis: AoA summary and affordability, then the Alternative Systems Review (best practice) building on it, then the proposed acquisition strategy building on both. Context enrichment: each agent reads the earlier agents' results.
+    agents:
+      - AoaSummaryAgent
+      - AlternativeSystemsReviewAgent
+      - AcquisitionStrategyAgent
+    flow:
+      - agent: AoaSummaryAgent
+        result_key: aoa_summary
+      - agent: AlternativeSystemsReviewAgent
+        result_key: asr
+      - agent: AcquisitionStrategyAgent
+        result_key: acquisition_strategy

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+# Process model mca-2026-10 (config/process_model.yaml)
+
+squads:
+  SrrPackageSquad:
+    description: >
+      TMRR: drafts the system requirements and their traceability for the System Requirements Review (SE Guidebook 3.2).
+    agents:
+      - SystemRequirementsAgent
+    flow:
+      - agent: SystemRequirementsAgent
+        result_key: system_requirements

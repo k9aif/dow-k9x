@@ -214,14 +214,18 @@ def compose_icd(job_data: dict) -> str:
     result = with_computed_score(result, gate_id or "JROC-VALIDATION", job_id)
     date_str = datetime.now().strftime("%d %B %Y")
     document_title = result.get("document_title") or ""
+    # Process model mca-2026-10: the Service's own requirement document under the JFRP
+    # (CJCSM 5123.01A Encl. A 6.b); JCIDS-era jobs keep their ICD heading.
+    doc_kind = ("Service Capability Requirement: Validation Review Package"
+                if result.get("orchestrator") == "requirement" else "Initial Capabilities Document (ICD)")
 
     lines = []
     if document_title:
         lines.append(f"# {document_title}")
         lines.append("")
-        lines.append("**Initial Capabilities Document (ICD)**")
+        lines.append(f"**{doc_kind}**")
     else:
-        lines.append("# Initial Capabilities Document (ICD)")
+        lines.append(f"# {doc_kind}")
     lines.append("")
     lines.append("## DRAFT — FOR DEMONSTRATION PURPOSES ONLY")
     lines.append("")
@@ -257,6 +261,9 @@ def compose_icd(job_data: dict) -> str:
             "completeness_check": "3.2 Completeness Assessment",
             "review_package": "3.3 Package Summary",
         }),
+        ("joint_review", "4. Joint Capability Integration Review", {
+            "jsd": "4.1 Joint Staffing Designator Recommendation",
+        }),
     ]
 
     for section_key, section_title, subsections in sections:
@@ -291,3 +298,72 @@ def compose_icd(job_data: dict) -> str:
     lines.append(f"*{date_str} | {job_id}*")
 
     return relabel_views("\n".join(lines))
+
+
+_JSD = re.compile(r"\b(JROC Interest|JCB Interest|FCB Interest|Service Information)\b", re.I)
+
+
+def extract_jsd(result: dict) -> str:
+    """The recommended Joint Staffing Designator named first in the JSD recommendation ('' if none)."""
+    text = extract_text(((result or {}).get("joint_review") or {}).get("jsd") or {})
+    section = text.split("Assessment Against", 1)[0]
+    m = _JSD.search(section) or _JSD.search(text)
+    return " ".join(w.capitalize() if w.lower() not in ("jroc", "jcb", "fcb") else w.upper()
+                    for w in m.group(1).split()) if m else ""
+
+
+# Package documents of the later runs (process model mca-2026-10): content squads first,
+# then the gate's readiness assessment and review package.
+STAGE_DOCUMENTS = {
+    "mdd_package": ("Materiel Development Decision Package", [
+        ("mdd_analysis", "aoa_study_plan", "Draft AoA Study Guidance and Study Plan"),
+    ]),
+    "msa": ("Milestone A Package", [
+        ("msa_analysis", "aoa_summary", "Analysis of Alternatives Summary"),
+        ("msa_analysis", "asr", "Alternative Systems Review"),
+        ("msa_analysis", "acquisition_strategy", "Proposed Acquisition Strategy"),
+    ]),
+    "tmrr": ("System Requirements Review Package", [
+        ("srr_analysis", "system_requirements", "System Requirements"),
+    ]),
+}
+
+
+def compose_package(result: dict) -> str:
+    """One review document for an MDD, Milestone A or SRR run."""
+    run = result.get("orchestrator_run") or ""
+    title, docs = STAGE_DOCUMENTS.get(run, ("Review Package", []))
+    job_id = result.get("job_id", "unknown")
+    gate_id = result.get("gate_id", "")
+    result = with_computed_score(result, gate_id, job_id)
+    date_str = datetime.now().strftime("%d %B %Y")
+    lines = [f"# {result.get('document_title') or 'Program'}", "", f"**{title}**", "",
+             "## DRAFT — FOR DEMONSTRATION PURPOSES ONLY", "",
+             f"**Job ID:** {job_id}", f"**Date:** {date_str}",
+             f"**Status:** Awaiting HIL Review ({gate_id})",
+             "**Classification:** UNCLASSIFIED — PROOF OF CONCEPT", "", "---", ""]
+    n = 0
+    for section_key, key, heading in docs:
+        part = (result.get(section_key) or {}).get(key)
+        if not part:
+            continue
+        n += 1
+        lines += [f"## {n}. {heading}", "", nest_section(strip_json_blocks(extract_text(part)) or "*No output generated.*"), ""]
+    for section_key, heading, subs in (
+        ("gate_readiness", "Gate Readiness Assessment", (("criteria", "Gate Entry Criteria"), ("evidence", "Evidence Summary"),
+                                                        ("readiness_score", "Readiness Score"), ("gap_report", "Gap Analysis"))),
+        ("review_package", "Review Package", (("artifact_manifest", "Artifact Manifest"),
+                                              ("completeness_check", "Completeness Assessment"),
+                                              ("review_package", "Package Summary")))):
+        section = result.get(section_key) or {}
+        if not section:
+            continue
+        n += 1
+        lines += [f"## {n}. {heading}", ""]
+        for i, (key, sub) in enumerate(subs, 1):
+            text = strip_json_blocks(extract_text(section.get(key) or {}))
+            if text:
+                lines += [f"### {n}.{i} {sub}", "", nest_section(text), ""]
+    lines += ["---", "", "*Generated by DAS (Defense Acquisition System) — Built on K9-AIF Framework*",
+              f"*{date_str} | {job_id}*"]
+    return "\n".join(lines)

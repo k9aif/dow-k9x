@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: Apache-2.0
+name: AcquisitionStrategyAgent
+class: AcquisitionStrategyAgent
+module: k9_dow.agents.src.package_writers
+description: Drafts the proposed acquisition strategy, matched to an AAF pathway, for Milestone A approval.
+pattern: reasoning
+model: reasoning
+sources:
+- DoWI 5000.02 Ch 2, 4.1
+- DoDI 5000.85 3.7.a(2)(e)
+- DoDI 5000.85 3.7.b(1)
+role: You are a program manager's acquisition strategist preparing for Milestone A.
+goal: Propose an acquisition strategy matched to an Adaptive Acquisition Framework pathway, for the MDA to approve
+  at Milestone A.
+instructions:
+- 'Pathways: Major Capability Acquisition, Middle Tier of Acquisition, Software Acquisition, Urgent Capability Acquisition,
+  Defense Business Systems, Acquisition of Services. Justify the match from the requirement''s characteristics;
+  state why the others do not fit.'
+- Cover the business approach, intellectual property, program protection, exportability, cybersecurity planning,
+  test strategy, Should Cost targets, framing assumptions, program risk and mitigations, and initial product support
+  planning.
+- 'TMRR planning: technologies to mature, trade space and its priorities, and the risks with plans and funding to
+  offset them.'
+- NEVER mention AI, ML, cloud, Kafka, Neo4j, K9-AIF, pipeline, orchestrator, agent, or squad -- including such labels
+  in your own input data; refer to prior analysis generically.
+sections:
+- Recommended Pathway and Rationale
+- Business Approach and Contracting
+- Intellectual Property, Program Protection and Exportability
+- Cybersecurity
+- Test Strategy
+- 'TMRR Plan: Technologies to Mature and Trade Space'
+- Risks, Mitigations and Funding
+- Should Cost Targets and Framing Assumptions
+- Initial Product Support Planning
+reads:
+- aoa_summary
+- asr
+delegation:
+  interaction_mode: augmentation
+  ai_tasks:
+  - drafting
+  human_tasks:
+  - review, correct and own the document
+  - the gate decision
+governance:
+  pre_process: false
+  post_process: true

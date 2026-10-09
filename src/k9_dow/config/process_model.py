@@ -45,6 +45,20 @@ class Gate:
     sources: List[str]
     evidence: List[str] = field(default_factory=list)
     criteria_note: str = ""
+    prepared_by: str = ""
+    approval_starts: Optional[str] = None
+    hil_queue: str = ""
+
+    @property
+    def task_topic(self) -> str:
+        return f"workflow.hil.{self.hil_queue}"
+
+    @property
+    def reply_topic(self) -> str:
+        return f"{self.hil_queue}.replies"
+
+
+RUNS = ("requirement", "mdd_package", "msa", "tmrr")
 
 
 @dataclass(frozen=True)
@@ -73,6 +87,13 @@ class ProcessModel:
 
     def blocking_gates(self) -> List[str]:
         return [s.id for s in self.sequence() if s.kind == "gate" and self.gates[s.id].blocking]
+
+    def runs(self) -> List[str]:
+        """Orchestrator runs in order (the keys stage results are stored under)."""
+        return list(RUNS)
+
+    def gates_prepared_by(self, run: str) -> List[Gate]:
+        return [g for g in self.gates.values() if g.prepared_by == run]
 
     def next_stage(self, stage_id: str) -> Optional[Stage]:
         seq = self.sequence()
@@ -119,6 +140,16 @@ def _validate(pm: ProcessModel) -> None:
             raise ProcessModelError(f"{g.id}: unknown gate type {g.type!r}")
         if not g.sources or not g.entry_criteria:
             raise ProcessModelError(f"{g.id}: gate needs sources and entry criteria")
+        if g.prepared_by not in RUNS:
+            raise ProcessModelError(f"{g.id}: prepared_by {g.prepared_by!r} is not a run {RUNS}")
+        if g.approval_starts is not None and g.approval_starts not in RUNS:
+            raise ProcessModelError(f"{g.id}: approval_starts {g.approval_starts!r} is not a run")
+        if g.approval_starts is not None and RUNS.index(g.approval_starts) <= RUNS.index(g.prepared_by):
+            raise ProcessModelError(f"{g.id}: an approval must start a later run")
+        if not g.blocking and g.approval_starts is not None:
+            raise ProcessModelError(f"{g.id}: a non-blocking gate starts nothing")
+        if not g.hil_queue.startswith("das."):
+            raise ProcessModelError(f"{g.id}: hil_queue must start with 'das.'")
         parallel = pm.stage(g.id).parallel
         if parallel and g.blocking:
             raise ProcessModelError(f"{g.id}: a parallel gate cannot block")
@@ -146,6 +177,8 @@ def parse_process_model(data: Dict[str, Any]) -> ProcessModel:
             entry_criteria=list(g["entry_criteria"]), decision_record=g["decision_record"],
             sources=list(g["sources"]), evidence=list(g.get("evidence") or []),
             criteria_note=g.get("criteria_note", ""),
+            prepared_by=g.get("prepared_by", ""), approval_starts=g.get("approval_starts"),
+            hil_queue=g.get("hil_queue", ""),
         )
         for gid, g in raw["gates"].items()
     }

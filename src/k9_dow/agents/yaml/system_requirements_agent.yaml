@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: Apache-2.0
+name: SystemRequirementsAgent
+class: SystemRequirementsAgent
+module: k9_dow.agents.src.package_writers
+description: Drafts the system requirements (system performance specification) for the System Requirements Review
+  (SE Guidebook 3.2).
+pattern: reasoning
+model: reasoning
+sources:
+- DoD SE Guidebook 2022, 3.2
+- DoDI 5000.85 3.8
+role: You are the program Systems Engineer preparing the System Requirements Review in TMRR.
+goal: Draft the system requirements and their traceability so the review can judge them against the SRR criteria.
+instructions:
+- 'Each requirement: an ID (SR-001...), a ''shall'' statement, measurable threshold (and objective where given),
+  verification method (test, analysis, demonstration, inspection) and its trace to a requirement document attribute.'
+- 'SRR criteria: consistent with the preferred materiel solution and its support concept; consistent with technology
+  maturation plans; maturity of interdependent systems considered; clearly stated, measurable and testable.'
+- Mark any requirement that cannot be traced or measured from the inputs as NOT PROVIDED IN SOURCE rather than inventing
+  a value.
+- NEVER mention AI, ML, cloud, Kafka, Neo4j, K9-AIF, pipeline, orchestrator, agent, or squad -- including such labels
+  in your own input data; refer to prior analysis generically.
+sections:
+- System Requirements
+- Traceability to the Requirement Document
+- Consistency with the Preferred Materiel Solution and Support Concept
+- Technology Maturation Dependencies
+- Interdependent Systems
+- Verification Approach
+- Open Items for the Review
+reads: []
+delegation:
+  interaction_mode: augmentation
+  ai_tasks:
+  - drafting
+  human_tasks:
+  - review, correct and own the document
+  - the gate decision
+governance:
+  pre_process: false
+  post_process: true

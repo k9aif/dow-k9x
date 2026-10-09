@@ -34,7 +34,11 @@ class TraceabilityOrchestrator(BaseOrchestrator):
     layer = "DAS Traceability Orchestrator"
 
     def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs) -> None:
-        super().__init__(config=config or {}, **kwargs)
+        config = config or {}
+        if "governance" not in kwargs and ((config.get("security") or {}).get("shield") or {}).get("enabled") is True:
+            from k9_aif_abb.k9_security.vulnerability.shield_governance import ShieldGovernance
+            kwargs["governance"] = ShieldGovernance(config)
+        super().__init__(config=config, **kwargs)
         self._squads_dir = Path(__file__).resolve().parent.parent / "squads" / "yaml"
         self._agents_dir = Path(__file__).resolve().parent.parent / "agents" / "yaml"
 
@@ -53,6 +57,10 @@ class TraceabilityOrchestrator(BaseOrchestrator):
     def execute_flow(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         job_id = payload.get("job_id", "unknown")
         log.info("[Traceability] Starting cross-cutting analysis for job=%s", job_id)
+        sh = self.apply_shield(payload)
+        if not sh["allowed"]:
+            return {"job_id": job_id, "orchestrator": "traceability", "status": "denied", "reason": sh["reason"]}
+        payload = sh["payload"]
 
         traceability_squad = self._load_squad("traceability_squad.yaml", "TraceabilitySquad")
         drift_squad = self._load_squad("drift_detection_squad.yaml", "DriftDetectionSquad")

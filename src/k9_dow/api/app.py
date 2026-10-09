@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s
 
 app = FastAPI(
     title="DAS — Defense Acquisition System",
-    description="JCIDS / SE / Acquisition pipeline powered by K9-AIF",
+    description="Requirements-to-acquisition flow (JFRP + Major Capability Acquisition to Milestone A and the SRR), built on K9-AIF",
     version="0.2.0",
 )
 
@@ -189,16 +189,17 @@ async def _consume_results():
                         matched_key = k
                         break
 
-            # Stages resumed after a HIL gate (Acquisition, SE) and gate
-            # outcomes are kept per stage; the JCIDS result stays the job's
-            # "result" (the ICD view and /docs read it).
+            # Runs resumed after a HIL gate (MDD package, MSA, TMRR) and gate
+            # outcomes are kept per run; the requirement result stays the job's
+            # "result" (the requirement view and /docs read it).
             later_stage = evt_result.get("orchestrator") if isinstance(evt_result, dict) else None
             if matched_key and (evt.get("type") or evt.get("event_type")) == "GateDecision":
                 _job_store[matched_key].setdefault("gates", {})[evt.get("gate_id", "?")] = {
                     k: evt.get(k) for k in ("action", "actor", "comment", "decided_at", "accepted")}
             elif matched_key and isinstance(evt_result, dict) and evt_result.get("status") \
-                    and later_stage in ("acquisition", "se", "router"):
-                _job_store[matched_key].setdefault("stages", {})[later_stage] = evt_result
+                    and later_stage in ("MsaOrchestrator", "TmrrOrchestrator", "router", "acquisition", "se"):
+                run = evt_result.get("orchestrator_run") or later_stage
+                _job_store[matched_key].setdefault("stages", {})[run] = evt_result
                 _job_store[matched_key]["pipeline_status"] = evt_result.get("status")
                 log.info("[SSE] Stored %s stage result for job=%s", later_stage, matched_key)
             # Only store final pipeline results (not progress events)
@@ -492,17 +493,20 @@ async def llm_warm():
 
 @app.get("/pipeline")
 async def pipeline_info():
-    from k9_dow.gates.gate_registry import DAS_GATES
+    from k9_dow.config.process_model import load_process_model
+    from k9_dow.gates.gate_registry import PROCESS_GATES
+    from k9_dow.routers.das_router import DAS_TOPICS
+    pm = load_process_model()
     return {
-        "orchestrators": ["jcids", "acquisition", "se", "traceability"],
-        "gates": {gid: {"name": g.name, "non_delegable": g.non_delegable} for gid, g in DAS_GATES.items()},
-        "topics": {
-            "jcids": "das.jcids",
-            "acquisition": "das.acquisition",
-            "se": "das.se",
-            "traceability": "das.traceability",
-            "results": "das.results",
-        },
+        "process_model": {"id": pm.id, "as_of": pm.as_of, "pathway": pm.pathway_title},
+        "stages": [{"id": st.id, "title": st.title, "kind": st.kind, "owner": st.owner,
+                    "parallel": st.parallel, "sources": st.sources} for st in pm.stages],
+        "orchestrators": ["requirement", "msa", "tmrr", "traceability"],
+        "gates": {gid: {"name": g.name, "authority": g.authority, "blocking": g.blocking,
+                        "non_delegable": g.non_delegable, "sources": g.sources}
+                  for gid, g in PROCESS_GATES.items()},
+        "designed_not_built": [d["id"] for d in pm.designed],
+        "topics": DAS_TOPICS,
     }
 
 
@@ -577,7 +581,7 @@ async def _submit_job(filename: str, text: str, document_type: str, session_id: 
             "correlation_id": str(uuid.uuid4()),
             "filename": filename,
             "source_markdown": text,
-            "icd_metadata": icd_metadata(filename, job_id, "jcids"),
+            "icd_metadata": icd_metadata(filename, job_id, "requirement"),
             "normalization": normalization or {"method": "text", "chars": len(text)},
         }
         if original is not None:
@@ -637,11 +641,11 @@ def _get_job(job_id: str) -> Optional[dict]:
     if job_id in _job_store:
         return _job_store[job_id]
     from k9_dow.gates.hil_gateway import load_stage_result
-    jcids = load_stage_result(_config, job_id, "jcids")
-    if not jcids:
+    first = load_stage_result(_config, job_id, "requirement") or load_stage_result(_config, job_id, "jcids")
+    if not first:
         return None
-    return {"job_id": job_id, "status": "complete", "result": jcids,
-            "filename": jcids.get("filename") or "", "document_type": jcids.get("document_type") or "",
+    return {"job_id": job_id, "status": "complete", "result": first,
+            "filename": first.get("filename") or "", "document_type": first.get("document_type") or "",
             "from_storage": True}
 
 
@@ -968,30 +972,50 @@ async def start_grade(job_id: str, user: dict = Depends(require_user)):
     return _grading[job_id]
 
 
-@app.get("/jobs/{job_id}/docx/{doc_id}")
-async def download_docx(job_id: str, doc_id: str):
-    """Word version of the ICD (doc_id=icd) or the Milestone review package
-    (doc_id=milestone), from the same markdown as the View pages."""
-    from fastapi.responses import Response
-    from k9_dow.reporting.docx.md_document import markdown_to_docx
-    if doc_id == "milestone":
+DOC_NAMES = {"requirement": "Requirement-Package", "icd": "ICD", "jsd": "JSD-Recommendation",
+             "mdd_package": "MDD-Package", "msa": "Milestone-A-Package", "tmrr": "SRR-Package",
+             "milestone": "Milestone-Package", "quality": "ICD-Quality"}
+
+
+async def _doc_markdown(job_id: str, doc_id: str) -> str:
+    """The markdown behind every View page and Word download of a job."""
+    if doc_id in ("mdd_package", "msa", "tmrr"):
+        md = _compose_run_package(job_id, doc_id)
+        if md is None:
+            raise HTTPException(status_code=404, detail=f"The {doc_id} run has not completed for this job")
+        return md
+    if doc_id == "milestone":                      # JCIDS-era jobs
         md = _compose_milestone_package(job_id)
         if md is None:
             raise HTTPException(status_code=404, detail="Acquisition has not run for this job")
-    elif doc_id == "icd":
-        data = _get_job(job_id)
-        if not data:
-            raise HTTPException(status_code=404, detail="Job not found")
-        md = _compose_icd(data)
-    elif doc_id == "quality":
+        return md
+    if doc_id == "quality":
         md = await _quality_report_md(job_id)
         if md is None:
             raise HTTPException(status_code=404, detail="Not graded yet")
-    else:
+        return md
+    if doc_id not in ("requirement", "icd", "jsd"):
         raise HTTPException(status_code=404, detail="Document not found")
-    loop = asyncio.get_event_loop()
-    body = await loop.run_in_executor(None, markdown_to_docx, md)
-    name = f"{job_id}-{ {'milestone': 'Milestone-Package', 'quality': 'ICD-Quality'}.get(doc_id, 'ICD') }.docx"
+    data = _get_job(job_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Job not found", headers={"Cache-Control": "no-store"})
+    if doc_id == "jsd":
+        from k9_dow.utils.icd_composer import extract_text
+        jsd = ((data.get("result") or {}).get("joint_review") or {}).get("jsd")
+        if not jsd:
+            raise HTTPException(status_code=404, detail="No JSD recommendation for this job")
+        return extract_text(jsd)
+    return _compose_icd(data)
+
+
+@app.get("/jobs/{job_id}/docx/{doc_id}")
+async def download_docx(job_id: str, doc_id: str):
+    """Word version of any job document, from the same markdown as its View page."""
+    from fastapi.responses import Response
+    from k9_dow.reporting.docx.md_document import markdown_to_docx
+    md = await _doc_markdown(job_id, doc_id)
+    body = await asyncio.get_event_loop().run_in_executor(None, markdown_to_docx, md)
+    name = f"{job_id}-{DOC_NAMES.get(doc_id, doc_id)}.docx"
     return Response(content=body,
                     media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store"})
@@ -999,36 +1023,21 @@ async def download_docx(job_id: str, doc_id: str):
 
 @app.get("/jobs/{job_id}/view/{doc_id}")
 async def view_doc(job_id: str, doc_id: str):
-    from fastapi.responses import HTMLResponse
-
     # Serve static sample for demo job
-    if job_id == "JOB-20260628-DEMO01" and doc_id == "icd":
+    if job_id == "JOB-20260628-DEMO01" and doc_id in ("icd", "requirement"):
         sample_md = _OUTPUT_SAMPLES_DIR / "sample_ICD.md"
         if sample_md.exists():
-            md_content = sample_md.read_text(encoding="utf-8")
-            return _render_icd_html(job_id, md_content)
+            return _render_icd_html(job_id, sample_md.read_text(encoding="utf-8"))
+    return _render_icd_html(job_id, await _doc_markdown(job_id, doc_id))
 
-    data = _get_job(job_id)
-    if not data:
-        raise HTTPException(status_code=404, detail="Job not found", headers={"Cache-Control": "no-store"})
 
-    if doc_id == "milestone":
-        md = _compose_milestone_package(job_id)
-        if md is None:
-            raise HTTPException(status_code=404, detail="Acquisition has not run for this job")
-        return _render_icd_html(job_id, md)
-
-    if doc_id == "quality":
-        md = await _quality_report_md(job_id)
-        if md is None:
-            raise HTTPException(status_code=404, detail="Not graded yet")
-        return _render_icd_html(job_id, md)
-
-    if doc_id != "icd":
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    md_content = _compose_icd(data)
-    return _render_icd_html(job_id, md_content)
+def _compose_run_package(job_id: str, run: str) -> Optional[str]:
+    """MDD, Milestone A or SRR review package (process model mca-2026-10)."""
+    from k9_dow.gates.hil_gateway import load_stage_result
+    from k9_dow.utils.dodaf_views import relabel_views
+    from k9_dow.utils.icd_composer import compose_package
+    stored = load_stage_result(_config, job_id, run)
+    return relabel_views(compose_package(stored)) if stored else None
 
 
 def _compose_milestone_package(job_id: str) -> Optional[str]:
