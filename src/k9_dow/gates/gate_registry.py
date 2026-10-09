@@ -14,9 +14,40 @@ class GateAlreadyDecidedError(Exception):
     pass
 
 
-# ─── Non-delegable HITL Gates (minimum set from spec Section 6) ───
+# ─── Gates from the process model ───
+# Every gate of the current process (config/process_model.yaml): criteria, authority and
+# sources come from the file, so a policy change is an edit there, not here. All are
+# non-delegable: an agent prepares, an identified person decides.
 
-DAS_GATES: dict[str, GateDefinition] = {
+def _process_gates() -> dict[str, GateDefinition]:
+    from k9_dow.config.process_model import load_process_model
+    pm = load_process_model()
+    return {
+        g.id: GateDefinition(
+            id=g.id,
+            name=g.title,
+            type=GateType(g.type),
+            owning_orchestrator=g.owner,
+            entry_criteria=list(g.entry_criteria),
+            authority=g.authority,
+            blocking=g.blocking,
+            decision_record=g.decision_record,
+            evidence=list(g.evidence),
+            sources=list(g.sources),
+            process_model=pm.id,
+            non_delegable=True,
+        )
+        for g in pm.gates.values()
+    }
+
+
+PROCESS_GATES: dict[str, GateDefinition] = _process_gates()
+
+# ─── Legacy (JCIDS-era) gates ───
+# Used by the JCIDS-era orchestrators until they move to the process model (build step 4),
+# then removed. New code reads gates from the process model.
+
+LEGACY_GATES: dict[str, GateDefinition] = {
     "JROC-VALIDATION": GateDefinition(
         id="JROC-VALIDATION",
         name="JROC Validation Prep",
@@ -44,19 +75,6 @@ DAS_GATES: dict[str, GateDefinition] = {
             "JCIDS review package available (ICD, readiness assessment, artifact manifest)",
         ],
         criterion_weights=[25, 25, 25, 25],
-        non_delegable=True,
-    ),
-    "SE-REVIEW-SRR": GateDefinition(
-        id="SE-REVIEW-SRR",
-        name="System Requirements Review",
-        type=GateType.REVIEW_APPROVE,
-        owning_orchestrator="se",
-        entry_criteria=[
-            "All SE requirements baselined",
-            "Requirements decomposition complete",
-            "Verification methods assigned",
-            "Traceability invariants pass",
-        ],
         non_delegable=True,
     ),
     "SE-REVIEW-SFR": GateDefinition(
@@ -108,6 +126,9 @@ DAS_GATES: dict[str, GateDefinition] = {
         non_delegable=True,
     ),
 }
+
+
+DAS_GATES: dict[str, GateDefinition] = {**LEGACY_GATES, **PROCESS_GATES}
 
 
 class GateRegistry:

@@ -26,6 +26,7 @@ class Stage:
     id: str
     title: str
     kind: str  # "agents" | "gate"
+    owner: str
     sources: List[str]
     summary: str = ""
     parallel: bool = False
@@ -34,6 +35,9 @@ class Stage:
 @dataclass(frozen=True)
 class Gate:
     id: str
+    title: str
+    owner: str
+    type: str  # PREPARE_DECIDE | REVIEW_APPROVE
     authority: str
     blocking: bool
     entry_criteria: List[str]
@@ -81,6 +85,10 @@ class ProcessModelError(ValueError):
     pass
 
 
+OWNERS = {"intake", "requirement", "msa", "tmrr"}
+GATE_TYPES = {"PREPARE_DECIDE", "REVIEW_APPROVE"}
+
+
 def _source_key(citation: str) -> str:
     return citation.split()[0]
 
@@ -95,6 +103,8 @@ def _validate(pm: ProcessModel) -> None:
     for s in pm.stages:
         if s.kind not in ("agents", "gate"):
             raise ProcessModelError(f"{s.id}: unknown kind {s.kind!r}")
+        if s.owner not in OWNERS:
+            raise ProcessModelError(f"{s.id}: unknown owner {s.owner!r}")
         # NORMALIZE and SCREEN are DAS's own input handling, not a policy step.
         if s.id not in ("NORMALIZE", "SCREEN") and not s.sources:
             raise ProcessModelError(f"{s.id}: stage cites no source")
@@ -105,6 +115,8 @@ def _validate(pm: ProcessModel) -> None:
         if _source_key(c) not in pm.sources:
             raise ProcessModelError(f"citation {c!r} names no listed source")
     for g in pm.gates.values():
+        if g.type not in GATE_TYPES:
+            raise ProcessModelError(f"{g.id}: unknown gate type {g.type!r}")
         if not g.sources or not g.entry_criteria:
             raise ProcessModelError(f"{g.id}: gate needs sources and entry criteria")
         parallel = pm.stage(g.id).parallel
@@ -118,14 +130,19 @@ def parse_process_model(data: Dict[str, Any]) -> ProcessModel:
     raw = data["process_model"]
     stages = [
         Stage(
-            id=s["id"], title=s["title"], kind=s["kind"], sources=list(s.get("sources") or []),
+            id=s["id"], title=s["title"], kind=s["kind"], owner=s.get("owner", ""),
+            sources=list(s.get("sources") or []),
             summary=s.get("summary", ""), parallel=bool(s.get("parallel", False)),
         )
         for s in raw["stages"]
     ]
+    titles = {s.id: s for s in stages}
     gates = {
         gid: Gate(
-            id=gid, authority=g["authority"], blocking=bool(g["blocking"]),
+            id=gid, title=titles[gid].title if gid in titles else gid,
+            owner=titles[gid].owner if gid in titles else "",
+            type=g.get("type", "PREPARE_DECIDE"),
+            authority=g["authority"], blocking=bool(g["blocking"]),
             entry_criteria=list(g["entry_criteria"]), decision_record=g["decision_record"],
             sources=list(g["sources"]), evidence=list(g.get("evidence") or []),
             criteria_note=g.get("criteria_note", ""),

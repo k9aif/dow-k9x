@@ -29,6 +29,13 @@ class GateDefinition(BaseModel):
         default_factory=lambda: [GateAction.APPROVE, GateAction.REJECT, GateAction.RETURN_FOR_REWORK]
     )
     non_delegable: bool = True
+    # From the process model (config/process_model.yaml); empty for legacy gates.
+    authority: str = ""
+    blocking: bool = True             # False: runs in parallel and never holds the flow (JCI review)
+    decision_record: str = ""
+    evidence: list[str] = Field(default_factory=list)
+    sources: list[str] = Field(default_factory=list)
+    process_model: str = ""           # e.g. "mca-2026-10"; "" = legacy (JCIDS-era) gate
 
 
 class GateDecision(BaseModel):

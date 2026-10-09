@@ -36,7 +36,7 @@ def test_version(pm):
 
 def test_main_line_order(pm):
     assert [s.id for s in pm.sequence()] == [
-        "NORMALIZE", "SCREEN", "REQUIREMENT", "SERVICE-VALIDATION", "MDD", "MSA",
+        "NORMALIZE", "SCREEN", "REQUIREMENT", "SERVICE-VALIDATION", "MDD-PACKAGE", "MDD", "MSA",
         "MILESTONE-A-PACKAGE", "MILESTONE-A", "TMRR-SRR", "SE-REVIEW-SRR",
     ]
 
@@ -50,8 +50,8 @@ def test_jci_runs_in_parallel_and_never_blocks(pm):
     assert pm.stage("JCI-REVIEW").parallel
     assert not pm.gate("JCI-REVIEW").blocking
     assert "JCI-REVIEW" not in [s.id for s in pm.sequence()]
-    # Service validation leads straight to MDD, not to the joint review.
-    assert pm.next_stage("SERVICE-VALIDATION").id == "MDD"
+    # Service validation leads on to the MDD package, not to the joint review.
+    assert pm.next_stage("SERVICE-VALIDATION").id == "MDD-PACKAGE"
 
 
 def test_srr_follows_milestone_a(pm):
@@ -95,5 +95,20 @@ def test_rejects_an_unknown_source(raw):
 def test_rejects_an_unsourced_stage(raw):
     bad = copy.deepcopy(raw)
     bad["process_model"]["stages"][2]["sources"] = []
+    with pytest.raises(ProcessModelError):
+        parse_process_model(bad)
+
+
+def test_owners(pm):
+    assert {s.owner for s in pm.stages} == {"intake", "requirement", "msa", "tmrr"}
+    assert pm.gate("SERVICE-VALIDATION").owner == "requirement"
+    assert pm.gate("MILESTONE-A").owner == "msa"
+    assert pm.gate("SE-REVIEW-SRR").type == "REVIEW_APPROVE"
+    assert pm.gate("MDD").type == "PREPARE_DECIDE"
+
+
+def test_rejects_an_unknown_owner(raw):
+    bad = copy.deepcopy(raw)
+    bad["process_model"]["stages"][2]["owner"] = "jcids"
     with pytest.raises(ProcessModelError):
         parse_process_model(bad)

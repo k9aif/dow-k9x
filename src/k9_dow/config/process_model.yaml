@@ -20,55 +20,74 @@ process_model:
     S6: {title: "DoD Systems Engineering Guidebook", date: "2022-02", file: data/SE-Guidebook-Feb2022.pdf}
 
   # Built stages, in order. kind: agents (DAS squads prepare) | gate (a person decides, via K9X HIL).
+  # owner: the DAS component that runs the stage or prepares the gate's package
+  # (intake = the API upload path; requirement / msa / tmrr = orchestrators).
   stages:
     - id: NORMALIZE
       title: Document normalization
       kind: agents
+      owner: intake
       summary: "PDF, Word or scanned input converted to Markdown by Docling (layout and OCR); original kept"
       sources: []
     - id: SCREEN
       title: Document screening
       kind: agents
+      owner: requirement
       summary: "k9x Shield and Granite Guardian screen every section; warnings go to the Document Screening Report, never a rejection"
       sources: []
     - id: REQUIREMENT
       title: Service capability requirement
       kind: agents
+      owner: requirement
       summary: "Service-format requirement document with the content the Service later submits for joint review"
       sources: ["S3 Encl. A 6.b", "S3 Encl. E 1.b"]
     - id: SERVICE-VALIDATION
       title: Service Requirements Validation
       kind: gate
+      owner: requirement
       sources: ["S1 p.1", "S2 para 1.b"]
     - id: JCI-REVIEW
       title: Joint Capability Integration review
       kind: gate
+      owner: requirement
       parallel: true            # runs alongside the acquisition flow; never blocks MDD or Milestone A
       sources: ["S3 Encl. A 6.c-d", "S3 Encl. B 2.b"]
+    - id: MDD-PACKAGE
+      title: Materiel Development Decision package
+      kind: agents
+      owner: msa
+      summary: "Validated requirement, draft AoA study guidance and AoA study plan for the MDA"
+      sources: ["S5 3.5", "S5 2.3.b"]
     - id: MDD
       title: Materiel Development Decision
       kind: gate
+      owner: msa
       sources: ["S5 3.5"]
     - id: MSA
       title: Materiel Solution Analysis
       kind: agents
+      owner: msa
       summary: "AoA summary, affordability, early systems engineering; SE: Alternative Systems Review (best-practice review) yielding a draft performance specification; draft CDD-equivalent; proposed acquisition strategy matched to a pathway"
       sources: ["S5 3.6", "S5 3.7.a(1)", "S6 3.1", "S4 4.1"]
     - id: MILESTONE-A-PACKAGE
       title: Milestone A package
       kind: agents
+      owner: msa
       sources: ["S5 3.7.a-b"]
     - id: MILESTONE-A
       title: Milestone A
       kind: gate
+      owner: msa
       sources: ["S5 3.7.c"]
     - id: TMRR-SRR
       title: "TMRR: System Requirements Review package"
       kind: agents
+      owner: tmrr
       sources: ["S6 3.2", "S5 3.8"]
     - id: SE-REVIEW-SRR
       title: System Requirements Review
       kind: gate
+      owner: tmrr
       sources: ["S6 3.2"]
 
   gates:
@@ -123,6 +142,7 @@ process_model:
       decision_record: "Acquisition Decision Memorandum: materiel solution, acquisition strategy, TMRR strategy, final RFP release, TMRR exit and EMD entry criteria"
       sources: ["S5 3.6-3.7", "S4 4.1", "S6 3.1"]
     SE-REVIEW-SRR:
+      type: REVIEW_APPROVE      # a technical review; the others are PREPARE_DECIDE (agents prepare, a person decides)
       authority: "Technical review chair appointed by the Service; criteria tailored by the Chief Engineer"
       blocking: true
       entry_criteria:
