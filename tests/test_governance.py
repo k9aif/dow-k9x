@@ -72,6 +72,8 @@ def _jcids_without_side_effects(monkeypatch):
     orch = jo.JcidsOrchestrator(config=CONFIG)
     squads_run = []
     monkeypatch.setattr(orch, "_load_squad", lambda *a, **k: squads_run.append(a) or (_ for _ in ()).throw(AssertionError("squad ran")))
+    # Screening (warn-only, live Guardian) has its own tests; keep this one offline.
+    monkeypatch.setattr(orch, "_screen_document", lambda *a, **k: {"status": "clean", "flagged_sections": []})
     return orch, squads_run
 
 

@@ -16,6 +16,16 @@ from k9_dow.gates.review_summary import summarize_readiness
 
 log = logging.getLogger(__name__)
 
+
+def _screening_line(screening: dict) -> str:
+    """One line for the HIL task: the full report is linked in its artifacts."""
+    status = screening.get("status") or "not run"
+    if status == "warnings":
+        return f"{screening.get('warning_count')} warning(s): see the Document Screening Report; record a disposition for each"
+    if status == "clean":
+        return f"no warnings ({screening.get('sections_screened')} sections)"
+    return "incomplete: a check did not run; see the Document Screening Report"
+
 _JCIDS_AGENTS = (
     "ModelExtractorAgent",
     "ViewGeneratorAgent",
@@ -188,6 +198,12 @@ class JcidsOrchestrator(BaseOrchestrator):
                 return {"job_id": job_id, "orchestrator": "jcids", "status": "blocked_by_shield",
                         "check": check, "reason": reason, "filename": filename}
 
+        # Stage SCREEN: Shield + Granite Guardian per section; warnings only, never a rejection.
+        screening = self._screen_document(job_id, filename, payload)
+        if screening.get("flagged_sections"):
+            from k9_dow.governance.document_screening import mark_untrusted
+            payload = {**payload, "source_markdown": mark_untrusted(payload.get("source_markdown", ""), screening)}
+
         view_gen_squad = self._load_squad("view_generation_squad.yaml", "ViewGenerationSquad")
         gate_squad = self._load_squad("gate_readiness_squad.yaml", "GateReadinessSquad")
         package_squad = self._load_squad("package_assembly_squad.yaml", "PackageAssemblySquad")
@@ -225,6 +241,8 @@ class JcidsOrchestrator(BaseOrchestrator):
             "view_generation": view_result,
             "gate_readiness": gate_result,
             "review_package": package_result,
+            "screening": {k: screening.get(k) for k in
+                          ("status", "warning_count", "not_screened_count", "sections_screened", "report_uri")},
         }
 
         # Real governance check (see __init__ + governance/guardian_governance.py)
@@ -238,6 +256,33 @@ class JcidsOrchestrator(BaseOrchestrator):
         s3_uri = self._store_to_s3(job_id, result)
         self._publish_hil_task(job_id, result, s3_uri)
         return result
+
+    def _screen_document(self, job_id: str, filename: str, payload: dict) -> dict:
+        """Run the Document Screening Report and store it (JSON + Markdown) with the job.
+        A screening failure is itself recorded, never raised: the job goes on."""
+        from k9_dow.gates.hil_gateway import STAGE_BUCKET, save_stage_result
+        from k9_dow.governance.document_screening import report_markdown, screen_document
+        try:
+            report = screen_document(self.config, payload.get("source_markdown", ""), filename)
+        except Exception as exc:
+            log.warning("[JCIDS] document screening failed for job=%s: %s", job_id, exc)
+            report = {"artifact": "Document Screening Report", "document": filename, "status": "incomplete",
+                      "error": str(exc)[:400], "warning_count": 0, "not_screened_count": 1,
+                      "sections_screened": 0, "flagged_sections": [], "findings": []}
+        try:
+            from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
+            store = ObjectStorageFactory.create(self.config)
+            key = f"by-job/{job_id}/screening/Document_Screening_Report.md"
+            if "screened_at" in report:
+                store.upload(STAGE_BUCKET, key, report_markdown(report).encode("utf-8"))
+                report["report_uri"] = store.get_uri(STAGE_BUCKET, key)
+        except Exception as exc:
+            log.warning("[JCIDS] storing the screening report failed (non-fatal): %s", exc)
+        save_stage_result(self.config, job_id, "screening", report)
+        print(f"  🔎 Document screening: {report['status']} ({report.get('warning_count', 0)} warning(s))", flush=True)
+        self._emit("DocumentScreened", job_id=job_id, status=report["status"],
+                   warnings=report.get("warning_count", 0), not_screened=report.get("not_screened_count", 0))
+        return report
 
     def _store_to_s3(self, job_id: str, result: dict) -> Optional[str]:
         """Store generated docs to S3 under DAS_results/yyyymmdd/job_id/.
@@ -317,7 +362,9 @@ class JcidsOrchestrator(BaseOrchestrator):
             source_topic="das.jcids",
             # Name-value summary a reviewer can read at a glance; the full readiness assessment and
             # gap report are in the ICD behind the View link below.
-            payload={"Gate": "JROC-VALIDATION", **summarize_readiness(
+            payload={"Gate": "JROC-VALIDATION",
+                     "Document screening": _screening_line(result.get("screening") or {}),
+                     **summarize_readiness(
                 readiness.get("output") if isinstance(readiness, dict) else "",
                 DAS_GATES["JROC-VALIDATION"].entry_criteria,
                 readiness.get("score") if isinstance(readiness, dict) else None)},
@@ -328,6 +375,7 @@ class JcidsOrchestrator(BaseOrchestrator):
             artifacts=[
                 f"{os.environ.get('DAS_PUBLIC_URL', 'https://das.k9x.ai').rstrip('/')}/jobs/{job_id}/view/icd",
                 s3_uri,
+                (result.get("screening") or {}).get("report_uri"),
             ],
         )
         if published:
