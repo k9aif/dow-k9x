@@ -8,6 +8,7 @@ from k9_aif_abb.k9_agents.validation import (
 )
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
+from k9_dow.governance.document_screening import untrusted_rule
 
 
 class LinkProposerAgent(K9ValidationLoopAgent):
@@ -60,6 +61,7 @@ class LinkProposerAgent(K9ValidationLoopAgent):
                 f"Role: {self.config.get('role', 'Requirements Traceability Analyst')}\n"
                 f"Goal: {self.config.get('goal', 'Propose trace links')}\n\n"
                 f"Instructions: {self.config.get('instructions', '')}\n\n"
+                + untrusted_rule(hypothesis['context']) +
                 f"Context:\n{hypothesis['context']}\n\n"
                 "Identify trace links: FROM_ID -> RELATIONSHIP -> TO_ID.\n"
                 "Valid relationships: DERIVES, DECOMPOSES_TO, VERIFIED_BY, EXPRESSED_IN, "

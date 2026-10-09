@@ -3,6 +3,7 @@ from __future__ import annotations
 from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
+from k9_dow.governance.document_screening import untrusted_rule
 
 
 class ModelExtractorAgent(BaseAgent):
@@ -23,6 +24,7 @@ class ModelExtractorAgent(BaseAgent):
                 f"Role: {self.config.get('role', 'Architecture Model Extractor')}\n"
                 f"Goal: {self.config.get('goal', 'Extract model elements for graph seeding')}\n\n"
                 f"Instructions: {self.config.get('instructions', '')}\n\n"
+                + untrusted_rule(source) +
                 f"Source:\n{source}\n\n"
                 f"Prior outputs:\n{prior}\n\n"
                 "Extract structured entities for the traceability graph:\n"

@@ -8,6 +8,7 @@ from k9_aif_abb.k9_agents.validation import (
 )
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
+from k9_dow.governance.document_screening import untrusted_rule
 
 from k9_dow.utils.dodaf_views import DODAF_VIEW_NAMES, label_view
 
@@ -87,6 +88,7 @@ class ViewGeneratorAgent(K9ValidationLoopAgent):
                    "environment, and how they interact. Refer to capabilities only as they appear in\n"
                    "that concept; capability definitions belong in CV-1 / CV-2.\n"
                    if view_type == "OV-1" else "") + "\n"
+                + untrusted_rule(hypothesis['context']) +
                 f"Source context:\n{hypothesis['context']}\n"
                 f"{prev_attempt}\n\n"
                 "Rules:\n"
