@@ -123,6 +123,15 @@ Real Service requirement documents arrive as PDF or Word, but DAS today decodes 
 - Keep the original file in object storage beside the converted Markdown; show both to reviewers.
 - Conversion check: stop the job with a clear message if the extracted text is empty or implausibly short.
 - k9x Shield screens the converted text (unchanged ingress screening).
+- **Verified 2026-10-09**: Ravi's existing container (`quay.io/docling-project/docling-serve:latest`,
+  Docling-Serve 1.32.0, Docling 2.124.0) on PowerAI port 5001, healthy. `POST /v1/convert/file`
+  (`to_formats=md`, `do_ocr=true`) converted the **scanned** 9-page SecDef memo in 10 s to 18,085
+  characters of Markdown with headings; minor OCR artefacts only. DAS reuses this container; no new
+  one. The address goes in `.env` (`DOCLING_ENDPOINT`), never in code.
+- **Framework fix needed (next k9-aif patch)**: the framework config sets `docling.endpoint` to
+  `…/v1/parse` (not a Docling-Serve path), while `DoclingParser` reads `retrieval.docling.host/endpoint`
+  and defaults to `/v1/convert/file`. Align the key and the path, and verify `DoclingParser`'s constructor
+  against `BaseAgent` in 1.15.
 
 ## 6. Verification
 
