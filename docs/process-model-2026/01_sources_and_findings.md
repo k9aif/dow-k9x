@@ -13,7 +13,7 @@ Ravi downloads them in a browser).
 |---|---|---|---|
 | S1 | SecDef/DepSecDef memo, "Reforming the Joint Requirements Process to Accelerate Fielding of Warfighting Capabilities", 20 Aug 2025 (9 pp) | `data/policy/SecDef_Memo_2025-08-20_requirements.pdf` | VERIFIED |
 | S2 | CJCSI 5123.01J, Charter of the JROC and the Joint Force Requirements Process, 15 Jan 2026, **CH 1, 5 Aug 2026** | `data/policy/CJCSI 5123.01J CH 1.pdf` | VERIFIED |
-| S3 | **CJCSM 5123.01A**, Manual for the JROC and the JFRP, **5 Aug 2026** (supersedes the Jan 2026 CJCSM 5123.01) | — | PENDING |
+| S3 | **CJCSM 5123.01A**, Manual for the JROC and the JFRP, **5 Aug 2026** (112 pp; supersedes the Jan 2026 CJCSM 5123.01) | `data/policy/CJCSM 5123.01A.pdf` | VERIFIED (Encl. A 6, B 2.b, C) |
 | S4 | DoWI 5000.02, Operation of the Adaptive Acquisition Framework, 23 Jan 2020, Change 2, 8 Apr 2026 | `data/policy/500002p.pdf` | obtained |
 | S5 | DoDI 5000.85, Major Capability Acquisition, 6 Aug 2020, Change 1, 4 Nov 2021 (not reissued since) | `data/policy/500085p.pdf` | obtained |
 | S8 | Joint Staff briefing "Implementation of CJCSI 5123.01J & CJCSM 5123.01" (14 pp, Aug 2026) | `data/policy/JFRP_overview_mhsrs.pdf` | obtained (cross-check only) |
@@ -99,6 +99,60 @@ Ravi downloads them in a browser).
 - The JROC is no longer a gate on a Service program. Its recommendations reach programs through
   JCI and CPM reviews (changes, alternatives, cancellations).
 - Requirement document names: **open**, to be read in the manual (S3, CJCSM 5123.01A).
+
+## Step 3 findings: S3, CJCSM 5123.01A, 5 Aug 2026 (verified)
+
+1. **There are no ICDs or CDDs at the joint level any more.** "Initial Capabilities Document" does not
+   appear in the manual. The **Joint Force Requirements (JFR) documents** are:
+   - **Capstone Requirements Document (CRD)**: top-down, overarching Joint Force needs, captured as
+     Joint Capability Requirements (JCRs) and prioritized within a portfolio for CPM analysis;
+   - **Joint DOTmLPF-P Change Request (JDCR)**: non-materiel solutions;
+   - **Combatant Command Derived Requirement (CDR)**: when a CCDR deems a gap's risk unacceptable.
+     Service-, solution- and cost-agnostic. (Encl. C 1-2)
+2. **JFR document format**: cover page (incl. proposed JSD and lead FCB), Executive Summary,
+   1 Operational Context, 2 Threat Summary, 3 Joint Capability Requirements and Gaps,
+   4 Interoperability, 5 Final Recommendations / Implementation Plans. (Encl. C 3)
+3. **JCR statement format**: "The ability to [perform a task (UJT or Service Task) Operational
+   Activity] against/given a [Threat] in order to achieve [Effect] in a/under [Environmental
+   Conditions] in accordance with the [Standard of Performance]." It must not presuppose a
+   solution. (Encl. C 3.f(2))
+4. **A Service requirement**: "Services/components will use Service/component document formats."
+   After **Service approval**, the sponsor submits it in **KM/DS** to the Joint Requirements
+   Coordinator for **Joint Staffing Designator (JSD)** assignment and a **JCI initial review**, with a
+   minimum content set:
+   - operational context (task, CONOPS/CONEMP);
+   - threat (SIC/DIA-approved threat assessment, Critical Intelligence Parameters, intelligence
+     supportability);
+   - requirements (Capability Requirements and/or Performance Attributes, traceability to gaps,
+     **TRLs and MRLs**, projected cost, schedule and quantity);
+   - joint integration (force design impacts, interoperability, inter-Service dependencies,
+     DOTmLPF-P). (Encl. A 6.a-b)
+5. **The outcome is an endorsement, not a validation**: the JROC or a subordinate board publishes a
+   **JROCM** that endorses "all, some, or none" of the Service document as a JFR; identifies
+   critical JCRs "to inform **Warfighting Acquisition System (WAS)** trade-space decisions";
+   establishes **tripwires and comebacks**; and forwards recommendations to Service
+   requirements/acquisition boards and the **RRAB**. (Encl. A 6.c)
+6. **JSDs** (from highest to lowest), set "at the lowest possible level":
+   - **JROC Interest**: largest/highest-risk; gaps of more than one armed force or joint
+     dependencies, and projected **ACAT I** or interoperating with ACAT I;
+   - **JCB Interest**: below the JROC threshold; ACAT II-level; the minimum for JDCRs and
+     CCMD-sponsored documents;
+   - **FCB Interest**;
+   - **Service Information**.
+   The JSD sets "the staffing process and final review authority". (Encl. B 2.b)
+7. USSOCOM (SOFCIDS) and USCYBERCOM (CCIDS) keep their own validation authority; the JROC keeps
+   awareness through JCI. (Encl. A 7)
+
+### What this means for DAS
+- The input document is a **Service capability requirement document** (Service format), *not* a
+  JCIDS ICD. DAS can draft it with the JFRP **minimum content** (finding 4) and JCR statements in
+  the official format (finding 3).
+- **Gate 1 = Service requirements validation** (the Service's board; human).
+- **Step 2 = Joint review**: JSD assignment from ACAT and joint dependencies, then a JCI initial
+  review whose outcome is an endorsement JROCM ("all / some / none"). This is a human review whose
+  authority follows from the JSD (JROC, JCB, FCB or Service Information). It is not a blocking
+  validation, but its endorsements, tripwires and critical JCRs feed acquisition trade space.
+- The term **Warfighting Acquisition System (WAS)** is official (used in the manual).
 
 ## Open questions, to be answered from S2-S5 (do not assume)
 - What does the **Joint Force Requirements Process** (S2/S3) call the requirement documents now?
