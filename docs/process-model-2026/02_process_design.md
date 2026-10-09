@@ -151,8 +151,13 @@ Real Service requirement documents arrive as PDF or Word, but DAS today decodes 
   Pk, bunker penetration) passed both checks; an explicit injection and a paraphrased manipulation
   were both flagged with `process_manipulation` (the general check alone missed the explicit one,
   which Shield's patterns catch).
-- Before relying on it: screen all DAS demo documents (expect 0 warnings) and the red-team documents
-  (expect flags), and record the false-positive count.
+- **Corpus check (done 2026-10-09; `evidence/screening_corpus_2026-10-09.txt`)**:
+  - 4 benign demo documents, 23 sections: **0 Shield flags, 0 Guardian false positives**.
+  - 7 red-team documents: at least one warning on **6 of 7**. Shield caught 01-04 (injection
+    patterns); Guardian caught 02, 04, 06 (PII) and 08 (classified marking); **07 (paraphrased
+    injection) was missed by both**. That is the known hard case, covered by the human review and by
+    passing all document text to agents as data, not instructions.
+  - Note: in DAS's profile, Shield *flags* PII without raising, so 06 shows no Shield block.
 
 ## 6. Verification
 
