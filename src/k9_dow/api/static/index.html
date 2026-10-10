@@ -731,6 +731,12 @@ function renderLive() {
     else if (evtType === 'loop_escalated') { cls = 'gate'; detail = (e.agent||'?') + ' — ⚠ escalated for human review'; }
     else if (evtType === 'AgentCompleted') { cls = 'agent'; detail = (e.agent||'?') + ' — done'; }
     else if (evtType.includes('Route')) { cls = 'router'; detail = orch; }
+    else if (evtType === 'ShieldChain') {
+      // Say which screen: the orchestrator's ingress, a section of document screening, or an agent.
+      const checks = e.checks || [], passed = checks.filter(c => c.status === 'passed' || c.status === 'pass').length;
+      cls = e.blocked_by ? 'gate' : 'router';
+      detail = 'k9x_Shield ' + (e.gate || '') + ' · ' + (e.agent || e.component || 'screen') + ' · ' +
+        (e.blocked_by ? '✋ blocked by ' + e.blocked_by : passed + ' of ' + checks.length + ' checks passed'); }
     else if (evtType === 'LLMCall') { cls = 'llm'; detail = (e.agent||'?') + ' → ' + (e.model||'?') + ' (' + (e.latency_ms||'?') + 'ms)'; }
     else if ((e.result||{}).demo_stub) { cls = 'result'; detail = '✓ ' + (e.result.note || 'SE stage reached'); }
     else { detail = (orch ? orch+' ' : '') + status; }
