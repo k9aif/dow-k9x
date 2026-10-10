@@ -55,45 +55,33 @@ dow-k9-aif/
 
 ---
 
-## Pipeline Cascade Flow
+## Pipeline flow (process model mca-2026-10)
+
+The process lives in `src/k9_dow/config/process_model.yaml` (stages, gates, entry criteria, policy
+sources, the run each approval starts, HIL queue). Change the process there, then run
+`PYTHONPATH=src python tools/flow_diagram.py` to redraw the flow diagram. Tests check every
+stage and gate cites a source and that JCI-REVIEW never blocks.
 
 ```
-Document Upload (user selects document type = deterministic intent)
-  → DocumentNormalizationAgent (extract/OCR)
-  → DasRouter (deterministic — maps type to pipeline)
-  → JcidsOrchestrator (produces ICD + relevant DoDAF views)
-      → Squads via SquadLoader + AgentRegistry
-      → Each agent: llm_invoke + publish_event
-      → Initial ICD + F2P Summary
-  → HIL Gate #1 (human reviews initial ICD)
-  → JcidsOrchestrator (Phase 2 — consumes approved ICD)
-      → Formal ICD + CDD + KPP/KSA
-  → HIL Gate #2 (human reviews formal ICD)
-  → SeOrchestrator (Phase 3 — consumes formal ICD)
-      → SRD, SPS, TEMP, V&V matrix
+API upload → Docling (retrieval/normalize.py, framework DoclingParser) → job queue → dow.router.in
+DasRouter → das.requirement → RequirementOrchestrator
+    screening (governance/document_screening.py: Shield + Guardian, warn-only report)
+    ViewGeneration → GateReadiness(SERVICE-VALIDATION) → PackageAssembly → JointReview (JSD)
+    → HIL tasks: SERVICE-VALIDATION (blocking) + JCI-REVIEW (parallel, recorded only)
+approval → das.mdd → MsaOrchestrator(run mdd_package): MddPackage squad → MDD task
+approval → das.msa → MsaOrchestrator(run msa): MsaAnalysis squad (AoA, ASR, strategy) → MILESTONE-A task
+approval → das.tmrr → TmrrOrchestrator: SrrPackage squad → SE-REVIEW-SRR task; approval ends the flow
 ```
 
-### Reference deployment: HIL round trip (implemented 2026-10-02)
-
-```
-JcidsOrchestrator ─▶ JROC-VALIDATION task ─▶ workflow.hil.das.jroc ─▶ K9X HIL
-K9X HIL decision ─▶ das.jroc.replies ─▶ Router process ─▶ gate_approved ─▶ das.acquisition
-AcquisitionOrchestrator ─▶ PATHWAY-MILESTONE task ─▶ workflow.hil.das.pathway ─▶ K9X HIL
-K9X HIL decision ─▶ das.pathway.replies ─▶ Router process ─▶ gate_approved ─▶ das.se
-SeOrchestrator ─▶ demonstration endpoint (se.demo_stub: true): records next review (SRR), ends
-```
-
-- `gates/hil_gateway.py` owns gate topics, task publishing, and stage results
-  stored by job id (`jcids-output/by-job/<job>/<stage>.json`).
-- Only the Router process publishes to domain topics; it stamps `_topic` so the
-  orchestrator process picks the right stage.
-- A decision resumes a job only if the previous stage's package is stored
-  (reply topics are read from the earliest offset). `DAS_HIL_APPROVERS` (optional)
-  restricts whose decisions count.
-- Reject / expire stops the pipeline at that gate (`stopped_at_gate`).
-- Tests: `tests/test_hil_round_trip.py`.
-
----
+- `orchestrators/stage_base.py` (`ProcessStageOrchestrator`) holds what every run shares:
+  squads, `prepare_gate`, `publish_review`, `run_package`, ingress screening of the reviewer's
+  HIL comment (`apply_shield`).
+- `gates/hil_gateway.py`: gate topics, run chain, stage results by job id
+  (`<prefix>by-job/<job>/<run>.json`), job history; JCIDS-era jobs still display.
+- Only the Router process publishes to domain topics; it stamps `_topic`.
+- `DAS_INSTANCE` (config/instance.py): a second DAS (das-next) on the same Kafka/MinIO/queue
+  gets its own topics, groups, queue and storage prefix. Unset = unchanged names.
+- Tests: `tests/test_process_model.py`, `test_hil_round_trip.py`, `test_document_screening.py`.
 
 ## Agent Pattern (from SKILLS.md Skill 1)
 
@@ -171,5 +159,5 @@ All domain agents producing DoDAF artifacts MUST:
 ## Phases
 
 - **Phase 1:** DoDAF pipeline (Stages 1-6) — current focus
-- **Phase 2:** JCIDS pipeline (consumes DoDAF ICD output)
-- **Phase 3:** SE pipeline (consumes JCIDS formal ICD)
+- **Requirements to acquisition** (process model mca-2026-10): Service requirement, MDD, MSA to
+  Milestone A, TMRR to the SRR; see "Pipeline flow" above. (Replaced the JCIDS-era phases.)

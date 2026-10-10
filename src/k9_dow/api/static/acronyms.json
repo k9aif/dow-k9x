@@ -106,43 +106,43 @@
  },
  {
   "a": "JCIDS",
-  "full": "Joint Capabilities Integration and Development System",
-  "cat": "Requirements (JCIDS)"
+  "full": "Joint Capabilities Integration and Development System (ended by the SecDef memo of 20 Aug 2025; replaced by the JFRP)",
+  "cat": "Requirements (JCIDS, ended 2025)"
  },
  {
   "a": "ICD",
-  "full": "Initial Capabilities Document",
-  "cat": "Requirements (JCIDS)"
+  "full": "Initial Capabilities Document (DoDI 5000.85 reads \"or equivalent\": under the JFRP, the Service requirement document)",
+  "cat": "Requirements (JCIDS, ended 2025)"
  },
  {
   "a": "CDD",
-  "full": "Capability Development Document",
-  "cat": "Requirements (JCIDS)"
+  "full": "Capability Development Document (DoDI 5000.85 reads \"or equivalent\": under the JFRP, the Service requirement document)",
+  "cat": "Requirements (JCIDS, ended 2025)"
  },
  {
   "a": "CPD",
   "full": "Capability Production Document",
-  "cat": "Requirements (JCIDS)"
+  "cat": "Requirements (JCIDS, ended 2025)"
  },
  {
   "a": "CONOPS",
   "full": "Concept of Operations",
-  "cat": "Requirements (JCIDS)"
+  "cat": "Requirements (JCIDS, ended 2025)"
  },
  {
   "a": "KPP",
   "full": "Key Performance Parameter",
-  "cat": "Requirements (JCIDS)"
+  "cat": "Requirements (JCIDS, ended 2025)"
  },
  {
   "a": "KSA",
   "full": "Key System Attribute",
-  "cat": "Requirements (JCIDS)"
+  "cat": "Requirements (JCIDS, ended 2025)"
  },
  {
   "a": "DOTMLPF-P",
   "full": "Doctrine, Organization, Training, Materiel, Leadership and Education, Personnel, Facilities, and Policy",
-  "cat": "Requirements (JCIDS)"
+  "cat": "Requirements (JCIDS, ended 2025)"
  },
  {
   "a": "DoDAF",
@@ -422,6 +422,121 @@
  {
   "a": "POC",
   "full": "Proof of Concept",
+  "cat": "K9X / this demo"
+ },
+ {
+  "a": "JFRP",
+  "full": "Joint Force Requirements Process (replaced JCIDS; CJCSI 5123.01J CH 1, 2026)",
+  "cat": "Requirements (JFRP)"
+ },
+ {
+  "a": "JCI",
+  "full": "Joint Capability Integration: the joint review of a Service-validated requirement, in parallel with acquisition",
+  "cat": "Requirements (JFRP)"
+ },
+ {
+  "a": "JSD",
+  "full": "Joint Staffing Designator: JROC Interest, JCB Interest, FCB Interest or Service Information",
+  "cat": "Requirements (JFRP)"
+ },
+ {
+  "a": "JRC",
+  "full": "Joint Requirements Coordinator (J-8), who sets the JSD",
+  "cat": "Requirements (JFRP)"
+ },
+ {
+  "a": "JCB",
+  "full": "Joint Capabilities Board",
+  "cat": "Organizations"
+ },
+ {
+  "a": "FCB",
+  "full": "Functional Capabilities Board",
+  "cat": "Organizations"
+ },
+ {
+  "a": "JROCM",
+  "full": "JROC Memorandum: the record of a JROC, JCB or FCB decision (endorse all, some or none, or reject)",
+  "cat": "Requirements (JFRP)"
+ },
+ {
+  "a": "JCR",
+  "full": "Joint capability requirement",
+  "cat": "Requirements (JFRP)"
+ },
+ {
+  "a": "JFD",
+  "full": "Joint Force Design",
+  "cat": "Requirements (JFRP)"
+ },
+ {
+  "a": "KOP",
+  "full": "Key Operational Problem",
+  "cat": "Requirements (JFRP)"
+ },
+ {
+  "a": "JOP",
+  "full": "Joint Operational Problem",
+  "cat": "Requirements (JFRP)"
+ },
+ {
+  "a": "RRAB",
+  "full": "Requirements and Resourcing Alignment Board",
+  "cat": "Organizations"
+ },
+ {
+  "a": "JAR",
+  "full": "Joint Acceleration Reserve",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "CCMD",
+  "full": "Combatant Command",
+  "cat": "Organizations"
+ },
+ {
+  "a": "JICR",
+  "full": "Joint Immediate Capability Requirement (replaced JUON/JEON)",
+  "cat": "Requirements (JFRP)"
+ },
+ {
+  "a": "MCA",
+  "full": "Major Capability Acquisition pathway (DoDI 5000.85)",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "MSA",
+  "full": "Materiel Solution Analysis phase",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "TMRR",
+  "full": "Technology Maturation and Risk Reduction phase",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "ADM",
+  "full": "Acquisition Decision Memorandum",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "DCAPE",
+  "full": "Director, Cost Assessment and Program Evaluation",
+  "cat": "Organizations"
+ },
+ {
+  "a": "ICE",
+  "full": "Independent Cost Estimate",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "ITRA",
+  "full": "Independent Technical Risk Assessment",
+  "cat": "Acquisition process"
+ },
+ {
+  "a": "OCR",
+  "full": "Optical Character Recognition (Docling converts scanned pages)",
   "cat": "K9X / this demo"
  }
 ]

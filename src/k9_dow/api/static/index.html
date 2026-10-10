@@ -170,15 +170,21 @@
       <h3>Pipeline</h3>
       <div class="pipe-step"><div class="pipe-dot" id="dot-router"></div><span class="pipe-label">DasRouter</span></div>
       <div class="pipe-line"></div>
-      <div class="pipe-step"><div class="pipe-dot" id="dot-jcids"></div><span class="pipe-label">JCIDS Orchestrator</span></div>
+      <div class="pipe-step"><div class="pipe-dot" id="dot-req"></div><span class="pipe-label" title="Docling conversion, screening, requirement package, JSD proposal">Requirement</span></div>
       <div class="pipe-line"></div>
-      <div class="pipe-step"><div class="pipe-dot gate" id="dot-jroc"></div><span class="pipe-label gate-label">JROC Gate</span></div>
+      <div class="pipe-step"><div class="pipe-dot gate" id="dot-sv"></div><span class="pipe-label gate-label" title="Service requirements board; the JCI review runs in parallel and never blocks">Service Validation Gate</span></div>
       <div class="pipe-line"></div>
-      <div class="pipe-step"><div class="pipe-dot" id="dot-acq"></div><span class="pipe-label">Acquisition</span></div>
+      <div class="pipe-step"><div class="pipe-dot" id="dot-mddp"></div><span class="pipe-label">MDD Package</span></div>
       <div class="pipe-line"></div>
-      <div class="pipe-step"><div class="pipe-dot gate" id="dot-milestone"></div><span class="pipe-label gate-label">Milestone Gate</span></div>
+      <div class="pipe-step"><div class="pipe-dot gate" id="dot-mdd"></div><span class="pipe-label gate-label">MDD Gate</span></div>
       <div class="pipe-line"></div>
-      <div class="pipe-step"><div class="pipe-dot" id="dot-se"></div><span class="pipe-label" title="Demonstration endpoint: SE is triggered; its review squads are not run">SE Pipeline (demo)</span></div>
+      <div class="pipe-step"><div class="pipe-dot" id="dot-msa"></div><span class="pipe-label" title="AoA summary, Alternative Systems Review, acquisition strategy">MSA → Milestone A Package</span></div>
+      <div class="pipe-line"></div>
+      <div class="pipe-step"><div class="pipe-dot gate" id="dot-msA"></div><span class="pipe-label gate-label">Milestone A Gate</span></div>
+      <div class="pipe-line"></div>
+      <div class="pipe-step"><div class="pipe-dot" id="dot-tmrr"></div><span class="pipe-label">TMRR: SRR Package</span></div>
+      <div class="pipe-line"></div>
+      <div class="pipe-step"><div class="pipe-dot gate" id="dot-srr"></div><span class="pipe-label gate-label">SRR Gate</span></div>
     </div>
 
     <div class="section">
@@ -322,39 +328,6 @@ function forceResetJob(reason) {
 // Derives squad/agent progress and the latest final result directly from
 // state.events (not exact job/correlation-id matching, which breaks across
 // a page reload since only one job runs at a time on this host anyway).
-// SE reached: the stage exists in the flow but its pipeline is not built yet.
-// Reviews per the DoD SE Guidebook (2022) ch. 3, from SRR on (ASR precedes the
-// Milestone decision this flow models).
-function seWorkInProgressCard(nextReview) {
-  const reviews = ['SRR', 'SFR', 'PDR', 'CDR', 'SVR/FCA', 'PRR', 'PCA'];
-  const next = String(nextReview).replace('SE-REVIEW-', '');
-  const chips = reviews.map(r => `<span style="display:inline-block;margin:2px 3px 0 0;padding:1px 6px;border-radius:4px;font-size:9.5px;font-family:var(--mono);` +
-    (r === next ? `border:1px solid var(--accent);color:var(--accent);background:rgba(59,130,246,0.15)">${r} · next`
-                : `border:1px dashed var(--border);color:var(--text2)">${r}`) + `</span>`).join('');
-  return `<div style="margin-top:8px;border:1px solid rgba(59,130,246,0.45);border-radius:8px;overflow:hidden;background:linear-gradient(160deg,rgba(59,130,246,0.10),rgba(15,23,42,0.0))">
-    <svg viewBox="0 0 260 92" width="100%" style="display:block" aria-hidden="true">
-      <defs><pattern id="seGrid" width="13" height="13" patternUnits="userSpaceOnUse">
-        <path d="M13 0H0V13" fill="none" stroke="rgba(96,165,250,0.18)" stroke-width="0.6"/></pattern></defs>
-      <rect width="260" height="92" fill="url(#seGrid)"/>
-      <g fill="none" stroke="#60a5fa" stroke-width="2">
-        <g><animateTransform attributeName="transform" type="rotate" from="0 92 46" to="360 92 46" dur="9s" repeatCount="indefinite"/>
-          <circle cx="92" cy="46" r="17"/><circle cx="92" cy="46" r="6"/>
-          ${[0,45,90,135,180,225,270,315].map(d => `<rect x="89" y="22" width="6" height="7" rx="1" fill="#60a5fa" stroke="none" transform="rotate(${d} 92 46)"/>`).join('')}</g>
-        <g><animateTransform attributeName="transform" type="rotate" from="0 130 30" to="-360 130 30" dur="6s" repeatCount="indefinite"/>
-          <circle cx="130" cy="30" r="11" stroke="#2dd4bf"/><circle cx="130" cy="30" r="4" stroke="#2dd4bf"/>
-          ${[0,60,120,180,240,300].map(d => `<rect x="128" y="14" width="4" height="5" rx="1" fill="#2dd4bf" stroke="none" transform="rotate(${d} 130 30)"/>`).join('')}</g>
-      </g>
-      <path d="M150 64 H246" stroke="#60a5fa" stroke-width="1" stroke-dasharray="4 3"/>
-      <text x="150" y="58" fill="#94a3b8" font-size="8.5" font-family="monospace">SE PIPELINE</text>
-      <text x="150" y="78" fill="#60a5fa" font-size="10" font-weight="700" font-family="sans-serif">WORK IN PROGRESS</text>
-    </svg>
-    <div style="padding:8px 10px 10px">
-      <div style="color:var(--accent);font-weight:700;font-size:12px">Systems Engineering — work in progress</div>
-      <div style="color:var(--text2);font-size:10.5px;margin:3px 0 6px">Triggered by the Milestone approval. The SE pipeline is not implemented yet (demonstration endpoint). Planned technical reviews (DoD SE Guidebook):</div>
-      <div>${chips}</div>
-    </div>
-  </div>`;
-}
 
 function renderJobPanel() {
   const progressEl = document.getElementById('jobProgress');
@@ -444,7 +417,7 @@ function renderJobPanel() {
     progressEl.innerHTML += `<div style="margin-top:8px;padding:10px 12px;border-radius:8px;border:1px solid var(--red);background:rgba(239,68,68,0.10)">
       <div style="color:var(--red);font-weight:700;font-size:12px">✋ Blocked by k9x_Shield — ${esc(lastResult.check || '')}</div>
       <div style="color:var(--text2);font-size:10.5px;margin-top:4px">${esc(lastResult.reason || '')}</div>
-      <div style="color:var(--text2);font-size:10.5px;margin-top:6px">The document was stopped at the start of the JCIDS stage: no agent ran, no model was called, and nothing was sent to HIL.</div></div>`;
+      <div style="color:var(--text2);font-size:10.5px;margin-top:6px">The document was stopped at the start of the requirement stage: no agent ran, no model was called, and nothing was sent to HIL.</div></div>`;
     statusEl.innerHTML = '<span class="job-badge failed">' + (lastJobId || '') + ' BLOCKED</span>';
     setJobResultText(`Job: ${lastJobId}\nStatus: blocked by k9x_Shield (${lastResult.check})\n\n${lastResult.reason}`);
     if (lastJobId && lastJobId !== state.lastCompletedJobId) {
@@ -459,13 +432,9 @@ function renderJobPanel() {
     if (lastResult.review_package) summary += `── Review Package ──\n${Object.keys(lastResult.review_package).map(k => '  ✓ ' + k).join('\n')}\n\n`;
     summary += `View generated docs in the "Generated Docs" tab.`;
     const hilEvt = [...state.events].reverse().find(e => (e.type || e.event_type) === 'HilTaskPublished');
-    const laterStage = lastResult.orchestrator === 'acquisition' || lastResult.orchestrator === 'se';
-    if (lastResult.demo_stub) {
-      // SE: reached after the Milestone approval; this deployment stops here.
-      updatePipeline('SeOrchestrator', 'done');
-      summary += `\n\nSystems Engineering reached. The SE pipeline is not implemented yet ` +
-                 `(demonstration endpoint); next review would be ${lastResult.target_review || 'SRR'}.`;
-      progressEl.innerHTML += seWorkInProgressCard(lastResult.target_review || 'SE-REVIEW-SRR');
+    const laterStage = !['requirement', 'jcids'].includes(lastResult.orchestrator);
+    if (lastResult.status === 'pipeline_complete') {
+      summary += `\n\nSRR approved: the built flow is complete for this job.`;
     } else if (hilEvt) {
       summary += `\n\n→ Sent to HIL for review and approval — message published to '${hilEvt.topic || '?'}'`;
       progressEl.innerHTML += `<div style="margin-top:6px;padding:8px 10px;border-radius:6px;border:1px solid var(--orange);` +
@@ -479,7 +448,7 @@ function renderJobPanel() {
       state.lastCompletedJobId = lastJobId;
       if (state.jobTimeoutId) { clearTimeout(state.jobTimeoutId); state.jobTimeoutId = null; }
       setJobInProgress(false);
-      // The generated ICD comes from JCIDS; later stages stay where you are.
+      // The requirement package comes from the first stage; later stages stay where you are.
       if (!laterStage) {
         fetchDocs(lastJobId);
         setTimeout(() => switchTab('docs'), 1500);
@@ -632,7 +601,7 @@ function connectSSE() {
 
       // Progress events — update squad list
       if (evtType === 'OrchestratorStarted') {
-        updatePipeline(evt.orchestrator || 'JcidsOrchestrator', 'active');
+        updatePipeline(evt.orchestrator || 'RequirementOrchestrator', 'active', evt.run);
         const sl = document.getElementById('squadList');
         if (sl) sl.innerHTML = '<div style="color:var(--accent)">Pipeline started...</div>';
       }
@@ -646,7 +615,7 @@ function connectSSE() {
         if (sl) sl.innerHTML += '<div style="color:var(--text2);margin-left:10px">✓ done (' + (evt.elapsed_s||'?') + 's)</div>';
       }
       if (evtType === 'OrchestratorCompleted') {
-        updatePipeline(evt.orchestrator || 'JcidsOrchestrator', 'done');
+        updatePipeline(evt.orchestrator || 'RequirementOrchestrator', 'done', evt.run);
       }
       // Jobs in Pipeline: reload as soon as a HIL decision or a stage result
       // arrives on the live stream (the 15 s refresh is only the fallback).
@@ -657,11 +626,11 @@ function connectSSE() {
       if (state.redTeam) {
         if (evtType === 'ShieldBlocked') state.redTeamOutcome = {blocked: true, check: evt.check, reason: evt.reason};
         else if (evtType === 'SquadStarted' && !state.redTeamOutcome) state.redTeamOutcome = {passed: true};
-        else if (evtType === 'HilTaskPublished' && evt.gate_id !== 'PATHWAY-MILESTONE') state.redTeamOutcome = {passed: true, review: true};
+        else if (evtType === 'HilTaskPublished' && evt.gate_id === 'SERVICE-VALIDATION') state.redTeamOutcome = {passed: true, review: true};
       }
       // Human decision from K9X HIL, consumed by the DAS Router process
       if (evtType === 'GateDecision') {
-        const gateDot = {'JROC-VALIDATION': 'dot-jroc', 'PATHWAY-MILESTONE': 'dot-milestone'}[evt.gate_id];
+        const gateDot = {'SERVICE-VALIDATION': 'dot-sv', 'MDD': 'dot-mdd', 'MILESTONE-A': 'dot-msA', 'SE-REVIEW-SRR': 'dot-srr'}[evt.gate_id];
         const el = gateDot && document.getElementById(gateDot);
         if (el && evt.accepted && evt.action === 'complete') el.className = 'pipe-dot gate done';
       }
@@ -689,11 +658,13 @@ function connectSSE() {
 }
 
 // ─── Pipeline dots ────────────────────────────────────
-function updatePipeline(orch, status) {
+function updatePipeline(orch, status, run) {
+  // The MSA orchestrator owns two runs (MDD package, MSA): its events carry `run`.
+  const byRun = {requirement: 'dot-req', mdd_package: 'dot-mddp', msa: 'dot-msa', tmrr: 'dot-tmrr'};
   const map = {
-    'JcidsOrchestrator': 'dot-jcids',
-    'AcquisitionOrchestrator': 'dot-acq',
-    'SeOrchestrator': 'dot-se',
+    'RequirementOrchestrator': 'dot-req',
+    'MsaOrchestrator': byRun[run] || 'dot-msa',
+    'TmrrOrchestrator': 'dot-tmrr',
     'TraceabilityOrchestrator': 'dot-router',
   };
   // Light up router as done since we got a result
@@ -856,7 +827,7 @@ function renderDocs() {
         <span class="doc-size">${sizeKb} KB</span>
         <a class="doc-dl" href="/jobs/${run.jobId}/view/${doc.id}" target="_blank" style="background:var(--accent)">View</a>
         <a class="doc-dl" href="/jobs/${run.jobId}/docs/${doc.id}" download="${doc.filename}">Download .md</a>
-        ${doc.id === 'icd' || doc.id === 'quality' ? `<a class="doc-dl" href="/jobs/${run.jobId}/docx/${doc.id}" style="background:#2b579a">Download .docx</a>` : ''}
+        <a class="doc-dl" href="/jobs/${run.jobId}/docx/${doc.id}" style="background:#2b579a">Download .docx</a>
       </div>`;
     }
   }
@@ -866,7 +837,7 @@ function renderDocs() {
   if (latest) renderQuality(latest.jobId);
 }
 
-// ─── Quality check: generated ICD graded against its input document ───
+// ─── Quality check: generated requirement package graded against its input document ───
 function pct(v) { return v === null || v === undefined ? '—' : Math.round(v * 100) + '%'; }
 async function renderQuality(jobId) {
   const box = document.getElementById('qualityBox'); if (!box || box.dataset.job !== jobId) return;
@@ -875,7 +846,7 @@ async function renderQuality(jobId) {
   if (!document.getElementById('qualityBox')) return;
   const input = g.input_document || (state.redTeam && state.redTeam.file) || '—';
   const row = (k, v) => `<div style="display:flex;gap:12px;padding:3px 0"><span style="width:150px;flex:none;color:var(--text2)">${k}</span><span style="color:var(--text)">${v}</span></div>`;
-  let body = row('Input document', esc(input)) + row('Output document', esc(g.output_document || jobId + ' ICD'));
+  let body = row('Input document', esc(input)) + row('Output document', esc(g.output_document || jobId + ' requirement package'));
   if (g.status === 'done') {
     const f = g.faithfulness || {}, c = g.completeness || {}, ci = g.citation_accuracy || {};
     body += row('Overall score', g.overall == null ? '<span style="color:var(--orange)">not available — faithfulness was not evaluated</span>' : `<b style="font-size:15px">${pct(g.overall)}</b>`) +
@@ -1014,9 +985,26 @@ async function renderAcronyms() {
 
 // ─── Jobs: every run, its stages and HIL decisions (from storage) ───
 const STEP_LABEL = {
+  'requirement': 'Requirement', 'SERVICE-VALIDATION': 'Service validation', 'JCI-REVIEW': 'JCI review (parallel)',
+  'mdd_package': 'MDD package', 'MDD': 'MDD', 'msa': 'MSA', 'MILESTONE-A': 'Milestone A',
+  'tmrr': 'SRR package', 'SE-REVIEW-SRR': 'SRR',
+  // JCIDS-era jobs
   'jcids': 'JCIDS', 'JROC-VALIDATION': 'JROC gate', 'acquisition': 'Acquisition',
   'PATHWAY-MILESTONE': 'Milestone gate', 'se': 'SE',
 };
+// Package documents per run (View + .docx), shown once that run is done.
+const RUN_DOCS = [['mdd_package', 'MDD package'], ['msa', 'Milestone A package'], ['tmrr', 'SRR package']];
+function jobDocLinks(j) {
+  const id = encodeURIComponent(j.job_id);
+  const done = step => (j.steps || []).some(st => st.step === step && st.state === 'done');
+  const link = (doc, label) => `<a href="/jobs/${id}/view/${doc}" target="_blank" rel="noopener" style="color:var(--accent)">${label}</a>
+     <a href="/jobs/${id}/docx/${doc}" style="color:var(--accent)">.docx</a>`;
+  if (j.process_model === 'jcids-legacy') {
+    return `<span style="margin-left:auto"></span>${link('icd', 'View ICD')}` + (done('acquisition') ? link('milestone', 'View Milestone package') : '');
+  }
+  return `<span style="margin-left:auto"></span>${link('requirement', 'View requirement package')}` +
+    RUN_DOCS.filter(([run]) => done(run)).map(([run, label]) => link(run, 'View ' + label)).join('');
+}
 state.authToken = null; state.role = null;
 try { const a = JSON.parse(sessionStorage.getItem('k9x_das_auth') || 'null'); if (a) { state.authToken = a.token; state.role = a.role; } } catch (_) {}
 function jobStepChip(st, hilUrl) {
@@ -1061,13 +1049,10 @@ async function renderJobsHistory(quiet) {
       <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">
         <span style="color:var(--accent);font-family:var(--mono)">${esc(j.job_id)}</span>
         <span style="color:var(--text)">${esc(j.document_title || j.filename || '')}</span>
-        <a href="/jobs/${encodeURIComponent(j.job_id)}/view/icd" target="_blank" rel="noopener" style="margin-left:auto;color:var(--accent)">View ICD</a>
-        <a href="/jobs/${encodeURIComponent(j.job_id)}/docx/icd" style="color:var(--accent)">.docx</a>
-        ${(j.steps || []).some(st => st.step === 'acquisition' && st.state === 'done')
-          ? `<a href="/jobs/${encodeURIComponent(j.job_id)}/view/milestone" target="_blank" rel="noopener" style="color:var(--accent)">View Milestone package</a>
-             <a href="/jobs/${encodeURIComponent(j.job_id)}/docx/milestone" style="color:var(--accent)">.docx</a>` : ''}
+        ${jobDocLinks(j)}
       </div>
       <div style="margin-top:6px">${(j.steps || []).map(st => jobStepChip(st, data.hil_url)).join('<span style="color:var(--text2)">→ </span>')}</div>
+      ${j.complete ? '<div style="margin-top:6px;color:var(--green);font-size:11px">SRR approved: the built flow is complete for this job.</div>' : ''}
       ${j.next_action ? nextActionHtml(j) : ''}
     </div>`).join('') + '</div>';
 }
@@ -1103,8 +1088,9 @@ function followStartedStage(jobId, stage) {
   resetJobDisplay();
   state.jobId = jobId;
   const done = (id, gate) => { const el = document.getElementById(id); if (el) el.className = gate ? 'pipe-dot gate done' : 'pipe-dot done'; };
-  done('dot-router'); done('dot-jcids'); done('dot-jroc', true);
-  if (stage === 'se') { done('dot-acq'); done('dot-milestone', true); }
+  done('dot-router'); done('dot-req'); done('dot-sv', true);
+  if (stage === 'msa' || stage === 'tmrr') { done('dot-mddp'); done('dot-mdd', true); }
+  if (stage === 'tmrr') { done('dot-msa'); done('dot-msA', true); }
   const sl = document.getElementById('squadList');
   if (sl) sl.innerHTML = `<div style="color:var(--accent)">${esc(STEP_LABEL[stage] || stage)} started for ${esc(jobId)}…</div>`;
   switchTab('live');
@@ -1118,14 +1104,15 @@ function renderArch() {
   area.innerHTML = `
 <div style="padding:20px 24px;line-height:1.7;color:var(--text2);font-size:12px;max-width:960px">
   <div style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:8px">How a job flows</div>
-  <img src="/static/das-hil-flow-dark.svg" alt="DAS job flow: JCIDS, JROC review in K9X HIL, DAS admin starts Acquisition, Milestone review in K9X HIL, DAS admin starts SE"
+  <img src="/static/das-hil-flow-dark.svg" alt="DAS job flow: upload with Docling OCR, screening, requirement, Service validation in K9X HIL with the JCI review in parallel, MDD package, MDD, MSA and Milestone A package, Milestone A, SRR package, SRR"
        style="width:100%;max-width:900px;background:#111a2e;border:1px solid var(--border);border-radius:6px;padding:6px;box-sizing:border-box">
   <p style="margin:8px 0 22px">
     Each stage ends at a human review in <span style="color:var(--text)">K9X HIL</span>. HIL sends the decision back to DAS
     (Kafka reply topic), where it is recorded with the job. After an approval the <span style="color:var(--text)">DAS admin</span>
     starts the next stage from <span style="color:var(--text)">Jobs in Pipeline</span>; a reject or expiry stops the job.
-    Systems Engineering is a demonstration endpoint in this deployment. The dashed loop (request changes, revise,
-    re-review) is designed, not yet built.
+    The Joint Capability Integration review runs in parallel with the acquisition flow and never holds it; its decision
+    is recorded and joins the evidence of later gates. The stages, gates, criteria and their policy sources come from one
+    versioned file, <span style="color:var(--text)">process_model.yaml</span> (mca-2026-10, current as of October 2026).
   </p>
   <div style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:8px">Architecture-First Agentic AI</div>
   <p>
@@ -1222,7 +1209,7 @@ function renderArch() {
     <p style="margin:8px 0 0">
       In a real deployment the same retriever would point at <span style="color:var(--text)">authoritative DoD
       enterprise data sources</span> (prior CDDs and ICDs, DoDAF reference architectures, acquisition regulations)
-      instead of a synthetic corpus, with retrieved passages graphed alongside the ICD's own entities to show how a
+      instead of a synthetic corpus, with retrieved passages graphed alongside the requirement's own entities to show how a
       new capability need relates to precedent programs.
     </p>
   </div>
@@ -1248,41 +1235,46 @@ function renderArch() {
 </div>
 
 <div style="padding:0 16px 16px">
-<div style="font-size:12px;font-weight:600;color:var(--text);margin:18px 0 6px">1. Submit and the JCIDS stage</div>
+<div style="font-size:12px;font-weight:600;color:var(--text);margin:18px 0 6px">1. Submit: conversion, screening and the requirement stage</div>
   <div class="mermaid" id="mermaid-seq">
 sequenceDiagram
     participant UI as Browser UI
     participant API as App Backend
+    participant D as Docling
     participant Q as Job Queue
     participant K as Kafka
     participant R as DAS Router
-    participant JO as JCIDS Orchestrator
+    participant RO as Requirement Orchestrator
     participant LLM as Ollama
     participant S3 as MinIO S3
 
-    UI->>API: Analyze (demo or red-team document)
+    UI->>API: Analyze (demo, red-team or uploaded document)
+    API->>D: PDF, Word or scan → Markdown (layout, OCR)
+    API->>S3: keep the original
     API->>Q: enqueue job (max 5 in queue)
     API-->>UI: job_id
     Q->>API: dispatcher takes the next job
     API->>K: dow.router.in
     K->>R: consume
-    R->>K: das.jcids (route by document type)
-    K->>JO: consume
-    Note over JO: k9x_Shield checks the document (input size, prompt injection, personal data)
+    R->>K: das.requirement
+    K->>RO: consume
+    Note over RO: k9x_Shield checks the document (input size, prompt injection, personal data)
     alt attack detected
-        JO->>K: das.results: blocked_by_shield
+        RO->>K: das.results: blocked_by_shield
         K-->>UI: Blocked card, no agent ran, nothing sent to HIL
     else document passes
-        JO->>LLM: ViewGeneration squad (ModelExtractor, ViewGenerator loop, ConsistencyChecker)
-        JO->>LLM: GateReadiness squad (JROC criteria, Evidence, Readiness score, Gaps)
-        JO->>LLM: PackageAssembly squad (Artifacts, Completeness, Package)
-        JO->>LLM: Granite Guardian advisory check on the package
-        JO->>S3: ICD and results (jcids-output, by job id)
-        JO->>K: das.results (live feed and ICD)
-        JO->>K: workflow.hil.das.jroc (JROC review task)
+        RO->>LLM: Screening: Shield + Granite Guardian per section (warn, never reject)
+        RO->>S3: Document Screening Report
+        RO->>LLM: ViewGeneration squad (ModelExtractor, ViewGenerator loop, ConsistencyChecker)
+        RO->>LLM: GateReadiness squad (Service validation criteria, Evidence, Readiness score, Gaps)
+        RO->>LLM: PackageAssembly squad (Artifacts, Completeness, Package)
+        RO->>LLM: JointReview squad (Joint Staffing Designator proposal)
+        RO->>S3: requirement package and results (by job id)
+        RO->>K: workflow.hil.das.service-validation (Service validation task)
+        RO->>K: workflow.hil.das.jci-review (JCI review task, parallel)
     end
 </div>
-<div style="font-size:12px;font-weight:600;color:var(--text);margin:18px 0 6px">2. JROC decision and the Acquisition stage</div>
+<div style="font-size:12px;font-weight:600;color:var(--text);margin:18px 0 6px">2. A human approval starts the next run (MDD package, MSA, TMRR)</div>
   <div class="mermaid" id="mermaid-seq2">
 sequenceDiagram
     participant HIL as K9X HIL
@@ -1291,48 +1283,48 @@ sequenceDiagram
     participant S3 as MinIO S3
     participant UI as DAS admin (Jobs in Pipeline)
     participant API as App Backend
-    participant AO as Acquisition Orchestrator
+    participant O as MSA / TMRR Orchestrator
     participant LLM as Ollama
 
-    K->>HIL: JROC review task
+    K->>HIL: review task (e.g. SERVICE-VALIDATION)
     Note over HIL: A person approves or rejects
-    HIL->>K: das.jroc.replies (decision)
+    HIL->>K: das.service-validation.replies (decision)
     K->>R: consume
     R->>S3: record the decision with the job
-    UI->>API: Start Acquisition
-    API->>S3: is an approval recorded? has the stage started?
+    UI->>API: Start MDD package
+    API->>S3: is an approval recorded? has the run started?
     API->>K: gate_approved (dow.router.in)
     K->>R: consume
-    R->>K: das.acquisition
-    K->>AO: consume
-    AO->>S3: load the stored JCIDS package
-    AO->>LLM: GateReadiness + PackageAssembly (Milestone criteria)
-    AO->>S3: Milestone package
-    AO->>K: workflow.hil.das.pathway (Milestone review task)
+    R->>K: das.mdd (the run this gate's approval starts, from the process model)
+    K->>O: consume
+    Note over O: k9x_Shield screens the reviewer's comment before agents read it
+    O->>S3: load the requirement, earlier runs and every recorded decision (JCI included)
+    O->>LLM: drafting squad (e.g. AoA study plan; or AoA summary, ASR, acquisition strategy; or system requirements)
+    O->>LLM: GateReadiness + PackageAssembly (next gate's criteria)
+    O->>S3: package (view and .docx)
+    O->>K: workflow.hil.das.mdd (next review task)
 </div>
-<div style="font-size:12px;font-weight:600;color:var(--text);margin:18px 0 6px">3. Milestone decision and Systems Engineering</div>
+<div style="font-size:12px;font-weight:600;color:var(--text);margin:18px 0 6px">3. Gates and the runs they start</div>
   <div class="mermaid" id="mermaid-seq3">
 sequenceDiagram
-    participant HIL as K9X HIL
-    participant K as Kafka
-    participant R as DAS Router
-    participant S3 as MinIO S3
-    participant UI as DAS admin (Jobs in Pipeline)
-    participant API as App Backend
-    participant SE as SE Orchestrator
+    participant RO as Requirement
+    participant SV as Service validation (HIL)
+    participant JCI as JCI review (HIL)
+    participant MO as MSA Orchestrator
+    participant MDD as MDD (HIL)
+    participant MA as Milestone A (HIL)
+    participant TO as TMRR Orchestrator
+    participant SRR as SRR (HIL)
 
-    K->>HIL: Milestone review task
-    Note over HIL: A person approves or rejects
-    HIL->>K: das.pathway.replies (decision)
-    K->>R: consume
-    R->>S3: record the decision with the job
-    UI->>API: Start SE
-    API->>K: gate_approved
-    K->>R: consume
-    R->>K: das.se
-    K->>SE: consume
-    SE->>S3: SE reached (demonstration endpoint, next review SRR)
-    SE->>K: das.results
+    RO->>SV: requirement package
+    RO-->>JCI: requirement + JSD (parallel, never blocks)
+    SV->>MO: approve → MDD package run
+    MO->>MDD: AoA study guidance and plan
+    MDD->>MO: approve → MSA run
+    MO->>MA: AoA summary, ASR, acquisition strategy
+    MA->>TO: approve → TMRR run
+    TO->>SRR: system requirements
+    Note over SRR: approve → built flow complete
 </div>
 </div>`;
   area.innerHTML += `
@@ -1348,7 +1340,7 @@ classDiagram
     class BaseOrchestrator {
         &lt;&lt;ABB&gt;&gt;
         +execute_flow(payload) dict
-        +execute_squads(squads, payload)
+        +apply_shield(payload) dict
     }
     class BaseSquad {
         &lt;&lt;ABB&gt;&gt;
@@ -1364,44 +1356,58 @@ classDiagram
         &lt;&lt;ABB&gt;&gt;
         +execute(payload) dict
     }
+    class DoclingParser {
+        &lt;&lt;ABB&gt;&gt;
+        +execute(path) markdown
+    }
     class K9EventBus {
         &lt;&lt;framework&gt;&gt;
         +publish(event)
         +subscribe_async(callback)
-    }
-    class K9ModelRouter {
-        &lt;&lt;framework&gt;&gt;
-        +route(request) RouteDecision
-        +invoke(request) InferenceResponse
     }
     class ShieldGovernance {
         &lt;&lt;framework&gt;&gt;
         +pre_process(payload)
         +post_process(output)
     }
+    class GuardianGovernance {
+        &lt;&lt;framework&gt;&gt;
+        +pre_process(payload)
+    }
 
     class DasRouter {
         &lt;&lt;SBB&gt;&gt;
         +route(payload) dict
     }
-    class JcidsOrchestrator {
+    class ProcessStageOrchestrator {
+        &lt;&lt;SBB&gt;&gt;
+        +prepare_gate()
+        +publish_review()
+        +run_package()
+    }
+    class RequirementOrchestrator {
         &lt;&lt;SBB&gt;&gt;
     }
-    class AcquisitionOrchestrator {
+    class MsaOrchestrator {
         &lt;&lt;SBB&gt;&gt;
     }
-    class SeOrchestrator {
+    class TmrrOrchestrator {
         &lt;&lt;SBB&gt;&gt;
     }
-    class EvidenceCollectorAgent {
+    class SectionWriterAgent {
+        &lt;&lt;SBB&gt;&gt;
+    }
+    class AlternativeSystemsReviewAgent {
         &lt;&lt;SBB&gt;&gt;
     }
     class ViewGeneratorAgent {
         &lt;&lt;SBB&gt;&gt;
     }
-    class GuardianGovernance {
-        &lt;&lt;SBB&gt;&gt;
-        +post_process(result)
+    class ProcessModel {
+        &lt;&lt;SBB config&gt;&gt;
+        +stages
+        +gates
+        +sources
     }
     class HilGateway {
         &lt;&lt;SBB module&gt;&gt;
@@ -1410,20 +1416,23 @@ classDiagram
     }
 
     BaseRouter &lt;|-- DasRouter
-    BaseOrchestrator &lt;|-- JcidsOrchestrator
-    BaseOrchestrator &lt;|-- AcquisitionOrchestrator
-    BaseOrchestrator &lt;|-- SeOrchestrator
-    BaseAgent &lt;|-- EvidenceCollectorAgent
+    BaseOrchestrator &lt;|-- ProcessStageOrchestrator
+    ProcessStageOrchestrator &lt;|-- RequirementOrchestrator
+    ProcessStageOrchestrator &lt;|-- MsaOrchestrator
+    ProcessStageOrchestrator &lt;|-- TmrrOrchestrator
+    BaseAgent &lt;|-- SectionWriterAgent
+    SectionWriterAgent &lt;|-- AlternativeSystemsReviewAgent
     BaseAgent &lt;|-- K9ValidationLoopAgent
     K9ValidationLoopAgent &lt;|-- ViewGeneratorAgent
+    BaseAgent &lt;|-- DoclingParser
 
-    JcidsOrchestrator ..> BaseSquad : runs squads
+    ProcessStageOrchestrator ..> BaseSquad : runs squads
     BaseSquad ..> BaseAgent : runs agents in order
-    BaseAgent ..> K9ModelRouter : llm_invoke()
-    JcidsOrchestrator ..> ShieldGovernance : checks document
-    JcidsOrchestrator ..> GuardianGovernance : advisory check
-    JcidsOrchestrator ..> HilGateway : review task
-    AcquisitionOrchestrator ..> HilGateway : review task
+    DasRouter ..> ProcessModel : next run per gate
+    ProcessStageOrchestrator ..> ProcessModel : gate criteria
+    ProcessStageOrchestrator ..> ShieldGovernance : screens ingress
+    RequirementOrchestrator ..> GuardianGovernance : document screening
+    ProcessStageOrchestrator ..> HilGateway : review tasks
     HilGateway ..> K9EventBus : publishes via
 </div>
 </div>`;
@@ -1719,7 +1728,7 @@ fetch('/demos/sample-result').then(r=>r.json()).then(data=>{
 
   // Light up pipeline dots
   document.getElementById('dot-router').className = 'pipe-dot done';
-  document.getElementById('dot-jcids').className = 'pipe-dot done';
+  document.getElementById('dot-req').className = 'pipe-dot done';
 
   // Populate squads
   document.getElementById('squadList').innerHTML =
@@ -1730,8 +1739,8 @@ fetch('/demos/sample-result').then(r=>r.json()).then(data=>{
   // Add sample events to live feed
   const now = new Date().toLocaleTimeString();
   state.events = [
-    {_ts: now, type: 'OrchestratorStarted', orchestrator: 'JcidsOrchestrator', filename: 'F22_Maintenance_Readiness_Assessment_Request.md', document_type: 'capability_gap'},
-    {_ts: now, type: 'SquadStarted', orchestrator: 'JcidsOrchestrator', squad: 'ViewGenerationSquad', agents: ['ModelExtractorAgent','ViewGeneratorAgent','ViewConsistencyCheckerAgent'], total: 3},
+    {_ts: now, type: 'OrchestratorStarted', orchestrator: 'RequirementOrchestrator', filename: 'F22_Maintenance_Readiness_Assessment_Request.md', document_type: 'capability_gap'},
+    {_ts: now, type: 'SquadStarted', orchestrator: 'RequirementOrchestrator', squad: 'ViewGenerationSquad', agents: ['ModelExtractorAgent','ViewGeneratorAgent','ViewConsistencyCheckerAgent'], total: 3},
     {_ts: now, type: 'LLMCall', agent: 'DAS ModelExtractor', model: 'reasoning', latency_ms: 23058},
     {_ts: now, type: 'AgentCompleted', agent: 'DAS ModelExtractor'},
     {_ts: now, type: 'loop_started', agent: 'DAS ViewGenerator'},
@@ -1750,8 +1759,8 @@ fetch('/demos/sample-result').then(r=>r.json()).then(data=>{
     {_ts: now, type: 'AgentCompleted', agent: 'DAS ViewGenerator'},
     {_ts: now, type: 'LLMCall', agent: 'DAS ViewConsistencyChecker', model: 'reasoning', latency_ms: 15161},
     {_ts: now, type: 'AgentCompleted', agent: 'DAS ViewConsistencyChecker'},
-    {_ts: now, type: 'SquadCompleted', orchestrator: 'JcidsOrchestrator', squad: 'ViewGenerationSquad', elapsed_s: 71.7},
-    {_ts: now, type: 'SquadStarted', orchestrator: 'JcidsOrchestrator', squad: 'GateReadinessSquad', agents: ['CriteriaLoaderAgent','EvidenceCollectorAgent','ReadinessScorerAgent','GapReporterAgent'], total: 4},
+    {_ts: now, type: 'SquadCompleted', orchestrator: 'RequirementOrchestrator', squad: 'ViewGenerationSquad', elapsed_s: 71.7},
+    {_ts: now, type: 'SquadStarted', orchestrator: 'RequirementOrchestrator', squad: 'GateReadinessSquad', agents: ['CriteriaLoaderAgent','EvidenceCollectorAgent','ReadinessScorerAgent','GapReporterAgent'], total: 4},
     {_ts: now, type: 'AgentCompleted', agent: 'DAS CriteriaLoader'},
     {_ts: now, type: 'LLMCall', agent: 'DAS EvidenceCollector', model: 'reasoning', latency_ms: 21406},
     {_ts: now, type: 'AgentCompleted', agent: 'DAS EvidenceCollector'},
@@ -1759,16 +1768,16 @@ fetch('/demos/sample-result').then(r=>r.json()).then(data=>{
     {_ts: now, type: 'AgentCompleted', agent: 'DAS ReadinessScorer'},
     {_ts: now, type: 'LLMCall', agent: 'DAS GapReporter', model: 'reasoning', latency_ms: 38654},
     {_ts: now, type: 'AgentCompleted', agent: 'DAS GapReporter'},
-    {_ts: now, type: 'SquadCompleted', orchestrator: 'JcidsOrchestrator', squad: 'GateReadinessSquad', elapsed_s: 74.5},
-    {_ts: now, type: 'SquadStarted', orchestrator: 'JcidsOrchestrator', squad: 'PackageAssemblySquad', agents: ['ArtifactFetcherAgent','CompletenessCheckerAgent','PackageBuilderAgent'], total: 3},
+    {_ts: now, type: 'SquadCompleted', orchestrator: 'RequirementOrchestrator', squad: 'GateReadinessSquad', elapsed_s: 74.5},
+    {_ts: now, type: 'SquadStarted', orchestrator: 'RequirementOrchestrator', squad: 'PackageAssemblySquad', agents: ['ArtifactFetcherAgent','CompletenessCheckerAgent','PackageBuilderAgent'], total: 3},
     {_ts: now, type: 'AgentCompleted', agent: 'DAS ArtifactFetcher'},
     {_ts: now, type: 'LLMCall', agent: 'DAS CompletenessChecker', model: 'reasoning', latency_ms: 10540},
     {_ts: now, type: 'AgentCompleted', agent: 'DAS CompletenessChecker'},
     {_ts: now, type: 'LLMCall', agent: 'DAS PackageBuilder', model: 'reasoning', latency_ms: 59692},
     {_ts: now, type: 'AgentCompleted', agent: 'DAS PackageBuilder'},
-    {_ts: now, type: 'SquadCompleted', orchestrator: 'JcidsOrchestrator', squad: 'PackageAssemblySquad', elapsed_s: 70.5},
-    {_ts: now, type: 'OrchestratorCompleted', orchestrator: 'JcidsOrchestrator', elapsed_s: 156.1, gate: 'JROC-VALIDATION'},
-    {_ts: now, type: 'PipelineComplete', orchestrator: 'JcidsOrchestrator', status: 'awaiting_gate', gate: 'JROC-VALIDATION'},
+    {_ts: now, type: 'SquadCompleted', orchestrator: 'RequirementOrchestrator', squad: 'PackageAssemblySquad', elapsed_s: 70.5},
+    {_ts: now, type: 'OrchestratorCompleted', orchestrator: 'RequirementOrchestrator', elapsed_s: 156.1, gate: 'SERVICE-VALIDATION'},
+    {_ts: now, type: 'PipelineComplete', orchestrator: 'RequirementOrchestrator', status: 'awaiting_gate', gate: 'SERVICE-VALIDATION'},
   ];
   state.agentEvents = state.events.filter(e => {
     const t = e.type||'';
@@ -1819,13 +1828,14 @@ function redTeamFlowHtml() {
   const expectBlock = /^BLOCKED/.test(rt.expected);
   const steps = [
     ['Document', rt.name],
-    ['DAS Router', 'routes it to the JCIDS stage'],
+    ['DAS Router', 'routes it to the requirement stage'],
     ['k9x_Shield', 'stage-entry checks: input size · prompt injection · personal data'],
-    ['JCIDS agents', '3 squads, model calls'],
-    ['JROC review', 'a person decides in K9X HIL'],
+    ['Screening', 'Shield + Granite Guardian per section: warnings report for the reviewer'],
+    ['Requirement agents', '4 squads, model calls'],
+    ['Service validation', 'a person decides in K9X HIL, with the screening report'],
   ];
   // Before Analyze nothing has run: all steps neutral. Colours only show a real result.
-  const stopAt = out ? (out.blocked ? 2 : 4) : 4;
+  const stopAt = out ? (out.blocked ? 2 : 5) : 5;
   const box = (i, [t, d]) => {
     const reached = !out || i <= stopAt;
     const isStop = !!out && i === stopAt;
@@ -1840,8 +1850,8 @@ function redTeamFlowHtml() {
     ? (out.blocked
         ? `<span style="color:var(--red);font-weight:700">✋ Blocked by k9x_Shield (${esc(out.check || '')})</span> — no agent ran, no model was called, nothing reached HIL.<div style="margin-top:4px;font-size:10.5px">${esc(out.reason || '')}</div>`
         : out.review
-          ? `<span style="color:var(--orange);font-weight:700">Sent to the JROC reviewer</span> — the ICD is waiting for a human decision in K9X HIL.`
-          : `<span style="color:var(--green);font-weight:700">Passed the checks</span> — the agents are working; the ICD then goes to the JROC reviewer.`)
+          ? `<span style="color:var(--orange);font-weight:700">Sent to the Service validation reviewer</span> — the requirement package and its Document Screening Report wait for a human decision in K9X HIL.`
+          : `<span style="color:var(--green);font-weight:700">Passed the stage-entry checks</span> — the agents are working; any screening warnings go to the reviewer with the package.`)
     : state.jobInProgress
       ? (state.modelLoading
           ? `<span class="k9-spinner"></span><b style="color:var(--orange)">Please wait — loading ${esc(state.modelLoading)} onto the GPU…</b> about a minute after a quiet spell; the agents start as soon as it is ready.`

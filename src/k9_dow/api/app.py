@@ -765,22 +765,35 @@ def _input_doc_prefix(job_data: dict) -> str:
 
 
 def _extract_docs(job_data: dict) -> list[dict]:
-    """Return single consolidated ICD document."""
+    """The job's documents: the requirement (or JCIDS-era ICD) package, the JSD recommendation,
+    the Document Screening Report, and each later run's package once it exists."""
+    from k9_dow.gates.hil_gateway import load_stage_result
     result = job_data.get("result", job_data)
     if not result.get("view_generation") and not result.get("gate_readiness"):
         return []
-
-    icd_content = _compose_icd(job_data)
     job_id = result.get("job_id", "unknown")
     input_prefix = _input_doc_prefix(job_data)
-
-    return [{
-        "id": "icd",
-        "section": "Deliverables",
-        "agent": f"Initial Capabilities Document (ICD) — {input_prefix}",
-        "filename": f"{job_id}-ICD.md",
-        "size": len(icd_content),
-    }]
+    content = _compose_icd(job_data)
+    if result.get("orchestrator") != "requirement":          # JCIDS-era job
+        return [{"id": "icd", "section": "Deliverables", "agent": f"Initial Capabilities Document (ICD) — {input_prefix}",
+                 "filename": f"{job_id}-ICD.md", "size": len(content)}]
+    docs = [{"id": "requirement", "section": "Deliverables",
+             "agent": f"Service capability requirement: validation review package — {input_prefix}",
+             "filename": f"{job_id}-Requirement-Package.md", "size": len(content)}]
+    if (result.get("joint_review") or {}).get("jsd"):
+        docs.append({"id": "jsd", "section": "Deliverables", "agent": "Joint Staffing Designator recommendation (JCI review)",
+                     "filename": f"{job_id}-JSD-Recommendation.md", "size": 0})
+    if (result.get("screening") or {}).get("status"):
+        docs.append({"id": "screening", "section": "Deliverables",
+                     "agent": f"Document Screening Report ({result['screening'].get('warning_count', 0)} warning(s))",
+                     "filename": f"{job_id}-Document-Screening-Report.md", "size": 0})
+    for run, label in (("mdd_package", "Materiel Development Decision package"),
+                       ("msa", "Milestone A package (AoA summary, ASR, acquisition strategy)"),
+                       ("tmrr", "System Requirements Review package")):
+        if load_stage_result(_config, job_id, run):
+            docs.append({"id": run, "section": "Deliverables", "agent": label,
+                         "filename": f"{job_id}-{DOC_NAMES[run]}.md", "size": 0})
+    return docs
 
 
 @app.get("/jobs/{job_id}/docs")
@@ -795,7 +808,7 @@ async def list_docs(job_id: str):
         quality = await _quality_report_md(job_id) if docs else None
         if quality:
             docs.append({"id": "quality", "section": "Deliverables",
-                         "agent": "ICD Quality Report — the ICD graded against its input document",
+                         "agent": "Quality report — the package graded against its input document",
                          "filename": f"{job_id}-ICD-Quality.md", "size": len(quality)})
         return JSONResponse(
             content={"job_id": job_id, "docs": docs},
@@ -820,6 +833,12 @@ async def download_doc(job_id: str, doc_id: str):
             raise HTTPException(status_code=404, detail="Not graded yet")
         return Response(content=md, media_type="text/markdown",
                         headers={"Content-Disposition": f'attachment; filename="{job_id}-ICD-Quality.md"',
+                                 "Cache-Control": "no-store"})
+
+    if doc_id != "icd":
+        md = await _doc_markdown(job_id, doc_id)
+        return Response(content=md, media_type="text/markdown",
+                        headers={"Content-Disposition": f'attachment; filename="{job_id}-{DOC_NAMES.get(doc_id, doc_id)}.md"',
                                  "Cache-Control": "no-store"})
 
     if doc_id == "icd":
@@ -974,6 +993,7 @@ async def start_grade(job_id: str, user: dict = Depends(require_user)):
 
 
 DOC_NAMES = {"requirement": "Requirement-Package", "icd": "ICD", "jsd": "JSD-Recommendation",
+             "screening": "Document-Screening-Report",
              "mdd_package": "MDD-Package", "msa": "Milestone-A-Package", "tmrr": "SRR-Package",
              "milestone": "Milestone-Package", "quality": "ICD-Quality"}
 
@@ -995,6 +1015,13 @@ async def _doc_markdown(job_id: str, doc_id: str) -> str:
         if md is None:
             raise HTTPException(status_code=404, detail="Not graded yet")
         return md
+    if doc_id == "screening":
+        from k9_dow.gates.hil_gateway import load_stage_result
+        from k9_dow.governance.document_screening import report_markdown
+        rep = load_stage_result(_config, job_id, "screening")
+        if not rep or "screened_at" not in rep:
+            raise HTTPException(status_code=404, detail="No screening report for this job")
+        return report_markdown(rep)
     if doc_id not in ("requirement", "icd", "jsd"):
         raise HTTPException(status_code=404, detail="Document not found")
     data = _get_job(job_id)

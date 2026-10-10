@@ -1,18 +1,23 @@
 # DoW Architecture Workbench (dow-k9x)
 
-A [K9-AIF](https://github.com/k9aif/k9-aif-framework) Solution Building Block (SBB) that automates Department of Defense architecture and acquisition document analysis: DoDAF 2.0 viewpoints, JCIDS capability documents, and Systems Engineering artifacts, produced from source documents through a governed, human-gated multi-agent pipeline.
+A [K9-AIF](https://github.com/k9aif/k9-aif-framework) Solution Building Block (SBB) that takes a Service capability requirement through the Department of Defense requirements and acquisition process **as it stands today** (Joint Force Requirements Process and the Major Capability Acquisition pathway, process model `mca-2026-10`, current as of October 2026), through a governed, human-gated multi-agent pipeline.
 
-This is not a standalone application. It extends K9-AIF's Architecture Building Blocks (ABBs) — agents, squads, orchestrators, routing, governance, and event publishing all come from the framework; this project supplies only the DoW-specific domain logic on top of them.
+This is not a standalone application. It extends K9-AIF's Architecture Building Blocks (ABBs) — agents, squads, orchestrators, routing, governance, document conversion and event publishing all come from the framework; this project supplies only the DoW-specific domain logic on top of them.
 
 ## What it does
 
-Given an uploaded source document (a capability need statement, an existing architecture description, a requirements document), the pipeline produces:
+```
+Upload (Docling: PDF, Word, scans → Markdown)  →  Screening (Shield + Granite Guardian; warnings report)
+  → Requirement package + Joint Staffing Designator proposal
+  → SERVICE-VALIDATION (human)        ── JCI-REVIEW (human, parallel, never blocks)
+  → MDD package (AoA study guidance and plan)          → MDD (human)
+  → MSA: AoA summary, Alternative Systems Review, acquisition strategy → MILESTONE-A (human)
+  → TMRR: system requirements                          → SE-REVIEW-SRR (human)
+```
 
-- **DoDAF 2.0 views** (Phase 1) — operational, capability, and systems viewpoints derived only from evidence in the source document, with unsupported fields explicitly marked `NOT PROVIDED IN SOURCE`.
-- **JCIDS capability documents** (Phase 2) — an Initial Capabilities Document (ICD) progressing to a formal ICD, Capability Development Document (CDD), and KPP/KSA set, gated by human review between stages.
-- **Systems Engineering artifacts** (Phase 3) — SRD, SPS, TEMP, and a verification & validation matrix, derived from the approved formal ICD.
+Every gate is a human decision in [K9X HIL](https://hil.k9x.ai). The stages, gates, entry criteria and the policy source of each live in one versioned file, [`src/k9_dow/config/process_model.yaml`](src/k9_dow/config/process_model.yaml); the gate registry, router, HIL topics, UI flow diagram (`tools/flow_diagram.py`) and job history all read it. Sources (in `data/policy/`): SecDef memo of 20 Aug 2025; CJCSI 5123.01J CH 1 and CJCSM 5123.01A (5 Aug 2026, [Joint Staff library](https://www.jcs.mil/library/cjcs-manuals/)); DoWI 5000.02 Change 2; DoDI 5000.85; DoD SE Guidebook 2022. Design and evidence: [`docs/process-model-2026/`](docs/process-model-2026/).
 
-Every stage runs under K9-AIF's governance model (pre/post execution policy hooks) and publishes progress as Kafka events; human reviewers approve or reject at two gates before the pipeline advances.
+Designed in the process model but not built: SFR, PDR, CDD-equivalent validation, the Development RFP Release, Milestone B, and the other five Adaptive Acquisition Framework pathways. DAS before October 2026 modelled JCIDS (JROC-VALIDATION, PATHWAY-MILESTONE); jobs from that version still display.
 
 ## Architecture
 
@@ -22,7 +27,7 @@ Three independently deployable processes, communicating only through Kafka:
 |---|---|---|
 | App backend | `runit.sh` → `k9_dow.api.app` | FastAPI + web UI. Accepts uploads, publishes to `router.in`, streams job status. |
 | Router | `start_router.sh` | Classifies incoming documents, stores originals in object storage (S3-compatible), routes to the correct pipeline topic (`orchestrator.in` / `jcids.in` / `se.in`). |
-| Orchestrator | `start_orchestrator.sh` | Runs the DoDAF/JCIDS/SE squads (agents → LLM → governance) for whichever phase the document was routed to. |
+| Orchestrator | `start_orchestrator.sh` | Runs the stage orchestrators (Requirement, MSA, TMRR): squads → agents → LLM, under governance. |
 
 Domain code lives under `src/k9_dow/`:
 
@@ -55,7 +60,7 @@ Run the three processes (each in its own terminal):
 ```bash
 ./runit.sh               # app backend + web UI, port 8000
 ./start_router.sh        # document router
-./start_orchestrator.sh  # DoDAF/JCIDS/SE orchestrator
+./start_orchestrator.sh  # Requirement / MSA / TMRR orchestrators
 ```
 
 ## API surface

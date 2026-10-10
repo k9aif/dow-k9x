@@ -119,6 +119,7 @@
     <span class="poc">PROOF OF CONCEPT</span>
     <nav>
       <a href="#steps">What you'll see</a>
+      <a href="#policy">Policy basis</a>
       <a href="#flow">Flow</a>
       <a href="#architecture">Architecture</a>
       <a href="#knowledge">Knowledge</a>
@@ -133,6 +134,7 @@
 <nav class="toc" aria-label="On this page">
   <ul>
     <li><a href="#steps">What you'll see</a></li>
+    <li><a href="#policy">Policy basis</a></li>
     <li><a href="#flow">Flow</a></li>
     <li><a href="#architecture">Architecture</a></li>
     <li><a href="#knowledge">Knowledge corpus</a></li>
@@ -148,10 +150,12 @@
     <div class="eyebrow">Defense Acquisition System · reference deployment</div>
     <h1>Agents prepare the acquisition package.<br><em>Humans decide at every gate.</em></h1>
     <p class="lede">
-      DAS takes a capability document and moves it through the defense acquisition lifecycle:
-      JCIDS requirements, a JROC review, Acquisition milestone readiness, a Milestone review, then
-      Systems Engineering. Agent squads do the analysis and assemble the packages; every gate is a
-      human decision made in <b>K9X HIL</b>, and the program moves on only when a person approves it.
+      DAS takes a Service capability requirement (PDF, Word, scanned or Markdown) and moves it through
+      the requirements and acquisition process <b>as it stands today</b>: Service validation with the
+      joint review in parallel, the Materiel Development Decision, Materiel Solution Analysis to
+      Milestone A, then the System Requirements Review. Agent squads draft and assess the packages;
+      every gate is a human decision made in <b>K9X HIL</b>, and the program moves on only when a
+      person approves it.
       Built on the open-source <b>K9-AIF</b> framework (<a href="#k9aif">read more about the framework ↓</a>).
     </p>
     <p class="readfirst">New here? Read this page first: it explains, at a high level, what the demo shows, how a job flows, and the framework it is built on. Then start the demo.</p>
@@ -169,29 +173,48 @@
 
   <section id="steps">
     <h2>What you'll see</h2>
-    <p class="sub">Seven steps, numbered the same way as the flow diagram below. A full run takes a few minutes per stage on a single local GPU.</p>
+    <p class="sub">The steps are numbered as in the flow diagram below. A full run takes a few minutes per stage on a single local GPU. After each approval the DAS admin starts the next stage from <b>Jobs in Pipeline</b>; nothing moves without a recorded decision.</p>
     <div class="grid">
-      <div class="card"><h3><span class="num">1</span>JCIDS<span class="tag das">DAS</span></h3>
-        <p>Pick a demo capability document (FIREBIRD UAV, IRONCLAD ground vehicle, SENTINEL cyber defense) and click Analyze. Three squads generate the Initial Capabilities Document (ICD) and DoDAF views, then score JROC readiness.</p></div>
-      <div class="card"><h3><span class="num">2</span>JROC review<span class="tag hil">K9X HIL</span></h3>
-        <p>The ICD goes to K9X HIL as a review task. A person opens it, reads the ICD, and approves or rejects. The decision is sent back to DAS and recorded with the job.</p></div>
-      <div class="card"><h3><span class="num">3</span>Start the next stage<span class="tag adm">DAS admin</span></h3>
-        <p>In <b>Jobs in Pipeline</b>, every job shows its stages and decisions. After an approval the DAS admin clicks <b>Start Acquisition</b>; nothing moves without a recorded approval.</p></div>
-      <div class="card"><h3><span class="num">4</span>Acquisition<span class="tag das">DAS</span></h3>
-        <p>Agents assess readiness for the Acquisition Pathway / Milestone decision against its entry criteria and build the Milestone Review Package, including gaps and a recommendation, not a decision.</p></div>
-      <div class="card"><h3><span class="num">5</span>Milestone review<span class="tag hil">K9X HIL</span></h3>
-        <p>The second human gate: the milestone decision authority reviews the package in K9X HIL and approves or rejects.</p></div>
-      <div class="card"><h3><span class="num">6</span>Start Systems Engineering<span class="tag adm">DAS admin</span></h3>
-        <p>Again in Jobs in Pipeline, the DAS admin starts the next stage once the approval is recorded.</p></div>
-      <div class="card"><h3><span class="num">7</span>Systems Engineering<span class="tag das">DAS</span></h3>
-        <p>SE is reached and the job completes. In this deployment SE is a demonstration endpoint: it records the next technical review (SRR); the SE review squads are not implemented yet.</p></div>
+      <div class="card"><h3><span class="num">1</span>Upload<span class="tag das">DAS</span></h3>
+        <p>Pick a demo capability document (FIREBIRD UAV, IRONCLAD ground vehicle, SENTINEL cyber defense) or upload your own. PDF, Word and scanned pages are converted to Markdown by <b>Docling</b> (layout analysis and OCR); the original is kept with the job.</p></div>
+      <div class="card"><h3><span class="num">2</span>Screening<span class="tag das">DAS</span></h3>
+        <p>Every section is checked by k9x Shield and Granite Guardian for hidden instructions and manipulation. Hits go into a separate <b>Document Screening Report</b> for the reviewer: a warning, never a rejection.</p></div>
+      <div class="card"><h3><span class="num">3</span>Requirement<span class="tag das">DAS</span></h3>
+        <p>Squads build the architecture views, judge the requirement against the content the Service must submit for joint review, and propose a <b>Joint Staffing Designator</b> (JROC, JCB or FCB Interest, or Service Information).</p></div>
+      <div class="card"><h3><span class="num">4</span>Service validation<span class="tag hil">K9X HIL</span></h3>
+        <p>The Service requirements board validates the requirement. In parallel, the <b>Joint Capability Integration review</b> by the JROC, JCB or FCB records its endorsement; it never holds the acquisition flow.</p></div>
+      <div class="card"><h3><span class="num">5</span>MDD package<span class="tag das">DAS</span></h3>
+        <p>Draft AoA study guidance and study plan for the validated requirement.</p></div>
+      <div class="card"><h3><span class="num">6</span>Materiel Development Decision<span class="tag hil">K9X HIL</span></h3>
+        <p>The Milestone Decision Authority decides the phase of entry and the initial review milestone.</p></div>
+      <div class="card"><h3><span class="num">7</span>MSA → Milestone A package<span class="tag das">DAS</span></h3>
+        <p>AoA summary and affordability, the Alternative Systems Review (a best-practice review leading to a draft performance specification), and a proposed acquisition strategy matched to a pathway, judged against the Milestone A criteria.</p></div>
+      <div class="card"><h3><span class="num">8</span>Milestone A<span class="tag hil">K9X HIL</span></h3>
+        <p>The MDA approves entry into Technology Maturation and Risk Reduction and the acquisition strategy, including its pathway.</p></div>
+      <div class="card"><h3><span class="num">9</span>TMRR: SRR package<span class="tag das">DAS</span></h3>
+        <p>System requirements with traceability to the requirement document, judged against the SRR criteria: consistent, measurable, testable.</p></div>
+      <div class="card"><h3><span class="num">10</span>System Requirements Review<span class="tag hil">K9X HIL</span></h3>
+        <p>The Service-appointed technical review chair decides. The built flow ends here; later reviews and Milestone B are designed, not built.</p></div>
+    </div>
+  </section>
+
+  <section id="policy">
+    <h2>Current as of October 2026</h2>
+    <p class="sub">JCIDS was ended in 2025 and replaced by the Joint Force Requirements Process. DAS follows the documents in force today, and keeps the process in one dated, versioned file (<code>process_model.yaml</code>, version <b>mca-2026-10</b>) in which every stage and gate cites its source. When the policy changes, the file gets a new version; past jobs keep the version they ran under.</p>
+    <div class="grid">
+      <div class="card"><h3>Requirements</h3>
+        <p>SecDef memo, 20 Aug 2025 (Services validate their own requirements); <a href="https://www.jcs.mil/Library/CJCS-Instructions/" target="_blank" rel="noopener">CJCSI 5123.01J CH 1</a> and <a href="https://www.jcs.mil/library/cjcs-manuals/" target="_blank" rel="noopener">CJCSM 5123.01A</a>, 5 Aug 2026 (Joint Force Requirements Process, JCI review, Joint Staffing Designators).</p></div>
+      <div class="card"><h3>Acquisition</h3>
+        <p>DoWI 5000.02 Change 2, 8 Apr 2026 (Adaptive Acquisition Framework, six pathways); DoDI 5000.85 (Major Capability Acquisition: MDD, MSA, Milestone A, TMRR).</p></div>
+      <div class="card"><h3>Systems engineering</h3>
+        <p>DoD Systems Engineering Guidebook, 2022: the Alternative Systems Review (best practice) and the System Requirements Review criteria.</p></div>
     </div>
   </section>
 
   <section id="flow">
     <h2>The flow</h2>
-    <p class="sub">Left to right, one job. Solid arrows run today; the dashed loops (request changes, revise, re-review) are designed but not yet built.</p>
-    <div class="figure"><img src="/static/das-hil-flow-dark.svg" alt="DAS flow: 1 JCIDS, 2 JROC review in K9X HIL, 3 DAS admin starts, 4 Acquisition, 5 Milestone review in K9X HIL, 6 DAS admin starts, 7 SE demonstration endpoint"></div>
+    <p class="sub">One job, drawn from the process model itself. Blue: DAS prepares; green: a person decides in K9X HIL; amber: the joint review, in parallel.</p>
+    <div class="figure"><img src="/static/das-hil-flow-dark.svg" alt="DAS flow: 1 upload with Docling OCR, 2 screening, 3 requirement, 4 Service validation in K9X HIL with the JCI review in parallel, 5 MDD package, 6 MDD in K9X HIL, 7 MSA and Milestone A package, 8 Milestone A in K9X HIL, 9 SRR package, 10 SRR in K9X HIL"></div>
     <p class="caption">Every decision (who, when, comment) is kept with the job and shown in Jobs in Pipeline.</p>
   </section>
 
@@ -200,15 +223,15 @@
     <p class="sub">DAS is a solution built on K9-AIF: each part extends a framework building block, and the stages talk only through events.</p>
     <div class="grid">
       <div class="card"><h3>Router → Orchestrators → Squads → Agents</h3>
-        <p>The DAS Router routes each event to a stage orchestrator (JCIDS, Acquisition, SE). Orchestrators run squads; squads run agents in order, each building on the previous agent's output. No layer knows its caller.</p></div>
+        <p>The DAS Router routes each event to a stage orchestrator (Requirement, MSA, TMRR), taking the next stage from the process model. Orchestrators run squads; squads run agents in order, each enriching the shared context for the next. No layer knows its caller.</p></div>
       <div class="card"><h3>Event backbone (Kafka)</h3>
-        <p>Stages and reviews are connected by topics, e.g. <code>workflow.hil.das.jroc</code> for the review task and <code>das.jroc.replies</code> for the decision. Only the Router publishes to stage topics.</p></div>
+        <p>Stages and reviews are connected by topics, e.g. <code>workflow.hil.das.mdd</code> for the MDD review task and <code>das.mdd.replies</code> for the decision. Only the Router publishes to stage topics.</p></div>
       <div class="card"><h3>K9X HIL</h3>
         <p>A separate human-in-the-loop system. It receives review tasks, records the human decision, and publishes it back to the system that asked. <a href="https://hil.k9x.ai" target="_blank" rel="noopener">hil.k9x.ai</a></p></div>
       <div class="card"><h3>Decisions and results kept by job</h3>
         <p>Each stage's result and each HIL decision is stored in object storage by job id, so Jobs in Pipeline survives restarts and a decision days later still resumes the right job.</p></div>
       <div class="card"><h3>Models, local</h3>
-        <p>Agents run on <b id="model">a local model</b> through Ollama on a single workstation GPU; Granite Guardian adds an advisory safety check on the assembled package. No cloud model is used.</p></div>
+        <p>Agents run on <b id="model">a local model</b> through Ollama on a single workstation GPU; Docling converts documents and Granite Guardian screens them, both local. No cloud model is used.</p></div>
       <div class="card"><h3>Knowledge corpus</h3>
         <p>Reference passages come from a vector store in PostgreSQL (pgvector): synthetic here, authoritative DoW sources in a real deployment. See <a href="#knowledge">Knowledge corpus</a> below.</p></div>
       <div class="card"><h3>Roles</h3>
@@ -218,10 +241,10 @@
 
   <section id="knowledge">
     <h2>Knowledge corpus</h2>
-    <p class="sub">An ICD is stronger when it relates a new capability need to precedent programs and reference architectures, not just restates the input. DAS does this with retrieval, kept strictly separate from the submitted document's own facts.</p>
+    <p class="sub">A requirement package is stronger when it relates a new capability need to precedent programs and reference architectures, not just restates the input. DAS does this with retrieval, kept strictly separate from the submitted document's own facts.</p>
     <div class="grid">
       <div class="card"><h3><span class="num">1</span>What is in it</h3>
-        <p>In this demonstration, a <b>synthetic, fictional corpus</b> (<code>data/synthetic_corpus/</code>): three prior CDDs for made-up programs (TALON, MERIDIAN, GRIFFON), DoDAF 2.0 operational and systems/capability view authoring references, and a JROC / Milestone review-package reference. No real program or DoD data.</p></div>
+        <p>In this demonstration, a <b>synthetic, fictional corpus</b> (<code>data/synthetic_corpus/</code>): three prior CDDs for made-up programs (TALON, MERIDIAN, GRIFFON), DoDAF 2.0 operational and systems/capability view authoring references, and a review-package reference. No real program or DoD data.</p></div>
       <div class="card"><h3><span class="num">2</span>How it is built</h3>
         <p>Each document is split into sections, each section is embedded with <code>nomic-embed-text</code> (768-dimension vectors, run locally through Ollama), and stored with its text and source in PostgreSQL.</p></div>
       <div class="card"><h3><span class="num">3</span>Where it is stored</h3>
@@ -231,9 +254,9 @@
     </div>
     <div class="card" style="margin-top:14px;border-color:var(--amber)">
       <h3 style="color:var(--amber)">In a real deployment: a DowRetriever</h3>
-      <p>DAS uses <code>K9Retriever</code>, the framework's general retriever (it extends the <code>BaseRetriever</code> building block). A DoW deployment would add a <b>DowRetriever</b>: another <code>BaseRetriever</code> extension, plugged in the same way through configuration, pointed at <b>authoritative DoW knowledge sources</b> such as prior CDDs and ICDs from program repositories, DoDAF reference architectures, JCIDS and acquisition policy and regulations, and lessons learned. It would respect each source's classification and access rules, and its passages could be graphed alongside the ICD's own entities to show how a new need relates to precedent programs. The agents, squads and gates do not change; only the retriever's sources do. The DowRetriever is a design, not part of this demo.</p>
+      <p>DAS uses <code>K9Retriever</code>, the framework's general retriever (it extends the <code>BaseRetriever</code> building block). A DoW deployment would add a <b>DowRetriever</b>: another <code>BaseRetriever</code> extension, plugged in the same way through configuration, pointed at <b>authoritative DoW knowledge sources</b> such as prior CDDs and ICDs from program repositories, DoDAF reference architectures, requirements and acquisition policy and regulations, and lessons learned. It would respect each source's classification and access rules, and its passages could be graphed alongside the requirement's own entities to show how a new need relates to precedent programs. The agents, squads and gates do not change; only the retriever's sources do. The DowRetriever is a design, not part of this demo.</p>
     </div>
-    <p class="caption">Status in this hosted demonstration: the corpus and the pgvector table are configured but <b>not yet loaded</b>, so ICDs currently reflect the submitted document alone.</p>
+    <p class="caption">Status in this hosted demonstration: the corpus and the pgvector table are configured but <b>not yet loaded</b>, so packages currently reflect the submitted document alone.</p>
   </section>
 
   <section id="k9aif">
@@ -271,8 +294,9 @@
       <h2 style="margin-bottom:4px">Scope of this demonstration</h2>
       <ul>
         <li>Input documents are <b>synthetic</b> and fictional (no real program or DoD data); outputs have not been reviewed by acquisition experts.</li>
-        <li>The reference knowledge corpus is synthetic as well, and is <b>not yet loaded</b> here: ICDs currently reflect the submitted document alone.</li>
-        <li>Systems Engineering is a <b>demonstration endpoint</b>; its review squads are not implemented.</li>
+        <li>The reference knowledge corpus is synthetic as well, and is <b>not yet loaded</b> here: packages currently reflect the submitted document alone.</li>
+        <li>Built: the Major Capability Acquisition pathway to Milestone A and the System Requirements Review. Later reviews (SFR, PDR), CDD-equivalent validation, Milestone B and the other five pathways are <b>designed in the process model, not built</b>.</li>
+        <li>Paraphrased manipulation can pass both screening checks; the human reviewer and the agents' treatment of all document text as data are the next lines of defence.</li>
         <li>The review loop (request changes, revise the document, re-review) is <b>designed, not built</b>.</li>
         <li>This is a public demonstration: the logins above are shared, and runs are visible to the operator.</li>
       </ul>
