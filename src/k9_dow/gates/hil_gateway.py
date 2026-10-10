@@ -117,6 +117,15 @@ def gate_approved_event(gate_id: str, reply: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+# Where each gate's task appears in K9X HIL (application › queue).
+GATE_HIL_PLACE: Dict[str, Dict[str, str]] = {
+    "JROC-VALIDATION": {"application": "JCIDS", "queue": "JROC Review", "topic": "workflow.hil.das.jroc"},
+    "PATHWAY-MILESTONE": {"application": "Acquisition", "queue": "Pathway Milestone Review",
+                          "topic": "workflow.hil.das.pathway"},
+    **{g.id: {"application": g.hil_application, "queue": g.hil_queue_name, "topic": g.task_topic}
+       for g in _PM.gates.values()},
+}
+
 # Run each gate's approval starts (gates that start nothing are absent).
 GATE_NEXT_STAGE: Dict[str, str] = {g.id: g.approval_starts for g in _PM.gates.values() if g.approval_starts}
 
@@ -261,7 +270,7 @@ def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]]
                 nxt, key = {"JROC-VALIDATION": ("acquisition", "jroc_decision"),
                             "PATHWAY-MILESTONE": ("se", "milestone_decision")}[gate_id]
                 rec = (data.get(nxt) or {}).get(key) or None
-            step = {"step": gate_id, "kind": "gate"}
+            step = {"step": gate_id, "kind": "gate", "hil": GATE_HIL_PLACE.get(gate_id)}
             if not legacy and not _PM.gate(gate_id).blocking:
                 step["parallel"] = True
             if rec:

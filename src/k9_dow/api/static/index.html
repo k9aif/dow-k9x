@@ -1021,11 +1021,15 @@ function jobStepChip(st, hilUrl) {
   let text = label;
   if (st.kind === 'gate') {
     if (st.state === 'approved') text += ' ✓ ' + esc(st.actor || '');
-    else if (st.state === 'pending') text += ' — awaiting decision';
+    else if (st.state === 'pending') text += ' — awaiting decision' +
+      (st.hil && st.hil.application ? ` in K9X HIL › ${esc(st.hil.application)} › ${esc(st.hil.queue)}` : ' in K9X HIL');
     else if (st.state !== 'not_reached') text += ' — ' + esc(st.state) + (st.actor ? ' by ' + esc(st.actor) : '');
   } else if (st.state === 'done') text += st.demo ? ' ✓ (demo)' : ' ✓';
   else if (st.state === 'running') text += ' — running' + (st.started_by && st.started_by !== 'auto' ? ' (started by ' + esc(st.started_by) + ')' : '');
-  const when = st.decided_at ? ` title="${esc(new Date(st.decided_at).toLocaleString())}${st.comment ? ' — ' + esc(st.comment) : ''}"` : '';
+  const where = st.hil && st.hil.application ? `K9X HIL › ${st.hil.application} › ${st.hil.queue} (topic ${st.hil.topic})` : '';
+  const when = st.decided_at
+    ? ` title="${esc(new Date(st.decided_at).toLocaleString())}${st.comment ? ' — ' + esc(st.comment) : ''}${where ? ' — ' + esc(where) : ''}"`
+    : (where ? ` title="${esc(where)}"` : '');
   const chip = `<span${when} style="display:inline-block;border:1px solid ${c};color:${st.state==='not_reached'?'var(--text2)':c};border-radius:4px;padding:2px 7px;margin:2px 3px 2px 0;font-size:11px;opacity:${st.state==='not_reached'?0.5:1}">${text}</span>`;
   return st.kind === 'gate' && st.state === 'pending'
     ? `<a href="${esc(hilUrl)}" target="_blank" rel="noopener" style="text-decoration:none">${chip}</a>` : chip;

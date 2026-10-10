@@ -373,3 +373,26 @@ def test_an_injected_reviewer_comment_never_reaches_the_agents(monkeypatch):
     ev = squads["MddPackageSquad"].seen[0]["prior_outputs"]["SERVICE-VALIDATION decision (human, of record)"]
     assert ev["comment"].startswith("[comment withheld") and "Ignore all" not in str(squads)
     assert "ShieldWithheldComment" in [e["type"] for e in events]
+
+
+def test_history_says_where_each_gate_waits_in_hil(monkeypatch):
+    stored = {"requirement": {"status": "awaiting_gate"}}
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: stored.get(stage))
+    steps = {s["step"]: s for s in hil_gateway.job_history({}, "job-9", list(stored))["steps"]}
+    assert steps["SERVICE-VALIDATION"]["hil"] == {"application": "Requirements (JFRP)",
+                                                  "queue": "Service Requirements Validation",
+                                                  "topic": "workflow.hil.das.service-validation"}
+    assert steps["MDD"]["hil"]["application"] == "Major Capability Acquisition"
+
+
+def test_hil_places_match_the_hil_seed():
+    """The names DAS shows must be the names K9X HIL creates (k9x-hil backend/seed.py)."""
+    from pathlib import Path
+    seed = Path(__file__).resolve().parents[2] / "k9x-hil" / "backend" / "seed.py"
+    if not seed.exists():
+        pytest.skip("k9x-hil checkout not beside dow-k9-aif")
+    text = seed.read_text()
+    for gid in PROCESS_GATES:
+        place = hil_gateway.GATE_HIL_PLACE[gid]
+        assert f'name="{place["application"]}"' in text, place
+        assert f'name="{place["queue"]}"' in text and f'topic="{place["topic"]}"' in text, place

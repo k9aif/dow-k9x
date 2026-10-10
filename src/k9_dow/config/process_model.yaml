@@ -94,11 +94,14 @@ process_model:
   # prepared_by: the run whose package the gate reviews; approval_starts: the run an approval
   # starts (null: the flow ends, or the gate records a decision only, as JCI-REVIEW does).
   # hil_queue: K9X HIL task topic workflow.hil.<hil_queue>; decisions on <hil_queue>.replies.
+  # hil_application / hil_queue_name: where the task appears in K9X HIL (k9x-hil backend/seed.py).
   gates:
     SERVICE-VALIDATION:
       prepared_by: requirement
       approval_starts: mdd_package
       hil_queue: das.service-validation
+      hil_application: "Requirements (JFRP)"
+      hil_queue_name: "Service Requirements Validation"
       authority: Service requirements board
       blocking: true
       entry_criteria:
@@ -116,6 +119,8 @@ process_model:
       prepared_by: requirement
       approval_starts: null
       hil_queue: das.jci-review
+      hil_application: "Requirements (JFRP)"
+      hil_queue_name: "JCI Review"
       authority: "JROC, JCB or FCB by Joint Staffing Designator (Service Information: awareness only)"
       blocking: false
       entry_criteria:
@@ -127,6 +132,8 @@ process_model:
       prepared_by: mdd_package
       approval_starts: msa
       hil_queue: das.mdd
+      hil_application: "Major Capability Acquisition"
+      hil_queue_name: "Materiel Development Decision"
       authority: "Milestone Decision Authority (Service Chief concurrence for MDAPs)"
       blocking: true
       entry_criteria:
@@ -139,6 +146,8 @@ process_model:
       prepared_by: msa
       approval_starts: tmrr
       hil_queue: das.milestone-a
+      hil_application: "Major Capability Acquisition"
+      hil_queue_name: "Milestone A"
       authority: "Milestone Decision Authority (Service Chief concurrence for MDAPs)"
       blocking: true
       entry_criteria:
@@ -161,6 +170,8 @@ process_model:
       prepared_by: tmrr
       approval_starts: null
       hil_queue: das.srr
+      hil_application: "Major Capability Acquisition"
+      hil_queue_name: "System Requirements Review"
       type: REVIEW_APPROVE      # a technical review; the others are PREPARE_DECIDE (agents prepare, a person decides)
       authority: "Technical review chair appointed by the Service; criteria tailored by the Chief Engineer"
       blocking: true

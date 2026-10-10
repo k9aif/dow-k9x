@@ -48,6 +48,8 @@ class Gate:
     prepared_by: str = ""
     approval_starts: Optional[str] = None
     hil_queue: str = ""
+    hil_application: str = ""
+    hil_queue_name: str = ""
 
     @property
     def task_topic(self) -> str:
@@ -179,6 +181,7 @@ def parse_process_model(data: Dict[str, Any]) -> ProcessModel:
             criteria_note=g.get("criteria_note", ""),
             prepared_by=g.get("prepared_by", ""), approval_starts=g.get("approval_starts"),
             hil_queue=g.get("hil_queue", ""),
+            hil_application=g.get("hil_application", ""), hil_queue_name=g.get("hil_queue_name", ""),
         )
         for gid, g in raw["gates"].items()
     }
