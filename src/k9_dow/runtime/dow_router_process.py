@@ -28,6 +28,7 @@ except ImportError:
 from k9_aif_abb.k9_utils.config_loader import load_yaml
 from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
 from k9_dow.routers.das_router import DasRouter, DAS_TOPICS
+from k9_dow.config.instance import group as _group, topic as _topic
 from k9_dow.gates.hil_gateway import (GATE_INPUT_STAGE, GATE_TOPICS, approvers,
                                       gate_approved_event, mark_started, resume_mode,
                                       save_gate_decision, stage_result_exists, GATE_NEXT_STAGE)
@@ -38,8 +39,8 @@ logging.basicConfig(
 )
 log = logging.getLogger("dow.router_process")
 
-INBOUND_TOPIC = "dow.router.in"
-GROUP_ID = "dow-router"
+INBOUND_TOPIC = _topic("dow.router.in")
+GROUP_ID = _group("dow-router")
 
 
 def _load_config() -> dict:
@@ -76,7 +77,7 @@ async def main() -> None:
         outbound_buses[topic] = K9EventBus(
             broker_url=broker,
             topic=topic,
-            group_id=f"dow-router-pub-{label}",
+            group_id=_group(f"dow-router-pub-{label}"),
         )
 
     inbound_bus = K9EventBus(
@@ -182,7 +183,7 @@ async def main() -> None:
         return handle_reply
 
     reply_buses = [
-        (K9EventBus(broker_url=broker, topic=t["reply_topic"], group_id=f"dow-router-hil-{gate_id.lower()}"), gate_id)
+        (K9EventBus(broker_url=broker, topic=t["reply_topic"], group_id=_group(f"dow-router-hil-{gate_id.lower()}")), gate_id)
         for gate_id, t in GATE_TOPICS.items()
     ]
 

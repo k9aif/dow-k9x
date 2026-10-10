@@ -74,7 +74,8 @@ def save_original(config: Dict[str, Any], job_id: str, filename: str, content: b
     try:
         from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
         store = ObjectStorageFactory.create(config)
-        key = f"by-job/{job_id}/original/{Path(filename).name}"
+        from k9_dow.config.instance import key_prefix
+        key = f"{key_prefix()}by-job/{job_id}/original/{Path(filename).name}"
         store.upload(ORIGINALS_BUCKET, key, content)
         return store.get_uri(ORIGINALS_BUCKET, key)
     except Exception as exc:

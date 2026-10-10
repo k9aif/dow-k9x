@@ -49,9 +49,24 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DAS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="${DAS_DEPLOY_DIR:-$(cd "$DAS_DIR/.." && pwd)}"
 DAS_DIRNAME="$(basename "$DAS_DIR")"
-VOLUMES_DIR="${HOME}/containers/volumes/dow"
-IMAGE="k9-aif-das:latest"
-POD_NAME="k9-dow-pod"
+# DAS_INSTANCE (from the shell or .env): empty = the live DAS, exactly as before. Set (e.g. "next")
+# for a second DAS beside it from another checkout: its own image, pod, port, Kafka topics and
+# groups, job queue and storage prefix (src/k9_dow/config/instance.py).
+_envfile_val() { { grep -E "^$1=" "$DAS_DIR/.env" 2>/dev/null || true; } | tail -1 | cut -d= -f2- | sed -e 's/^["'"'"']//' -e 's/["'"'"']$//'; }
+DAS_INSTANCE="${DAS_INSTANCE:-$(_envfile_val DAS_INSTANCE)}"
+if [[ -n "$DAS_INSTANCE" ]]; then
+  VOLUMES_DIR="${HOME}/containers/volumes/dow-${DAS_INSTANCE}"
+  IMAGE="k9-aif-das:${DAS_INSTANCE}"
+  POD_NAME="k9-dow-pod-${DAS_INSTANCE}"
+  HOST_PORT="${DAS_PORT:-$(_envfile_val DAS_PORT)}"; HOST_PORT="${HOST_PORT:-8010}"
+  DAS_PUBLIC_URL="${DAS_PUBLIC_URL:-$(_envfile_val DAS_PUBLIC_URL)}"; DAS_PUBLIC_URL="${DAS_PUBLIC_URL:-https://das-${DAS_INSTANCE}.k9x.ai}"
+else
+  VOLUMES_DIR="${HOME}/containers/volumes/dow"
+  IMAGE="k9-aif-das:latest"
+  POD_NAME="k9-dow-pod"
+  HOST_PORT="${DAS_PORT:-$(_envfile_val DAS_PORT)}"; HOST_PORT="${HOST_PORT:-8000}"
+  DAS_PUBLIC_URL="${DAS_PUBLIC_URL:-$(_envfile_val DAS_PUBLIC_URL)}"; DAS_PUBLIC_URL="${DAS_PUBLIC_URL:-https://das.k9x.ai}"
+fi
 
 cmd="${1:-help}"
 
@@ -159,11 +174,13 @@ case "$cmd" in
         OLLAMA_HOST="$OLLAMA_HOST_CFG"; OLLAMA_SRC=".env" ;;
     esac
     sed -e "s/<PODMAN_HOST_IP>/${PODMAN_HOST_IP}/g" -e "s|<OLLAMA_MODEL>|${OLLAMA_MODEL}|g" \
+        -e "s|<POD_NAME>|${POD_NAME}|g" -e "s|<IMAGE>|${IMAGE}|g" -e "s|<HOST_PORT>|${HOST_PORT}|g" \
+        -e "s|<DAS_INSTANCE>|${DAS_INSTANCE}|g" -e "s|<DAS_PUBLIC_URL>|${DAS_PUBLIC_URL}|g" \
         -e "s|<DAS_RESUME_MODE>|${DAS_RESUME_MODE}|g" -e "s|<DAS_ADMIN_USER>|${DAS_ADMIN_USER}|g" \
         -e "s|<DAS_ADMIN_PASSWORD>|${DAS_ADMIN_PASSWORD}|g" -e "s|<DAS_SESSION_SECRET>|${DAS_SESSION_SECRET}|g" -e "s|<GRADER_MODEL>|${GRADER_MODEL}|g" -e "s|<OLLAMA_NUM_CTX>|${OLLAMA_NUM_CTX}|g" -e "s|<OLLAMA_HOST>|${OLLAMA_HOST}|g" -e "s|<OLLAMA_DISPLAY_NAME>|${OLLAMA_DISPLAY_NAME}|g" \
       "$DAS_DIR/ubuntu/das-pod.yaml" > "$RENDERED_YAML"
     [ -n "$DAS_ADMIN_PASSWORD" ] || echo "Note: DAS_ADMIN_PASSWORD not set in .env -- no admin login (nobody can start the next stage in manual mode)."
-    echo "Deploying pod: $POD_NAME (3 containers, host IP ${PODMAN_HOST_IP}, model ${OLLAMA_MODEL}, num_ctx ${OLLAMA_NUM_CTX}) ..."
+    echo "Deploying pod: $POD_NAME (3 containers, port ${HOST_PORT}, instance '${DAS_INSTANCE:-live}', ${DAS_PUBLIC_URL}, host IP ${PODMAN_HOST_IP}, model ${OLLAMA_MODEL}, num_ctx ${OLLAMA_NUM_CTX}) ..."
     echo "Ollama: ${OLLAMA_HOST} (from ${OLLAMA_SRC})"
     sudo podman play kube "$RENDERED_YAML" --replace
     echo ""
@@ -173,8 +190,8 @@ case "$cmd" in
     HOST_IP=$(hostname -I | awk '{print $1}')
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  DAS — Defense Acquisition System"
-    echo "  Web UI:  http://${HOST_IP}:8000/"
-    echo "  Health:  http://${HOST_IP}:8000/health"
+    echo "  Web UI:  http://${HOST_IP}:${HOST_PORT}/   (public: ${DAS_PUBLIC_URL})"
+    echo "  Health:  http://${HOST_IP}:${HOST_PORT}/health"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "Logs:"
@@ -207,8 +224,8 @@ case "$cmd" in
 
   down)
     echo "Stopping pod: $POD_NAME ..."
-    sudo podman stop das-demo 2>/dev/null || true
-    sudo podman play kube "$DAS_DIR/ubuntu/das-pod.yaml" --down || true
+    [[ -z "$DAS_INSTANCE" ]] && { sudo podman stop das-demo 2>/dev/null || true; }
+    sudo podman pod rm -f "$POD_NAME" 2>/dev/null || true
     echo "Pod stopped."
     ;;
 

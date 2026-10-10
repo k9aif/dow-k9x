@@ -39,7 +39,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: k9-dow-pod
+  name: <POD_NAME>
   labels:
     app: k9-aif-das
     component: defense-acquisition-system
@@ -61,13 +61,13 @@ spec:
 
   # -- Container 1: app-backend -------------------------------------------
   - name: app-backend
-    image: localhost/k9-aif-das:latest
+    image: localhost/<IMAGE>
     imagePullPolicy: Never
 
     ports:
     - name: http
       containerPort: 8000
-      hostPort: 8000
+      hostPort: <HOST_PORT>
       protocol: TCP
 
     command: ["uvicorn"]
@@ -145,6 +145,10 @@ spec:
       value: "<OLLAMA_DISPLAY_NAME>"
     - name: K9_ENV
       value: "production"
+    - name: DAS_INSTANCE
+      value: "<DAS_INSTANCE>"
+    - name: DAS_PUBLIC_URL
+      value: "<DAS_PUBLIC_URL>"
 
     resources:
       requests:
@@ -173,7 +177,7 @@ spec:
 
   # -- Container 2: das-router --------------------------------------------
   - name: das-router
-    image: localhost/k9-aif-das:latest
+    image: localhost/<IMAGE>
     imagePullPolicy: Never
 
     command: ["python", "-m", "k9_dow.runtime.dow_router_process"]
@@ -219,6 +223,10 @@ spec:
       value: "/app/dow-k9-aif/src"
     - name: K9_ENV
       value: "production"
+    - name: DAS_INSTANCE
+      value: "<DAS_INSTANCE>"
+    - name: DAS_PUBLIC_URL
+      value: "<DAS_PUBLIC_URL>"
 
     resources:
       requests:
@@ -231,7 +239,7 @@ spec:
 
   # -- Container 3: das-orchestrator ---------------------------------------
   - name: das-orchestrator
-    image: localhost/k9-aif-das:latest
+    image: localhost/<IMAGE>
     imagePullPolicy: Never
 
     command: ["python", "-m", "k9_dow.runtime.dow_orchestrator_process"]
@@ -283,6 +291,10 @@ spec:
       value: "/app/dow-k9-aif/src"
     - name: K9_ENV
       value: "production"
+    - name: DAS_INSTANCE
+      value: "<DAS_INSTANCE>"
+    - name: DAS_PUBLIC_URL
+      value: "<DAS_PUBLIC_URL>"
 
     resources:
       requests:

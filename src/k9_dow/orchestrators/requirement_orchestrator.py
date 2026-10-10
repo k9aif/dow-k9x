@@ -184,7 +184,8 @@ class RequirementOrchestrator(ProcessStageOrchestrator):
         try:
             from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
             store = ObjectStorageFactory.create(self.config)
-            key = f"by-job/{job_id}/screening/Document_Screening_Report.md"
+            from k9_dow.config.instance import key_prefix
+            key = f"{key_prefix()}by-job/{job_id}/screening/Document_Screening_Report.md"
             if "screened_at" in report:
                 store.upload(STAGE_BUCKET, key, report_markdown(report).encode("utf-8"))
                 report["report_uri"] = store.get_uri(STAGE_BUCKET, key)

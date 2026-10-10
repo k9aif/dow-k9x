@@ -52,7 +52,8 @@ _sse_clients: list = []
 # ever in flight at a time -- deliberately kept invisible to the UI (no
 # new tab, no cancel) per explicit direction to not complicate this.
 _QUEUE_ENDPOINT = os.environ.get("DAS_QUEUE_ENDPOINT", "http://localhost:9324")
-_QUEUE_NAME = "das-job-queue"
+from k9_dow.config.instance import group as _inst_group, topic as _inst_topic
+_QUEUE_NAME = _inst_group("das-job-queue")
 _dispatch_state = {"running_job_id": None}
 
 
@@ -81,7 +82,7 @@ def _publish_to_router(event: dict) -> None:
     exactly one job is in flight at a time."""
     from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
     broker = _config.get("messaging", {}).get("bootstrap_servers", "localhost:9092")
-    bus = K9EventBus(broker_url=broker, topic="dow.router.in", group_id="das-app")
+    bus = K9EventBus(broker_url=broker, topic=_inst_topic("dow.router.in"), group_id=_inst_group("das-app"))
     bus.publish(event)
     if bus._producer:
         bus._producer.flush()
@@ -156,7 +157,7 @@ async def _consume_results():
     try:
         from aiokafka import AIOKafkaConsumer
         consumer = AIOKafkaConsumer(
-            "das.results",
+            _inst_topic("das.results"),
             bootstrap_servers=[broker],
             group_id=f"das-app-sse-{uuid.uuid4()}",
             auto_offset_reset="latest",

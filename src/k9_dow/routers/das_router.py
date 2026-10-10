@@ -10,7 +10,9 @@ from k9_aif_abb.k9_core.router.base_router import BaseRouter
 log = logging.getLogger(__name__)
 
 # One topic per run of the process model (config/process_model.yaml), plus side checks.
-DAS_TOPICS = {
+from k9_dow.config.instance import topic as _topic
+
+DAS_TOPICS = {k: _topic(v) for k, v in {
     "requirement": "das.requirement",
     "mdd_package": "das.mdd",
     "msa": "das.msa",
@@ -18,7 +20,7 @@ DAS_TOPICS = {
     "traceability": "das.traceability",
     "drift": "das.drift",
     "results": "das.results",
-}
+}.items()}
 
 
 class DasRouter(BaseRouter):

@@ -26,6 +26,7 @@ from k9_dow.orchestrators.msa_orchestrator import MsaOrchestrator
 from k9_dow.orchestrators.tmrr_orchestrator import TmrrOrchestrator
 from k9_dow.orchestrators.traceability_orchestrator import TraceabilityOrchestrator
 from k9_dow.routers.das_router import DAS_TOPICS
+from k9_dow.config.instance import group as _group
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,8 +35,8 @@ logging.basicConfig(
 log = logging.getLogger("dow.orchestrator_process")
 
 DOMAIN_TOPICS = [DAS_TOPICS[k] for k in ("requirement", "mdd_package", "msa", "tmrr", "traceability", "drift")]
-RESULTS_TOPIC = "das.results"
-GROUP_ID = "dow-orchestrator"
+RESULTS_TOPIC = DAS_TOPICS["results"]
+GROUP_ID = _group("dow-orchestrator")
 
 
 def _load_config() -> dict:

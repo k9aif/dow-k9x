@@ -29,6 +29,7 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
+from k9_dow.config.instance import group as _group, key_prefix
 from k9_dow.config.process_model import load_process_model
 
 _PM = load_process_model()
@@ -91,7 +92,7 @@ def publish_gate_task(
     try:
         from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
         bus = K9EventBus(broker_url=_broker(config), topic=topics["task_topic"],
-                         group_id=f"das-gate-{gate_id.lower()}")
+                         group_id=_group(f"das-gate-{gate_id.lower()}"))
         bus.publish(task)
         if bus._producer:
             bus._producer.flush()
@@ -158,7 +159,7 @@ def approvers() -> Optional[set]:
 # ── Stage results by job id ─────────────────────────────────────────
 
 def _stage_key(job_id: str, stage: str) -> str:
-    return f"by-job/{job_id}/{stage}.json"
+    return f"{key_prefix()}by-job/{job_id}/{stage}.json"
 
 
 def save_stage_result(config: Dict[str, Any], job_id: str, stage: str, result: Dict[str, Any]) -> Optional[str]:
@@ -235,8 +236,8 @@ def list_job_ids(config: Dict[str, Any]) -> Dict[str, List[str]]:
     from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
     store = ObjectStorageFactory.create(config)
     jobs: Dict[str, List[str]] = {}
-    for key in store.list_objects(STAGE_BUCKET, prefix="by-job/") or []:
-        parts = key.split("/")
+    for key in store.list_objects(STAGE_BUCKET, prefix=f"{key_prefix()}by-job/") or []:
+        parts = key[len(key_prefix()):].split("/")
         if len(parts) == 3 and parts[2].endswith(".json"):
             jobs.setdefault(parts[1], []).append(parts[2][:-5])
     return jobs
