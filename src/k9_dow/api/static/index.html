@@ -148,10 +148,19 @@
   <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
     <a href="/" target="_blank" rel="noopener" style="font-size:10px;color:var(--text2);text-decoration:none;border:1px solid var(--border);border-radius:4px;padding:2px 7px" title="What this demo is, the flow and the architecture (opens in a new tab)">About this demo ↗</a>
     <span style="position:relative">
-      <span id="userChip" onclick="toggleUserMenu(event)" title="Account" style="font-size:10px;font-family:var(--mono);color:var(--text2);cursor:pointer;border:1px solid var(--border);border-radius:4px;padding:2px 7px"></span>
-      <div id="userMenu" hidden style="position:absolute;right:0;top:22px;z-index:50;min-width:190px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px;box-shadow:0 6px 18px rgba(0,0,0,.35)">
-        <div onclick="signOut(true)" style="padding:7px 10px;font-size:12px;color:var(--text);cursor:pointer;border-radius:4px" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">Sign in as a different user…</div>
-        <div onclick="signOut(false)" style="padding:7px 10px;font-size:12px;color:var(--red);cursor:pointer;border-radius:4px" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">Sign out</div>
+      <span id="userChip" onclick="toggleUserMenu(event)" title="Account: who you are, switch user, sign out" style="margin-left:6px;font-size:10px;font-family:var(--mono);color:var(--text2);cursor:pointer;border:1px solid var(--border);border-radius:4px;padding:2px 7px"></span>
+      <div id="userMenu" hidden onclick="event.stopPropagation()" style="position:absolute;right:0;top:24px;z-index:50;width:250px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;box-shadow:0 8px 22px rgba(0,0,0,.4);font-size:12px">
+        <div style="color:var(--text2);font-size:10px;text-transform:uppercase;letter-spacing:.5px">Signed in as</div>
+        <div id="acctWho" style="color:var(--text);font-weight:600;margin:2px 0 10px"></div>
+        <div style="color:var(--text2);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Switch user</div>
+        <form onsubmit="acctLogin(event)" style="display:flex;flex-direction:column;gap:6px">
+          <input id="acctUser" placeholder="User (e.g. admin)" autocomplete="username" style="padding:5px 7px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px">
+          <input id="acctPass" type="password" placeholder="Password" autocomplete="current-password" style="padding:5px 7px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px">
+          <button type="submit" style="padding:5px;background:var(--accent);color:#fff;border:0;border-radius:4px;font-size:12px;cursor:pointer">Sign in</button>
+          <div id="acctErr" style="color:var(--red);font-size:11px;min-height:0"></div>
+        </form>
+        <div id="acctQuick" style="margin-top:6px"></div>
+        <div onclick="signOut(false)" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);color:var(--red);cursor:pointer">Sign out</div>
       </div>
     </span>
     <span id="nowClock" style="font-size:10px;font-family:var(--mono);color:var(--text2)"></span>
@@ -1181,7 +1190,7 @@ function nextActionHtml(j) {
   }
   // Other users see the same action, inactive: only the DAS admin starts runs.
   return `<div style="margin-top:8px;display:flex;gap:10px;align-items:center">
-      <button onclick="signOut(true)" title="Sign in as the DAS admin" style="background:none;color:var(--text2);border:1px dashed var(--border);border-radius:4px;padding:5px 12px;font-size:12px;cursor:pointer">${label}</button>
+      <button onclick="window.scrollTo(0,0); toggleUserMenu(event)" title="Sign in as the DAS admin" style="background:none;color:var(--text2);border:1px dashed var(--border);border-radius:4px;padding:5px 12px;font-size:12px;cursor:pointer">${label}</button>
       <span style="color:var(--orange);font-size:11px">${why} Waiting for the DAS admin (sign in as admin to ${j.next_action.retry ? 'retry' : j.next_action.override ? 'resume' : 'start'}).</span></div>`;
 }
 async function advanceJob(jobId, btn) {
@@ -1698,6 +1707,37 @@ fetch('/auth/public').then(r => r.json()).then(d => {
 function toggleUserMenu(e) {
   e.stopPropagation();
   const m = document.getElementById('userMenu'); m.hidden = !m.hidden;
+  if (m.hidden) return;
+  const u = sessionStorage.getItem('k9x_das_user') || '?';
+  document.getElementById('acctWho').textContent = u + (state.role === 'admin' ? ' (DAS admin)' : ' (viewer)');
+  document.getElementById('acctErr').textContent = '';
+  // One click to the public admin login when this deployment offers it.
+  fetch('/auth/public').then(r => r.json()).then(d => {
+    const a = (d.logins || {}).admin, q = document.getElementById('acctQuick');
+    q.innerHTML = a && state.role !== 'admin'
+      ? '<a href="#" style="color:var(--accent);font-size:11px">Sign in as admin (public demo login)</a>' : '';
+    if (q.firstChild) q.firstChild.onclick = ev => { ev.preventDefault();
+      document.getElementById('acctUser').value = a.user; document.getElementById('acctPass').value = a.password; acctLogin(ev); };
+  }).catch(() => {});
+  document.getElementById('acctUser').focus();
+}
+// Switch user from the account card, without leaving the page.
+async function acctLogin(e) {
+  e.preventDefault();
+  const u = document.getElementById('acctUser').value.trim(), p = document.getElementById('acctPass').value;
+  let auth = null;
+  try {
+    const r = await fetch('/auth/login', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                          body: JSON.stringify({username: u, password: p})});
+    if (r.ok) auth = await r.json();
+  } catch (_) {}
+  if (!auth) { document.getElementById('acctErr').textContent = 'Invalid credentials.'; return; }
+  state.authToken = auth.token; state.role = auth.role;
+  sessionStorage.setItem('k9x_das_auth', JSON.stringify({token: auth.token, role: auth.role}));
+  sessionStorage.setItem('k9x_das_user', u);
+  document.getElementById('acctUser').value = ''; document.getElementById('acctPass').value = '';
+  document.getElementById('userMenu').hidden = true;
+  enterApp(u, auth);
 }
 document.addEventListener('click', () => { const m = document.getElementById('userMenu'); if (m) m.hidden = true; });
 
