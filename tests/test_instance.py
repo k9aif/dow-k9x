@@ -44,3 +44,13 @@ def test_list_job_ids_reads_only_this_instances_prefix(monkeypatch):
     import k9_aif_abb.k9_factories.object_storage_factory as f
     monkeypatch.setattr(f.ObjectStorageFactory, "create", staticmethod(lambda cfg: Store()))
     assert hil_gateway.list_job_ids({}) == {"N1": ["requirement", "msa"]}
+
+
+def test_public_health_hides_the_model_host(monkeypatch):
+    from k9_dow.api import app as app_mod
+    monkeypatch.setattr(app_mod.settings, "OLLAMA_DISPLAY_NAME", "powerAI-5090")
+    chk = {"state": "unreachable", "host": "10.1.2.3:11434", "model": "m",
+           "message": "The LLM at 10.1.2.3:11434 is not reachable.", "error": "conn refused 10.1.2.3:11434"}
+    pub = app_mod._public_llm(chk)
+    assert "10.1.2.3" not in str(pub) and pub["host"] == "powerAI-5090"
+    assert pub["message"] == "The LLM at powerAI-5090 is not reachable."

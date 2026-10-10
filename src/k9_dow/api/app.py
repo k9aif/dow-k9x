@@ -403,7 +403,7 @@ async def health():
     # Previously hardcoded {"status": "ok"} with no actual check --
     # the UI had no way to warn before job submission that the backend
     # LLM was unreachable; it could only find out after a job failed.
-    chk = await asyncio.get_event_loop().run_in_executor(None, _llm_check)
+    chk = _public_llm(await asyncio.get_event_loop().run_in_executor(None, _llm_check))
     ollama = {"reachable": chk["state"] == "ok", "host": chk["host"], "error": chk.get("error") or chk["message"]}
     return {
         "status": "ok" if chk["state"] == "ok" else "degraded",
@@ -427,19 +427,28 @@ def _llm_check(max_age: float = 10.0) -> Dict[str, Any]:
     return _llm_cache["value"]
 
 
+def _public_llm(chk: Dict[str, Any]) -> Dict[str, Any]:
+    """The model check as the public sees it: the deployment's display name, never its
+    network address (OLLAMA_HOST stays in the server's own logs)."""
+    host = str(chk.get("host") or "")
+    name = settings.OLLAMA_DISPLAY_NAME or "the model host"
+    hide = lambda v: v.replace(host, name) if host and isinstance(v, str) else v
+    return {k: (name if k == "host" else hide(v)) for k, v in chk.items()}
+
+
 def _require_llm() -> None:
     """Refuse work that needs the model when none is usable (UI and direct API calls alike)."""
-    chk = _llm_check(max_age=2.0)
+    chk = _public_llm(_llm_check(max_age=2.0))
     if chk["state"] != "ok":
         raise HTTPException(status_code=503, detail=chk["message"])
 
 
 @app.get("/llm")
 async def llm_info():
-    chk = await asyncio.get_event_loop().run_in_executor(None, _llm_check)
+    chk = _public_llm(await asyncio.get_event_loop().run_in_executor(None, _llm_check))
     return {
         "active_llm": settings.ACTIVE_LLM,
-        "ollama_host": settings.OLLAMA_HOST,
+        "ollama_host": settings.OLLAMA_DISPLAY_NAME,
         "ollama_model": settings.OLLAMA_MODEL,
         "ollama_display_name": settings.OLLAMA_DISPLAY_NAME,
         "data_sources": settings.KNOWLEDGE_CORPUS_LABEL,
