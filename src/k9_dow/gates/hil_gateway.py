@@ -252,6 +252,22 @@ def list_job_ids(config: Dict[str, Any]) -> Dict[str, List[str]]:
     return jobs
 
 
+STALE_MINUTES = 20   # a run takes under 10 minutes on the reference GPU
+
+
+def _stale(at: Optional[str]) -> bool:
+    from datetime import datetime, timedelta, timezone
+    if not at:
+        return False
+    try:
+        t = datetime.fromisoformat(str(at).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - t > timedelta(minutes=STALE_MINUTES)
+
+
 def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]] = None) -> Dict[str, Any]:
     """Stage-by-stage view of one job: what ran, what each gate decided, what's pending."""
     stages = stages if stages is not None else list_job_ids(config).get(job_id, [])
@@ -294,9 +310,19 @@ def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]]
     for gate_id, nxt in ({} if legacy else GATE_NEXT_STAGE).items():
         gate = next(s for s in steps if s["step"] == gate_id)
         stage = next(s for s in steps if s["step"] == nxt)
-        if gate["state"] == "approved" and stage["state"] == "not_reached":
-            started = data.get(f"started-{nxt}")
-            if started:
+        started = data.get(f"started-{nxt}") or {}
+        failed_at = (data.get(nxt) or {}).get("failed_at") or ""
+        if gate["state"] == "approved" and stage["state"] == "error" and (started.get("at") or "") > failed_at:
+            stage["state"], stage["started_by"] = "running", started.get("by")     # retried, in progress
+        elif gate["state"] == "approved" and stage["state"] == "error":
+            stage["detail"] = (data.get(nxt) or {}).get("detail")
+            next_action = {"gate": gate_id, "stage": nxt, "retry": True}
+        elif gate["state"] == "approved" and stage["state"] == "not_reached":
+            if started and _stale(started.get("at")):
+                # Started long ago with no result: the run died without recording why.
+                stage["detail"] = f"no result {STALE_MINUTES} minutes after it was started"
+                next_action = {"gate": gate_id, "stage": nxt, "retry": True}
+            elif started:
                 stage["state"] = "running"
                 stage["started_by"] = started.get("by")
             else:

@@ -1065,13 +1065,19 @@ async function renderJobsHistory(quiet) {
       ${j.next_action ? nextActionHtml(j) : ''}
     </div>`).join('') + '</div>';
 }
+function errDetail(j) {
+  const st = (j.steps || []).find(s => s.step === j.next_action.stage);
+  return st && st.detail ? String(st.detail).slice(0, 160) : '';
+}
 function nextActionHtml(j) {
   const stage = STEP_LABEL[j.next_action.stage] || j.next_action.stage;
   const gate = STEP_LABEL[j.next_action.gate] || j.next_action.gate;
   if (state.role === 'admin') {
     return `<div style="margin-top:8px;display:flex;gap:10px;align-items:center">
-      <button onclick="advanceJob('${esc(j.job_id)}', this)" style="background:var(--accent);color:#fff;border:0;border-radius:4px;padding:5px 12px;font-size:12px;cursor:pointer">Start ${esc(stage)}</button>
-      <span style="color:var(--text2);font-size:11px">${esc(gate)} approved in K9X HIL — start the next stage when ready.</span></div>`;
+      <button onclick="advanceJob('${esc(j.job_id)}', this)" style="background:var(--accent);color:#fff;border:0;border-radius:4px;padding:5px 12px;font-size:12px;cursor:pointer">${j.next_action.retry ? 'Retry' : 'Start'} ${esc(stage)}</button>
+      <span style="color:var(--text2);font-size:11px">${j.next_action.retry
+        ? esc(stage) + ' failed' + (errDetail(j) ? ': ' + esc(errDetail(j)) : '') + ' — retry when ready.'
+        : esc(gate) + ' approved in K9X HIL — start the next stage when ready.'}</span></div>`;
   }
   return `<div style="margin-top:8px;color:var(--orange);font-size:11px">${esc(gate)} approved — waiting for the DAS admin to start ${esc(stage)}.</div>`;
 }

@@ -19,6 +19,7 @@ import logging
 import os
 import re
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
@@ -224,8 +225,18 @@ class ProcessStageOrchestrator(BaseOrchestrator):
                 "icd_metadata": icd_metadata(ctx["filename"] or "", job_id, run)}
 
         squad_file, squad_id, result_key = content
-        drafted = self._run_squad(self._load_squad(squad_file, squad_id), squad_id, {**base, "prior_outputs": prior})
-        readiness, package = self.prepare_gate(gate_id, base, {**prior, **drafted})
+        try:
+            drafted = self._run_squad(self._load_squad(squad_file, squad_id), squad_id, {**base, "prior_outputs": prior})
+            readiness, package = self.prepare_gate(gate_id, base, {**prior, **drafted})
+        except Exception as exc:
+            # Recorded so Jobs in Pipeline shows the failure and offers the admin a retry,
+            # instead of the run looking "running" forever.
+            save_stage_result(self.config, job_id, run, {
+                "job_id": job_id, "orchestrator": self.__class__.__name__, "orchestrator_run": run,
+                "status": "error", "detail": str(exc)[:500], "approved_gate": approved_gate,
+                "failed_at": datetime.now(timezone.utc).isoformat()})
+            self._emit("OrchestratorFailed", job_id=job_id, run=run, error=str(exc)[:300])
+            raise
 
         result = {
             "job_id": job_id,

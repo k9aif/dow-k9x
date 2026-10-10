@@ -396,3 +396,63 @@ def test_hil_places_match_the_hil_seed():
         place = hil_gateway.GATE_HIL_PLACE[gid]
         assert f'name="{place["application"]}"' in text, place
         assert f'name="{place["queue"]}"' in text and f'topic="{place["topic"]}"' in text, place
+
+
+def test_a_failed_run_is_offered_for_retry(monkeypatch):
+    """Regression (das-next, JOB-20261010-64805A): MSA failed in its package squad; the job sat at
+    'running' with no way on. A failed run is now recorded and offered to the admin again."""
+    stored = {"requirement": {"status": "awaiting_gate"},
+              "gate-SERVICE-VALIDATION": {"action": "complete", "actor": "a"}, "mdd_package": {"status": "awaiting_gate"},
+              "gate-MDD": {"action": "complete", "actor": "m"}, "started-msa": {"by": "admin"},
+              "msa": {"status": "error", "detail": "k9x_Shield blocked ingress [InputSizeCheck]"}}
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: stored.get(stage))
+    h = hil_gateway.job_history({}, "job-9", list(stored))
+    assert h["next_action"] == {"gate": "MDD", "stage": "msa", "retry": True}
+    assert next(s for s in h["steps"] if s["step"] == "msa")["detail"].startswith("k9x_Shield")
+
+
+def test_run_package_records_a_failure(monkeypatch):
+    from k9_dow.orchestrators.msa_orchestrator import MsaOrchestrator
+    saved = {}
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: {"requirement": REQ}.get(stage))
+    monkeypatch.setattr(hil_gateway, "save_stage_result", lambda cfg, job, stage, res: saved.update({stage: res}))
+    orch = MsaOrchestrator(config={})
+
+    class Boom:
+        flow = []
+        def execute(self, payload):
+            raise PermissionError("k9x_Shield blocked ingress [InputSizeCheck]")
+
+    monkeypatch.setattr(orch, "_load_squad", lambda f, sid: Boom())
+    with pytest.raises(PermissionError):
+        orch.execute_flow(gate_approved_event("MDD", hil_reply("job-7")))
+    assert saved["msa"]["status"] == "error" and "InputSizeCheck" in saved["msa"]["detail"]
+
+
+def test_shield_key_limit_fits_later_stages():
+    from k9_aif_abb.k9_utils.config_loader import load_yaml
+    from k9_dow.config.settings import settings
+    cfg = load_yaml(settings.CONFIG_DIR / "config.yaml")
+    assert cfg["security"]["shield"]["check_config"]["InputSizeCheck"]["max_keys"] >= 1000
+
+
+def test_a_retried_run_shows_running(monkeypatch):
+    stored = {"requirement": {"status": "awaiting_gate"}, "gate-SERVICE-VALIDATION": {"action": "complete", "actor": "a"},
+              "mdd_package": {"status": "awaiting_gate"}, "gate-MDD": {"action": "complete", "actor": "m"},
+              "msa": {"status": "error", "detail": "x", "failed_at": "2026-10-10T04:18:59+00:00"},
+              "started-msa": {"by": "admin", "at": "2026-10-10T04:30:00+00:00"}}
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: stored.get(stage))
+    h = hil_gateway.job_history({}, "job-9", list(stored))
+    assert h["next_action"] is None
+    assert next(s for s in h["steps"] if s["step"] == "msa")["state"] == "running"
+
+
+def test_a_run_with_no_result_long_after_start_is_offered_for_retry(monkeypatch):
+    stored = {"requirement": {"status": "awaiting_gate"}, "gate-SERVICE-VALIDATION": {"action": "complete", "actor": "a"},
+              "mdd_package": {"status": "awaiting_gate"}, "gate-MDD": {"action": "complete", "actor": "m"},
+              "started-msa": {"by": "admin", "at": "2026-01-01T00:00:00+00:00"}}
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: stored.get(stage))
+    assert hil_gateway.job_history({}, "job-9", list(stored))["next_action"] == {"gate": "MDD", "stage": "msa", "retry": True}
+    from datetime import datetime, timezone
+    stored["started-msa"]["at"] = datetime.now(timezone.utc).isoformat()
+    assert hil_gateway.job_history({}, "job-9", list(stored))["next_action"] is None

@@ -156,6 +156,9 @@ security:
     check_config:
       InputSizeCheck:
         max_chars: 250000
+        # Later stages carry earlier results forward as evidence; the MSA package squad's input
+        # reached 132 keys on das-next (2026-10-10) against the framework default of 100.
+        max_keys: 1000
   # Screen for the submitted document at JCIDS stage entry (stricter than the
   # per-agent profile above): personal data such as an SSN BLOCKS here.
   # Not used inside agents, whose inputs include generated text where the PII
@@ -172,6 +175,9 @@ security:
     check_config:
       InputSizeCheck:
         max_chars: 250000
+        # Later stages carry earlier results forward as evidence; the MSA package squad's input
+        # reached 132 keys on das-next (2026-10-10) against the framework default of 100.
+        max_keys: 1000
       PIIBoundaryCheck:
         block_on_match: true
 
