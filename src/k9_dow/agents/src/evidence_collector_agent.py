@@ -3,6 +3,7 @@ from __future__ import annotations
 from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
+from k9_dow.agents.src.process_facts import PROCESS_FACTS
 from k9_dow.agents.src.squad_context import gate_criteria, step_output
 
 
@@ -26,6 +27,7 @@ class EvidenceCollectorAgent(BaseAgent):
                 f"Role: {self.config.get('role', 'Gate Evidence Collector')}\n"
                 f"Goal: {self.config.get('goal', 'Collect evidence for gate entry criteria')}\n\n"
                 f"Instructions: {self.config.get('instructions', '')}\n\n"
+                + PROCESS_FACTS + "\n" +
                 f"Gate: {gate_id}\n"
                 f"Entry criteria: {criteria}\n\n"
                 f"Available artifacts:\n{prior}\n\n"
