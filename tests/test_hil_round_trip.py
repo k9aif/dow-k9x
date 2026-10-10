@@ -332,6 +332,7 @@ def test_process_facts_state_mdap_and_statute():
     from k9_dow.agents.src.process_facts import PROCESS_FACTS
     assert "10 U.S.C. 4251" in PROCESS_FACTS and "only if its ACAT" in PROCESS_FACTS
     assert "never cite a DoD issuance" in PROCESS_FACTS and "during TMRR" in PROCESS_FACTS
+    assert "Never call it Milestone A entry" in PROCESS_FACTS and "SE-REVIEW-SRR" in PROCESS_FACTS
 
 
 def test_srr_sees_every_earlier_decision(monkeypatch):
