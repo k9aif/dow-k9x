@@ -239,6 +239,7 @@
       <div class="tab" id="tab-jobresults" onclick="switchTab('jobresults')">Job Results</div>
       <div class="tab" id="tab-jobs" onclick="switchTab('jobs')" title="Every job, the stage it has reached, and the HIL decisions so far (kept across restarts)">Jobs in Pipeline<span class="count" id="jobs-count"></span></div>
       <div class="tab" id="tab-arch" onclick="switchTab('arch')">Architecture</div>
+      <div class="tab" id="tab-governance" onclick="switchTab('governance')" style="display:none" title="Governance holds, overrides and rejections (DAS admin)">Governance</div>
       <div class="tab" id="tab-acronyms" onclick="switchTab('acronyms')" title="DoW / acquisition / DoDAF / SE acronyms used in DAS">Acronyms</div>
     </div>
     <div class="feed" id="feedArea"></div>
@@ -959,6 +960,47 @@ function switchTab(tab) {
   else if (tab === 'arch') renderArch();
   else if (tab === 'jobs') renderJobsHistory();
   else if (tab === 'acronyms') renderAcronyms();
+  else if (tab === 'governance') renderGovernance();
+}
+
+// ─── Governance (DAS admin): every hold, override and rejection, by day or range ───
+async function renderGovernance(start, end) {
+  const area = document.getElementById('feedArea');
+  const today = new Date().toISOString().slice(0, 10);
+  start = start || today; end = end || start;
+  area.innerHTML = '<div style="padding:24px;color:var(--text2);font-size:12px">Loading governance alerts…</div>';
+  let d = {alerts: []};
+  try {
+    const r = await fetch(`/governance/alerts?start=${start}&end=${end}`, {headers: {'Authorization': 'Bearer ' + (state.authToken || '')}, cache: 'no-store'});
+    d = r.ok ? await r.json() : {alerts: [], error: (await r.json().catch(() => ({}))).detail || ('HTTP ' + r.status)};
+  } catch (e) { d = {alerts: [], error: 'Could not reach DAS.'}; }
+  if (state.activeTab !== 'governance') return;
+  const kinds = {governance_hold: ['Hold', 'var(--orange)'], governance_override: ['Override approved', 'var(--red)'],
+                 governance_hold_rejected: ['Hold rejected (job stopped)', 'var(--text2)']};
+  const count = k => d.alerts.filter(a => a.type === k).length;
+  area.innerHTML = `<div style="padding:14px 18px;font-size:12px">
+    <div style="color:var(--text2);margin-bottom:10px">When k9x Shield or Granite Guardian refuses an agent's input in the middle of a stage,
+      DAS holds the stage (its work kept) and asks a person in K9X HIL. Every hold, override and rejection is listed here and published
+      to the <code>${esc(d.topic || 'das.governance.alerts')}</code> topic.</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      From <input type="date" id="govStart" value="${start}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
+      to <input type="date" id="govEnd" value="${end}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
+      <button onclick="renderGovernance(document.getElementById('govStart').value, document.getElementById('govEnd').value)" style="background:var(--accent);color:#fff;border:0;border-radius:4px;padding:4px 12px;cursor:pointer">Show</button>
+      <span style="margin-left:12px;color:var(--text2)">${count('governance_hold')} hold(s) · ${count('governance_override')} override(s) · ${count('governance_hold_rejected')} rejected</span>
+    </div>
+    ${d.error ? `<div style="color:var(--red)">${esc(d.error)}</div>` : ''}
+    ${d.alerts.length ? `<table style="border-collapse:collapse;width:100%">
+      <tr style="color:var(--text2);text-align:left"><th style="padding:4px 8px">Time</th><th>Event</th><th>Job</th><th>Stage</th><th>Check</th><th>Reason / comment</th><th>Decided by</th></tr>
+      ${d.alerts.map(a => { const [label, col] = kinds[a.type] || [a.type, 'var(--text2)'];
+        return `<tr style="border-top:1px solid var(--border)">
+          <td style="padding:5px 8px;white-space:nowrap">${esc(new Date(a.at).toLocaleString())}</td>
+          <td style="color:${col};font-weight:600;white-space:nowrap">${esc(label)}</td>
+          <td style="font-family:var(--mono);white-space:nowrap">${esc(a.job_id || '')}</td>
+          <td>${esc(a.run || '')}</td><td>${esc(a.check || '')}</td>
+          <td style="color:var(--text2)">${esc(a.reason || a.comment || '')}</td>
+          <td>${esc(a.actor || '')}</td></tr>`; }).join('')}</table>`
+      : (d.error ? '' : '<div style="color:var(--text2)">No governance alerts in this period.</div>')}
+  </div>`;
 }
 
 // ─── Acronyms (static/acronyms.json) ───
@@ -992,7 +1034,7 @@ async function renderAcronyms() {
 const STEP_LABEL = {
   'requirement': 'Requirement', 'SERVICE-VALIDATION': 'Service validation', 'JCI-REVIEW': 'JCI review (parallel)',
   'mdd_package': 'MDD package', 'MDD': 'MDD', 'msa': 'MSA', 'MILESTONE-A': 'Milestone A',
-  'tmrr': 'SRR package', 'SE-REVIEW-SRR': 'SRR',
+  'tmrr': 'SRR package', 'SE-REVIEW-SRR': 'SRR', 'GOVERNANCE-HOLD': 'Governance hold',
   // JCIDS-era jobs
   'jcids': 'JCIDS', 'JROC-VALIDATION': 'JROC gate', 'acquisition': 'Acquisition',
   'PATHWAY-MILESTONE': 'Milestone gate', 'se': 'SE',
@@ -1015,7 +1057,7 @@ try { const a = JSON.parse(sessionStorage.getItem('k9x_das_auth') || 'null'); if
 function jobStepChip(st, hilUrl) {
   const label = STEP_LABEL[st.step] || st.step;
   const colors = {done: 'var(--green)', approved: 'var(--green)', pending: 'var(--orange)', running: 'var(--accent)',
-                  error: 'var(--red)', reject: 'var(--red)', expire: 'var(--red)', ignored: 'var(--text2)',
+                  error: 'var(--red)', reject: 'var(--red)', expire: 'var(--red)', ignored: 'var(--text2)', held: 'var(--orange)',
                   not_reached: 'var(--border)'};
   const c = colors[st.state] || 'var(--text2)';
   let text = label;
@@ -1025,6 +1067,7 @@ function jobStepChip(st, hilUrl) {
       (st.hil && st.hil.application ? ` in K9X HIL › ${esc(st.hil.application)} › ${esc(st.hil.queue)}` : ' in K9X HIL');
     else if (st.state !== 'not_reached') text += ' — ' + esc(st.state) + (st.actor ? ' by ' + esc(st.actor) : '');
   } else if (st.state === 'done') text += st.demo ? ' ✓ (demo)' : ' ✓';
+  else if (st.state === 'held') text += ' — held by governance';
   else if (st.state === 'running') text += ' — running' + (st.started_by && st.started_by !== 'auto' ? ' (started by ' + esc(st.started_by) + ')' : '');
   const where = st.hil && st.hil.application ? `K9X HIL › ${st.hil.application} › ${st.hil.queue} (topic ${st.hil.topic})` : '';
   const when = st.decided_at
@@ -1074,8 +1117,10 @@ function nextActionHtml(j) {
   const gate = STEP_LABEL[j.next_action.gate] || j.next_action.gate;
   if (state.role === 'admin') {
     return `<div style="margin-top:8px;display:flex;gap:10px;align-items:center">
-      <button onclick="advanceJob('${esc(j.job_id)}', this)" style="background:var(--accent);color:#fff;border:0;border-radius:4px;padding:5px 12px;font-size:12px;cursor:pointer">${j.next_action.retry ? 'Retry' : 'Start'} ${esc(stage)}</button>
-      <span style="color:var(--text2);font-size:11px">${j.next_action.retry
+      <button onclick="advanceJob('${esc(j.job_id)}', this)" style="background:var(--accent);color:#fff;border:0;border-radius:4px;padding:5px 12px;font-size:12px;cursor:pointer">${j.next_action.override ? 'Resume' : j.next_action.retry ? 'Retry' : 'Start'} ${esc(stage)}${j.next_action.override ? ' with override' : ''}</button>
+      <span style="color:var(--text2);font-size:11px">${j.next_action.override
+        ? esc(j.next_action.override) + ' override approved in K9X HIL — the stage resumes with only that check relaxed; work already done is kept.'
+        : j.next_action.retry
         ? esc(stage) + ' failed' + (errDetail(j) ? ': ' + esc(errDetail(j)) : '') + ' — retry when ready.'
         : esc(gate) + ' approved in K9X HIL — start the next stage when ready.'}</span></div>`;
   }
@@ -1679,6 +1724,8 @@ function enterApp(u, auth) {
   document.getElementById('mainApp').style.display = 'flex';
   const chip = document.getElementById('userChip');
   if (chip) chip.textContent = 'User: ' + u.charAt(0).toUpperCase() + u.slice(1) + (auth.role === 'admin' ? ' (DAS admin)' : '');
+  const govTab = document.getElementById('tab-governance');
+  if (govTab) govTab.style.display = auth.role === 'admin' ? '' : 'none';
 
   // A fresh login is a natural "start clean" checkpoint -- clears any
   // job-in-progress lock/timeout and stale Live Feed/Agents/LLM Calls

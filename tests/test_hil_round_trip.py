@@ -411,7 +411,7 @@ def test_a_failed_run_is_offered_for_retry(monkeypatch):
     assert next(s for s in h["steps"] if s["step"] == "msa")["detail"].startswith("k9x_Shield")
 
 
-def test_run_package_records_a_failure(monkeypatch):
+def test_run_package_records_an_ordinary_failure(monkeypatch):
     from k9_dow.orchestrators.msa_orchestrator import MsaOrchestrator
     saved = {}
     monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: {"requirement": REQ}.get(stage))
@@ -421,12 +421,90 @@ def test_run_package_records_a_failure(monkeypatch):
     class Boom:
         flow = []
         def execute(self, payload):
-            raise PermissionError("k9x_Shield blocked ingress [InputSizeCheck]")
+            raise RuntimeError("model unreachable")
 
     monkeypatch.setattr(orch, "_load_squad", lambda f, sid: Boom())
-    with pytest.raises(PermissionError):
+    with pytest.raises(RuntimeError):
         orch.execute_flow(gate_approved_event("MDD", hil_reply("job-7")))
-    assert saved["msa"]["status"] == "error" and "InputSizeCheck" in saved["msa"]["detail"]
+    assert saved["msa"]["status"] == "error" and "unreachable" in saved["msa"]["detail"]
+
+
+def _governance_run(monkeypatch, fail_at):
+    """MSA with fake squads; ``fail_at`` names the squad Shield refuses (or None)."""
+    from k9_dow.orchestrators.msa_orchestrator import MsaOrchestrator
+    saved, published, alerts, squads = {}, [], [], {}
+    stored = {"requirement": REQ}
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: saved.get(stage) or stored.get(stage))
+    monkeypatch.setattr(hil_gateway, "save_stage_result", lambda cfg, job, stage, res: saved.update({stage: res}))
+    monkeypatch.setattr(hil_gateway, "publish_gate_task", lambda cfg, gate, job, **kw: published.append((gate, kw)) or True)
+    monkeypatch.setattr(hil_gateway, "record_governance_alert", lambda cfg, a: alerts.append(a) or a)
+    orch = MsaOrchestrator(config={"security": {"shield": {"enabled": False, "ingress": {"checks": ["InputSizeCheck", "PromptInjectionCheck"]}}}})
+    configs = []
+
+    class Squad(FakeSquad):
+        def execute(self, payload):
+            configs.append(orch._run_config)
+            if self.name == fail_at[0]:
+                raise PermissionError("k9x_Shield blocked ingress [InputSizeCheck]: Payload exceeds max key count")
+            return super().execute(payload)
+
+    monkeypatch.setattr(orch, "_load_squad", lambda f, sid: squads.setdefault(sid, Squad(sid)))
+    return orch, saved, published, alerts, squads, configs
+
+
+def test_a_governance_refusal_holds_the_run_and_asks_hil(monkeypatch):
+    fail = ["PackageAssemblySquad"]
+    orch, saved, published, alerts, squads, _ = _governance_run(monkeypatch, fail)
+    out = orch.execute_flow(gate_approved_event("MDD", hil_reply("job-7", actor="mda@k9x.ai")))
+    assert out["status"] == "held" and out["check"] == "InputSizeCheck"
+    hold = saved["hold"]
+    assert hold["run"] == "msa" and set(hold["partial"]) == {"msa_analysis", "gate_readiness"}   # work kept
+    assert published[0][0] == "GOVERNANCE-HOLD" and "InputSizeCheck" in published[0][1]["title"]
+    assert alerts[0]["type"] == "governance_hold" and alerts[0]["job_id"] == "job-7"
+
+    # A person approves the override in HIL: the run resumes, re-running only the refused squad,
+    # with InputSizeCheck relaxed and everything else still governed.
+    for sq in squads.values():
+        sq.seen.clear()
+    fail[0] = None
+    decision = {"actor": "admin@k9x.ai", "comment": "internal evidence, not an attack", "decided_at": "z"}
+    event = hil_gateway.governance_override_event({}, "job-7", decision)
+    assert event["gate_id"] == "MDD" and event["governance_override"]["check"] == "InputSizeCheck"
+    out = orch.execute_flow(event)
+    assert out["status"] == "awaiting_gate" and out["governance_override"]["actor"] == "admin@k9x.ai"
+    assert not squads["MsaAnalysisSquad"].seen and not squads["GateReadinessSquad"].seen
+    assert squads["PackageAssemblySquad"].seen
+    gate, kw = published[-1]
+    assert gate == "MILESTONE-A" and "InputSizeCheck relaxed" in kw["payload"]["Governance override"]
+
+
+def test_override_relaxes_only_the_named_check():
+    from k9_dow.orchestrators.stage_base import config_without_check
+    cfg = {"security": {"shield": {"ingress": {"checks": ["InputSizeCheck", "PromptInjectionCheck"]},
+                                   "egress": {"checks": ["PIIBoundaryCheck"]}}}}
+    out = config_without_check(cfg, "InputSizeCheck")
+    assert out["security"]["shield"]["ingress"]["checks"] == ["PromptInjectionCheck"]
+    assert cfg["security"]["shield"]["ingress"]["checks"] == ["InputSizeCheck", "PromptInjectionCheck"]  # untouched
+
+
+def test_history_shows_the_hold_and_offers_the_override(monkeypatch):
+    stored = {"requirement": {"status": "awaiting_gate"}, "gate-SERVICE-VALIDATION": {"action": "complete", "actor": "a"},
+              "mdd_package": {"status": "awaiting_gate"}, "gate-MDD": {"action": "complete", "actor": "m"},
+              "started-msa": {"by": "admin", "at": "2026-10-10T04:00:00+00:00"},
+              "msa": {"status": "held", "check": "InputSizeCheck"},
+              "hold": {"run": "msa", "check": "InputSizeCheck", "reason": "too many keys", "at": "2026-10-10T04:05:00+00:00"}}
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: stored.get(stage))
+    h = hil_gateway.job_history({}, "job-9", list(stored))
+    ids = [s["step"] for s in h["steps"]]
+    assert ids[ids.index("msa") + 1] == "GOVERNANCE-HOLD"
+    assert next(s for s in h["steps"] if s["step"] == "GOVERNANCE-HOLD")["state"] == "pending"
+    assert h["next_action"] is None
+    stored["gate-GOVERNANCE-HOLD"] = {"action": "complete", "actor": "admin@k9x.ai", "decided_at": "2026-10-10T04:10:00+00:00"}
+    h = hil_gateway.job_history({}, "job-9", list(stored))
+    assert h["next_action"] == {"gate": "GOVERNANCE-HOLD", "stage": "msa", "override": "InputSizeCheck"}
+    # An old decision (before this hold) does not count
+    stored["gate-GOVERNANCE-HOLD"]["decided_at"] = "2026-10-10T03:00:00+00:00"
+    assert hil_gateway.job_history({}, "job-9", list(stored))["next_action"] is None
 
 
 def test_shield_key_limit_fits_later_stages():

@@ -45,6 +45,13 @@ GATE_TOPICS: Dict[str, Dict[str, str]] = {
     **LEGACY_GATE_TOPICS,
     **{g.id: {"task_topic": g.task_topic, "reply_topic": g.reply_topic} for g in _PM.gates.values()},
 }
+# Governance hold: not a policy gate. When k9x Shield or Granite Guardian refuses an agent's input in
+# the middle of a run, the run is held (its state kept) and a person decides in K9X HIL whether to
+# override that one check for that job and run, or stop the job.
+GOVERNANCE_HOLD = "GOVERNANCE-HOLD"
+GATE_TOPICS[GOVERNANCE_HOLD] = {"task_topic": "workflow.hil.das.governance-hold",
+                                "reply_topic": "das.governance-hold.replies"}
+
 REPLY_TOPIC_TO_GATE: Dict[str, str] = {v["reply_topic"]: k for k, v in GATE_TOPICS.items()}
 
 STAGE_BUCKET = "jcids-output"
@@ -124,7 +131,94 @@ GATE_HIL_PLACE: Dict[str, Dict[str, str]] = {
                           "topic": "workflow.hil.das.pathway"},
     **{g.id: {"application": g.hil_application, "queue": g.hil_queue_name, "topic": g.task_topic}
        for g in _PM.gates.values()},
+    GOVERNANCE_HOLD: {"application": "DAS Governance", "queue": "Governance Holds",
+                      "topic": "workflow.hil.das.governance-hold"},
 }
+
+
+# ── Governance alerts: every hold, override and rejection, one topic + a daily log ──
+
+def alerts_topic() -> str:
+    from k9_dow.config.instance import topic
+    return topic("das.governance.alerts")
+
+
+def _alerts_key(day: str) -> str:
+    return f"{key_prefix()}governance/alerts/{day}.json"
+
+
+def record_governance_alert(config: Dict[str, Any], alert: Dict[str, Any]) -> Dict[str, Any]:
+    """Publish to the governance-alerts topic and append to that day's log (read by the admin's
+    Governance page). Never raises: a failed publish or write is logged, the flow goes on."""
+    from datetime import datetime, timezone
+    alert = {"at": datetime.now(timezone.utc).isoformat(), **alert}
+    try:
+        from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
+        bus = K9EventBus(broker_url=_broker(config), topic=alerts_topic(), group_id=_group("das-governance-alerts"))
+        bus.publish(alert)
+        if bus._producer:
+            bus._producer.flush()
+        bus.close()
+    except Exception as exc:
+        log.warning("[HILGateway] governance alert publish failed (non-fatal): %s", exc)
+    try:
+        from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
+        store = ObjectStorageFactory.create(config)
+        key = _alerts_key(alert["at"][:10])
+        try:
+            day = json.loads(store.download(STAGE_BUCKET, key).decode("utf-8"))
+        except Exception:
+            day = []
+        day.append(alert)
+        store.upload(STAGE_BUCKET, key, json.dumps(day, indent=1, default=str).encode("utf-8"))
+    except Exception as exc:
+        log.warning("[HILGateway] governance alert log write failed (non-fatal): %s", exc)
+    return alert
+
+
+def governance_alerts(config: Dict[str, Any], start: str, end: str) -> List[Dict[str, Any]]:
+    """Every governance alert from day ``start`` to ``end`` (YYYY-MM-DD, inclusive), newest first."""
+    from datetime import date, timedelta
+    from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
+    store = ObjectStorageFactory.create(config)
+    d0, d1 = date.fromisoformat(start), date.fromisoformat(end)
+    out: List[Dict[str, Any]] = []
+    for i in range(min((d1 - d0).days, 366) + 1):
+        try:
+            out += json.loads(store.download(STAGE_BUCKET, _alerts_key((d0 + timedelta(days=i)).isoformat())).decode("utf-8"))
+        except Exception:
+            continue
+    return sorted(out, key=lambda a: a.get("at") or "", reverse=True)
+
+
+def hold_check(reason: str) -> str:
+    """The check a governance refusal names: '[InputSizeCheck]' in a Shield message, else Guardian."""
+    import re
+    m = re.search(r"\[(\w+)\]", reason or "")
+    if m:
+        return m.group(1)
+    return "GraniteGuardian" if "Guardian" in (reason or "") else "k9x_Shield"
+
+
+def hold_decision_current(hold: Dict[str, Any], decision: Optional[Dict[str, Any]]) -> bool:
+    """A decision belongs to this hold only if it was made after the hold was raised."""
+    return bool(decision) and (decision.get("decided_at") or "") >= (hold.get("at") or "")
+
+
+def governance_override_event(config: Dict[str, Any], job_id: str, decision: Dict[str, Any]) -> Dict[str, Any]:
+    """Approval of a governance hold → the held run, started again by its original approval, with
+    the one check overridden (who, when, why) for this job and run only."""
+    hold = load_stage_result(config, job_id, "hold") or {}
+    return {
+        "event_type": "gate_approved",
+        "gate_id": hold.get("approved_gate"),
+        "job_id": job_id,
+        "correlation_id": job_id,
+        "decision": hold.get("decision") or {},
+        "governance_override": {"check": hold.get("check"), "run": hold.get("run"),
+                                "reason": hold.get("reason"), "hold_at": hold.get("at"),
+                                **{k: decision.get(k) for k in ("actor", "comment", "decided_at")}},
+    }
 
 # Run each gate's approval starts (gates that start nothing are absent).
 GATE_NEXT_STAGE: Dict[str, str] = {g.id: g.approval_starts for g in _PM.gates.values() if g.approval_starts}
@@ -185,6 +279,7 @@ def save_stage_result(config: Dict[str, Any], job_id: str, stage: str, result: D
 
 # The run whose stored package a gate reviews (a decision is recorded only if it exists).
 GATE_INPUT_STAGE: Dict[str, str] = {"JROC-VALIDATION": "jcids", "PATHWAY-MILESTONE": "acquisition",
+                                    GOVERNANCE_HOLD: "hold",
                                     **{g.id: g.prepared_by for g in _PM.gates.values()}}
 
 
@@ -299,7 +394,8 @@ def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]]
             else:
                 steps.append({**step, "state": "not_reached"})
         else:
-            state = ("done" if rec and rec.get("status") not in (None, "error") else
+            state = ("held" if rec and rec.get("status") == "held" else
+                     "done" if rec and rec.get("status") not in (None, "error") else
                      "error" if rec else "not_reached")
             step = {"step": name, "kind": "stage", "state": state}
             if rec and rec.get("demo_stub"):
@@ -327,6 +423,28 @@ def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]]
                 stage["started_by"] = started.get("by")
             else:
                 next_action = {"gate": gate_id, "stage": nxt}
+    # Governance hold: a step right after the held run; approval offers the override re-run.
+    hold = data.get("hold") if not legacy else None
+    if hold:
+        dec = data.get(f"gate-{GOVERNANCE_HOLD}")
+        dec = dec if hold_decision_current(hold, dec) else None
+        run_step = next((s for s in steps if s["step"] == hold.get("run")), None)
+        hold_step = {"step": GOVERNANCE_HOLD, "kind": "gate", "hil": GATE_HIL_PLACE[GOVERNANCE_HOLD],
+                     "detail": f"{hold.get('check')}: {hold.get('reason', '')}"[:300]}
+        if dec:
+            approved = dec.get("action") == "complete" and dec.get("accepted", True)
+            hold_step.update(state="approved" if approved else (dec.get("action") or "decided"),
+                             actor=dec.get("actor"), comment=dec.get("comment"), decided_at=dec.get("decided_at"))
+        else:
+            hold_step["state"] = "pending"
+        if run_step is not None:
+            steps.insert(steps.index(run_step) + 1, hold_step)
+            started = data.get(f"started-{hold['run']}") or {}
+            if run_step["state"] == "held" and hold_step["state"] == "approved":
+                if (started.get("at") or "") > (dec.get("decided_at") or ""):
+                    run_step["state"], run_step["started_by"] = "running", started.get("by")
+                else:
+                    next_action = {"gate": GOVERNANCE_HOLD, "stage": hold["run"], "override": hold.get("check")}
     complete = not legacy and any(s["step"] == "SE-REVIEW-SRR" and s["state"] == "approved" for s in steps)
     return {
         "job_id": job_id,

@@ -29,6 +29,7 @@ from k9_aif_abb.k9_utils.config_loader import load_yaml
 from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
 from k9_dow.routers.das_router import DasRouter, DAS_TOPICS
 from k9_dow.config.instance import group as _group, topic as _topic
+from k9_dow.gates.hil_gateway import (GOVERNANCE_HOLD, governance_override_event, record_governance_alert)
 from k9_dow.gates.hil_gateway import (GATE_INPUT_STAGE, GATE_TOPICS, approvers,
                                       gate_approved_event, mark_started, resume_mode,
                                       save_gate_decision, stage_result_exists, GATE_NEXT_STAGE)
@@ -148,6 +149,23 @@ async def main() -> None:
                 "resume": resume_mode(),
             })
             if not accepted:
+                return
+            if gate_id == GOVERNANCE_HOLD:
+                # A person decided a governance hold: alert, then resume with the override or stop.
+                await loop.run_in_executor(None, record_governance_alert, config, {
+                    "type": "governance_override" if action == "complete" else "governance_hold_rejected",
+                    "job_id": job_id, "actor": reply.get("actor"), "comment": reply.get("comment"),
+                    "decided_at": reply.get("decided_at")})
+                if action == "complete" and resume_mode() == "auto":
+                    event = await loop.run_in_executor(None, governance_override_event, config, job_id, reply)
+                    await loop.run_in_executor(None, mark_started, config, job_id,
+                                               event["governance_override"].get("run"), "auto")
+                    await handle(event)
+                elif action != "complete":
+                    _result_event({"event_type": "gate_decision", "job_id": job_id, "correlation_id": job_id,
+                                   "orchestrator": "DasRouter",
+                                   "result": {"status": "stopped_at_gate", "gate_id": gate_id, "action": action,
+                                              "actor": reply.get("actor"), "orchestrator": "router"}})
                 return
             if action == "complete" and gate_id not in GATE_NEXT_STAGE:
                 # Recorded above; nothing to start (parallel JCI review, final SRR, legacy gate).

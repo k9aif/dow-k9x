@@ -85,16 +85,19 @@ class ProcessStageOrchestrator(BaseOrchestrator):
         self._agents_dir = Path(__file__).resolve().parent.parent / "agents" / "yaml"
         self._progress = progress_callback or (lambda e: None)
         self._monitor = ProgressMonitor(self._progress) if progress_callback else None
+        self._run_config: Optional[Dict[str, Any]] = None   # set while a governance override applies
 
     # ── squads ────────────────────────────────────────────────────────
     def _load_squad(self, yaml_filename: str, squad_id: str):
         agent_loader = AgentLoader(self._agents_dir)
         registry = AgentRegistry()
+        # A run resumed with a governance override uses a config with that one check relaxed.
+        config = getattr(self, "_run_config", None) or self.config
         for name in self.AGENTS:
             cls = agent_loader.resolve_class(name)
             registry.register(
                 name,
-                lambda c=cls, n=name: c(config=agent_loader.merge_with_global(n, self.config),
+                lambda c=cls, n=name: c(config=agent_loader.merge_with_global(n, config),
                                         monitor=self._monitor),
             )
         return SquadLoader(registry).load_one(str(self._squads_dir / yaml_filename), squad_id)
@@ -115,13 +118,19 @@ class ProcessStageOrchestrator(BaseOrchestrator):
         return result
 
     # ── a gate's readiness + package ──────────────────────────────────
-    def prepare_gate(self, gate_id: str, payload: dict, prior: dict) -> Tuple[dict, dict]:
-        """GateReadiness then PackageAssembly for ``gate_id``; returns (readiness, package)."""
+    def prepare_gate(self, gate_id: str, payload: dict, prior: dict,
+                     readiness: Optional[dict] = None, partial: Optional[dict] = None) -> Tuple[dict, dict]:
+        """GateReadiness then PackageAssembly for ``gate_id``; returns (readiness, package).
+        ``readiness`` given (a held run resuming): that squad is not run again. ``partial`` collects
+        each finished squad, so a hold keeps the work already done."""
         from k9_dow.gates.gate_registry import DAS_GATES
         criteria = DAS_GATES[gate_id].entry_criteria
         base = {**payload, "gate_id": gate_id, "gate_criteria": criteria}
-        readiness = self._run_squad(self._load_squad("gate_readiness_squad.yaml", "GateReadinessSquad"),
-                                    "GateReadinessSquad", {**base, "prior_outputs": prior})
+        if readiness is None:
+            readiness = self._run_squad(self._load_squad("gate_readiness_squad.yaml", "GateReadinessSquad"),
+                                        "GateReadinessSquad", {**base, "prior_outputs": prior})
+        if partial is not None:
+            partial["gate_readiness"] = readiness
         package = self._run_squad(self._load_squad("package_assembly_squad.yaml", "PackageAssemblySquad"),
                                   "PackageAssemblySquad", {**base, "prior_outputs": {**prior, **readiness}})
         return readiness, package
@@ -225,9 +234,27 @@ class ProcessStageOrchestrator(BaseOrchestrator):
                 "icd_metadata": icd_metadata(ctx["filename"] or "", job_id, run)}
 
         squad_file, squad_id, result_key = content
+        override = payload.get("governance_override")
+        partial: Dict[str, Any] = {}
+        if override:
+            # Resuming a held run: reuse what it finished, relax only the overridden check.
+            from k9_dow.gates.hil_gateway import load_stage_result
+            hold = load_stage_result(self.config, job_id, "hold") or {}
+            partial = dict(hold.get("partial") or {}) if hold.get("run") == run else {}
+            self._run_config = config_without_check(self.config, override.get("check"))
+            self._emit("GovernanceOverrideApplied", job_id=job_id, run=run, check=override.get("check"),
+                       approved_by=override.get("actor"))
         try:
-            drafted = self._run_squad(self._load_squad(squad_file, squad_id), squad_id, {**base, "prior_outputs": prior})
-            readiness, package = self.prepare_gate(gate_id, base, {**prior, **drafted})
+            drafted = partial.get(result_key)
+            if drafted is None:
+                drafted = self._run_squad(self._load_squad(squad_file, squad_id), squad_id,
+                                          {**base, "prior_outputs": prior})
+                partial[result_key] = drafted
+            readiness, package = self.prepare_gate(gate_id, base, {**prior, **drafted},
+                                                   readiness=partial.get("gate_readiness"), partial=partial)
+        except PermissionError as exc:
+            # Governance refused an agent's input mid-run: hold, keep the work, ask a person.
+            return self.hold_for_governance(job_id, run, approved_gate, decision, gate_id, str(exc), partial)
         except Exception as exc:
             # Recorded so Jobs in Pipeline shows the failure and offers the admin a retry,
             # instead of the run looking "running" forever.
@@ -237,6 +264,8 @@ class ProcessStageOrchestrator(BaseOrchestrator):
                 "failed_at": datetime.now(timezone.utc).isoformat()})
             self._emit("OrchestratorFailed", job_id=job_id, run=run, error=str(exc)[:300])
             raise
+        finally:
+            self._run_config = None
 
         result = {
             "job_id": job_id,
@@ -254,11 +283,65 @@ class ProcessStageOrchestrator(BaseOrchestrator):
             "gate_readiness": readiness,
             "review_package": package,
         }
+        if override:
+            result["governance_override"] = override
         self._emit("OrchestratorCompleted", job_id=job_id, run=run, gate=gate_id,
                    elapsed_s=round(time.monotonic() - t0, 1))
         uri = save_stage_result(self.config, job_id, run, result)
-        self.publish_review(gate_id, job_id, readiness, description=description,
-                            extra={f"{approved_gate} approved by": decision.get("actor")},
+        extra = {f"{approved_gate} approved by": decision.get("actor")}
+        if override:
+            extra["Governance override"] = (f"{override.get('check')} relaxed for this stage by "
+                                            f"{override.get('actor')} ({(override.get('decided_at') or '')[:16]})")
+        self.publish_review(gate_id, job_id, readiness, description=description, extra=extra,
                             artifacts=[f"{das_url()}/jobs/{job_id}/view/{run}",
                                        f"{das_url()}/jobs/{job_id}/docx/{run}", uri])
         return result
+
+    def hold_for_governance(self, job_id: str, run: str, approved_gate: str, decision: dict, gate_id: str,
+                            reason: str, partial: dict) -> Dict[str, Any]:
+        """Save the held run (with its finished squads), raise a Governance hold task in K9X HIL, and
+        publish a governance alert. The job is kept; a person decides to override or stop."""
+        from k9_dow.gates import hil_gateway
+        check = hil_gateway.hold_check(reason)
+        at = datetime.now(timezone.utc).isoformat()
+        held = {"job_id": job_id, "orchestrator": self.__class__.__name__, "orchestrator_run": run,
+                "status": "held", "gate_id": gate_id, "check": check, "reason": reason[:500],
+                "approved_gate": approved_gate, "held_at": at}
+        hil_gateway.save_stage_result(self.config, job_id, run, held)
+        hil_gateway.save_stage_result(self.config, job_id, "hold", {
+            "run": run, "check": check, "reason": reason[:500], "at": at, "approved_gate": approved_gate,
+            "decision": decision, "partial": partial, "orchestrator": self.__class__.__name__})
+        print(f"  ⏸ Governance hold job={job_id} run={run}: {reason[:160]}", flush=True)
+        self._emit("GovernanceHold", job_id=job_id, run=run, check=check, reason=reason[:300])
+        hil_gateway.publish_gate_task(
+            self.config, hil_gateway.GOVERNANCE_HOLD, job_id,
+            title=f"{job_id} · Governance hold: {check} at {run}",
+            description=(f"k9x governance refused an agent's input while preparing the {gate_id} package "
+                         f"(run {run}). The job and the work already done are kept. Approve to override "
+                         f"{check} for this job and this run only (recorded with your name and comment); "
+                         f"reject to stop the job here."),
+            source_orchestrator=self.__class__.__name__, source_topic=f"das.{run}",
+            payload={"Run": run, "Preparing gate": gate_id, "Check": check, "Reason": reason[:300],
+                     "Work kept": ", ".join(partial) or "none"},
+            artifacts=[f"{das_url()}/app"], priority="high",
+        )
+        hil_gateway.record_governance_alert(self.config, {
+            "type": "governance_hold", "job_id": job_id, "run": run, "gate_id": gate_id,
+            "check": check, "reason": reason[:300]})
+        return held
+
+
+def config_without_check(config: Dict[str, Any], check: Optional[str]) -> Dict[str, Any]:
+    """A copy of ``config`` with one governance check relaxed (a human override for one run)."""
+    import copy
+    cfg = copy.deepcopy(config)
+    if not check:
+        return cfg
+    shield = ((cfg.get("security") or {}).get("shield") or {})
+    for side in ("ingress", "egress"):
+        checks = (shield.get(side) or {}).get("checks")
+        if isinstance(checks, list) and check in checks:
+            shield[side]["checks"] = [c for c in checks if c != check]
+    if check == "GraniteGuardian":
+        ((cfg.setdefault("governance", {})).setdefault("guardian", {}))["enabled"] = False
+    return cfg

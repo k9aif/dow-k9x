@@ -730,8 +730,14 @@ async def advance_job(job_id: str, req: Optional[AdvanceReq] = None, admin: dict
     gate = next(s for s in hist["steps"] if s["step"] == nxt["gate"])
     reply = {"correlation_id": job_id, "action": "complete", "actor": gate.get("actor"),
              "comment": gate.get("comment"), "decided_at": gate.get("decided_at"), "status": "completed"}
-    event = gate_approved_event(nxt["gate"], reply)
-    event["decision"]["started_by"] = admin["u"]
+    if nxt.get("override"):
+        # Governance hold approved in K9X HIL: resume the held run with that one check overridden.
+        from k9_dow.gates.hil_gateway import governance_override_event
+        event = await loop.run_in_executor(None, governance_override_event, _config, job_id, reply)
+        event["governance_override"]["started_by"] = admin["u"]
+    else:
+        event = gate_approved_event(nxt["gate"], reply)
+        event["decision"]["started_by"] = admin["u"]
     await loop.run_in_executor(None, mark_started, _config, job_id, nxt["stage"], admin["u"])
     # Live events for this stage go to the admin's browser session (the job
     # may have been submitted from another session, or before a restart).
@@ -742,6 +748,22 @@ async def advance_job(job_id: str, req: Optional[AdvanceReq] = None, admin: dict
              admin["u"], nxt["stage"], job_id, nxt["gate"], gate.get("actor"))
     return {"job_id": job_id, "started": nxt["stage"], "after_gate": nxt["gate"],
             "approved_by": gate.get("actor"), "started_by": admin["u"]}
+
+
+@app.get("/governance/alerts")
+async def governance_alerts_view(start: str = "", end: str = "", admin: dict = Depends(require_admin)):
+    """Every governance hold, override and rejection between two days (default: today), newest first."""
+    from datetime import date
+    from k9_dow.gates.hil_gateway import alerts_topic, governance_alerts
+    today = date.today().isoformat()
+    start, end = (start or today)[:10], (end or start or today)[:10]
+    try:
+        date.fromisoformat(start); date.fromisoformat(end)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Dates as YYYY-MM-DD")
+    alerts = await asyncio.get_event_loop().run_in_executor(None, governance_alerts, _config, start, end)
+    return JSONResponse({"start": start, "end": end, "topic": alerts_topic(), "alerts": alerts},
+                        headers={"Cache-Control": "no-store"})
 
 
 @app.get("/jobs/{job_id}")
