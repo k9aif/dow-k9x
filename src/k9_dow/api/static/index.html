@@ -563,7 +563,12 @@ setInterval(refreshJobQueue, 5000);
 // ─── SSE ──────────────────────────────────────────────
 function connectSSE() {
   const dot = document.getElementById('sseDot');
+  // One stream per tab: entering the app twice (restored session + sign-in, or
+  // Start-as-admin over a live session) used to open a second EventSource and
+  // show every event twice.
+  if (state.eventSource) { try { state.eventSource.close(); } catch (_) {} }
   const es = new EventSource('/events/stream?session_id=' + encodeURIComponent(state.sessionId || ''));
+  state.eventSource = es;
   es.onmessage = (e) => {
     try {
       const evt = JSON.parse(e.data);
@@ -1299,7 +1304,7 @@ sequenceDiagram
     K->>O: consume
     Note over O: k9x_Shield screens the reviewer's comment before agents read it
     O->>S3: load the requirement, earlier runs and every recorded decision (JCI included)
-    O->>LLM: drafting squad (e.g. AoA study plan; or AoA summary, ASR, acquisition strategy; or system requirements)
+    O->>LLM: drafting squad (AoA study plan, or AoA summary + ASR + acquisition strategy, or system requirements)
     O->>LLM: GateReadiness + PackageAssembly (next gate's criteria)
     O->>S3: package (view and .docx)
     O->>K: workflow.hil.das.mdd (next review task)
