@@ -86,6 +86,7 @@ class ProcessStageOrchestrator(BaseOrchestrator):
         self._progress = progress_callback or (lambda e: None)
         self._monitor = ProgressMonitor(self._progress) if progress_callback else None
         self._run_config: Optional[Dict[str, Any]] = None   # set while a governance override applies
+        self._active_job_id: Optional[str] = None
 
     # ── squads ────────────────────────────────────────────────────────
     def _load_squad(self, yaml_filename: str, squad_id: str):
@@ -97,15 +98,32 @@ class ProcessStageOrchestrator(BaseOrchestrator):
             cls = agent_loader.resolve_class(name)
             registry.register(
                 name,
-                lambda c=cls, n=name: c(config=agent_loader.merge_with_global(n, config),
-                                        monitor=self._monitor),
+                lambda c=cls, n=name: self._withdrawable(
+                    c(config=agent_loader.merge_with_global(n, config), monitor=self._monitor)),
             )
         return SquadLoader(registry).load_one(str(self._squads_dir / yaml_filename), squad_id)
+
+    def _withdrawable(self, agent):
+        """Before the agent runs, stop if its job has been withdrawn (Jobs in Pipeline ›
+        Withdraw): a running stage stops at its next agent. The agent's own execute,
+        governance included, is unchanged."""
+        run = agent.execute
+
+        def execute(payload, _run=run):
+            from k9_dow.gates.hil_gateway import JobWithdrawn, withdrawn
+            job_id = (payload or {}).get("job_id") or self._active_job_id
+            wd = withdrawn(self.config, job_id)
+            if wd:
+                raise JobWithdrawn(f"job {job_id} withdrawn by {wd.get('by')} at {wd.get('at')}")
+            return _run(payload)
+        agent.execute = execute
+        return agent
 
     def _emit(self, event_type: str, **kwargs):
         self._progress({"type": event_type, "orchestrator": self.__class__.__name__, **kwargs})
 
     def _run_squad(self, squad, squad_name: str, payload: dict) -> dict:
+        self._active_job_id = payload.get("job_id") or self._active_job_id
         flow = getattr(squad, "flow", [])
         agents = [s.get("agent", "?") for s in flow]
         print(f"\n  ▶ Squad: {squad_name}  ({len(agents)} agents)", flush=True)
@@ -216,7 +234,7 @@ class ProcessStageOrchestrator(BaseOrchestrator):
         result key), then judge, package and publish ``gate_id``. ``prior_from``: earlier run →
         sections of its stored result that are evidence here."""
         from k9_dow.config.process_model import load_process_model
-        from k9_dow.gates.hil_gateway import save_stage_result
+        from k9_dow.gates.hil_gateway import JobWithdrawn, save_stage_result
         from k9_dow.utils.icd_composer import icd_metadata
 
         job_id = payload.get("job_id", "unknown")
@@ -252,6 +270,8 @@ class ProcessStageOrchestrator(BaseOrchestrator):
                 partial[result_key] = drafted
             readiness, package = self.prepare_gate(gate_id, base, {**prior, **drafted},
                                                    readiness=partial.get("gate_readiness"), partial=partial)
+        except JobWithdrawn:
+            raise                      # withdrawn: no error record, no retry (orchestrator process)
         except PermissionError as exc:
             # Governance refused an agent's input mid-run: hold, keep the work, ask a person.
             return self.hold_for_governance(job_id, run, approved_gate, decision, gate_id, str(exc), partial)

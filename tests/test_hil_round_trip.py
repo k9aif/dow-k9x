@@ -573,3 +573,41 @@ def test_job_record_zip_has_cover_sheet_with_each_decision(monkeypatch):
     cover = zipfile.ZipFile(io.BytesIO(r.content)).read("JOB-R/00-Cover-Sheet.md").decode()
     assert "mda@k9x.ai" in cover and "2026-10-10 04:13:17 UTC" in cover and "Enter MSA" in cover
     assert "Materiel Development Decision" in cover
+
+
+def test_withdrawn_job_stops_before_the_next_agent(monkeypatch):
+    from k9_dow.orchestrators.tmrr_orchestrator import TmrrOrchestrator as ProcessStageOrchestrator
+    monkeypatch.setattr(hil_gateway, "load_stage_result",
+                        lambda cfg, job, stage: {"by": "admin@k9x.ai", "at": "t"} if stage == "withdrawn" else None)
+
+    class Agent:
+        ran = False
+
+        def execute(self, payload):
+            Agent.ran = True
+            return {}
+    orch = ProcessStageOrchestrator(config={})
+    agent = orch._withdrawable(Agent())
+    with pytest.raises(hil_gateway.JobWithdrawn):
+        agent.execute({"job_id": "JOB-W"})
+    assert Agent.ran is False
+
+
+def test_agent_runs_when_the_job_is_not_withdrawn(monkeypatch):
+    from k9_dow.orchestrators.tmrr_orchestrator import TmrrOrchestrator as ProcessStageOrchestrator
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: None)
+
+    class Agent:
+        def execute(self, payload):
+            return {"ok": payload["job_id"]}
+    assert ProcessStageOrchestrator(config={})._withdrawable(Agent()).execute({"job_id": "J"}) == {"ok": "J"}
+
+
+def test_history_of_a_withdrawn_job_has_no_next_action(monkeypatch):
+    stored = {"requirement": {"status": "awaiting_gate", "document_title": "T"},
+              "withdrawn": {"by": "demo@k9x.ai", "at": "2026-10-10T06:00:00+00:00"}}
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: stored.get(stage))
+    h = hil_gateway.job_history({}, "JOB-W", stages=list(stored))
+    assert h["withdrawn"]["by"] == "demo@k9x.ai" and h["next_action"] is None
+    sv = next(s for s in h["steps"] if s["step"] == "SERVICE-VALIDATION")
+    assert sv["state"] == "withdrawn"

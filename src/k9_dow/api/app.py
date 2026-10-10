@@ -126,6 +126,10 @@ async def _dispatch_queue():
             continue
 
         job_id = event.get("job_id")
+        if (_job_store.get(job_id) or {}).get("status") == "withdrawn":
+            log.info("[Dispatcher] job=%s was withdrawn while queued: not dispatched", job_id)
+            sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=msg["ReceiptHandle"])
+            continue
         _dispatch_state["running_job_id"] = job_id
         if job_id in _job_store:
             _job_store[job_id]["status"] = "running"
@@ -218,7 +222,8 @@ async def _consume_results():
                 # -- the 5-job cap would fill up after 5 jobs ever and
                 # never free a slot again.
                 _job_store[matched_key]["status"] = (
-                    "error" if evt_result.get("status") == "error" else "complete"
+                    "error" if evt_result.get("status") == "error"
+                    else "withdrawn" if evt_result.get("status") == "withdrawn" else "complete"
                 )
                 log.info("[SSE] Stored result for job=%s", matched_key)
                 # Terminal result for the job the dispatcher is currently
@@ -751,6 +756,46 @@ async def advance_job(job_id: str, req: Optional[AdvanceReq] = None, admin: dict
              admin["u"], nxt["stage"], job_id, nxt["gate"], gate.get("actor"))
     return {"job_id": job_id, "started": nxt["stage"], "after_gate": nxt["gate"],
             "approved_by": gate.get("actor"), "started_by": admin["u"]}
+
+
+@app.post("/jobs/{job_id}/withdraw")
+async def withdraw(job_id: str, req: Optional[AdvanceReq] = None, user: dict = Depends(require_user)):
+    """Withdraw a job: the DAS admin any job, a visitor the jobs their own session submitted.
+    A queued job is never dispatched; a running stage stops before its next agent; later HIL
+    decisions for it are recorded but start nothing. The record is kept (who, when)."""
+    from k9_dow.gates.hil_gateway import job_history, withdraw_job, withdrawn
+    loop = asyncio.get_event_loop()
+    mem = _job_store.get(job_id) or {}
+    own = bool(req and req.session_id) and mem.get("session_id") == req.session_id
+    if user.get("r") != "admin" and not own:
+        raise HTTPException(status_code=403, detail="Only the DAS admin or the visitor who submitted this job can withdraw it")
+    if await loop.run_in_executor(None, withdrawn, _config, job_id):
+        raise HTTPException(status_code=409, detail="Already withdrawn")
+    if not mem:
+        hist = await loop.run_in_executor(None, job_history, _config, job_id)
+        if not hist.get("steps"):
+            raise HTTPException(status_code=404, detail="Job not found")
+        if hist.get("complete"):
+            raise HTTPException(status_code=409, detail="This job is complete; there is nothing to withdraw")
+    rec = await loop.run_in_executor(None, withdraw_job, _config, job_id, user.get("u") or "?")
+    if job_id in _job_store:
+        _job_store[job_id]["status"] = "withdrawn"
+    log.info("[API] %s withdrew job=%s", user.get("u"), job_id)
+    return {"job_id": job_id, "withdrawn": rec}
+
+
+@app.delete("/jobs/{job_id}/data")
+async def delete_withdrawn_job_data(job_id: str, admin: dict = Depends(require_admin)):
+    """DAS admin: clean up a withdrawn job (its stored results and packages). The
+    withdrawal record stays, so the job still shows who withdrew it and when."""
+    from k9_dow.gates.hil_gateway import delete_job_data, withdrawn
+    loop = asyncio.get_event_loop()
+    if not await loop.run_in_executor(None, withdrawn, _config, job_id):
+        raise HTTPException(status_code=409, detail="Withdraw the job first")
+    n = await loop.run_in_executor(None, delete_job_data, _config, job_id)
+    _job_store.pop(job_id, None)
+    log.info("[API] %s deleted %d stored objects of withdrawn job=%s", admin.get("u"), n, job_id)
+    return {"job_id": job_id, "deleted": n}
 
 
 @app.get("/governance/alerts")

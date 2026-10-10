@@ -26,6 +26,7 @@ from k9_dow.orchestrators.msa_orchestrator import MsaOrchestrator
 from k9_dow.orchestrators.tmrr_orchestrator import TmrrOrchestrator
 from k9_dow.orchestrators.traceability_orchestrator import TraceabilityOrchestrator
 from k9_dow.routers.das_router import DAS_TOPICS
+from k9_dow.gates.hil_gateway import JobWithdrawn, withdrawn
 from k9_dow.config.instance import group as _group
 
 logging.basicConfig(
@@ -140,6 +141,9 @@ async def main() -> None:
         _current_job["job_id"] = payload.get("job_id")
         try:
             loop = asyncio.get_event_loop()
+            wd = await loop.run_in_executor(None, withdrawn, config, payload.get("job_id"))
+            if wd:
+                raise JobWithdrawn(f"withdrawn by {wd.get('by')} at {wd.get('at')}")
             result = await loop.run_in_executor(None, orch.execute_flow, payload)
             status = result.get("status", "?")
             print(
@@ -153,6 +157,16 @@ async def main() -> None:
                 "correlation_id": corr,
                 "orchestrator": orch_name,
                 "result": result,
+            })
+        except JobWithdrawn as exc:
+            # The job was withdrawn before or while this stage ran: it stops here.
+            print(f"  ■ ORCHESTRATOR  WITHDRAWN  {orch_name}  job={payload.get('job_id')}  ({exc})\n", flush=True)
+            results_bus.publish({
+                "event_type": event_type,
+                "job_id": payload.get("job_id", ""),
+                "correlation_id": corr,
+                "orchestrator": orch_name,
+                "result": {"status": "withdrawn", "detail": str(exc), "job_id": payload.get("job_id", "")},
             })
         except Exception as exc:
             log.error(

@@ -330,6 +330,40 @@ def mark_started(config: Dict[str, Any], job_id: str, stage: str, by: str) -> No
                       {"by": by, "at": datetime.now(timezone.utc).isoformat()})
 
 
+# ── Withdraw: stop a job and keep the record ────────────────────────
+
+class JobWithdrawn(RuntimeError):
+    """Raised before an agent runs when its job has been withdrawn."""
+
+
+def withdraw_job(config: Dict[str, Any], job_id: str, by: str, reason: str = "") -> Dict[str, Any]:
+    """Record the withdrawal. Every agent checks it before it starts (stage_base), so a
+    running stage stops at its next agent; a queued job is never dispatched; a later HIL
+    decision for this job is recorded but starts nothing."""
+    from datetime import datetime, timezone
+    rec = {"job_id": job_id, "by": by, "at": datetime.now(timezone.utc).isoformat(), "reason": reason[:500]}
+    save_stage_result(config, job_id, "withdrawn", rec)
+    return rec
+
+
+def withdrawn(config: Dict[str, Any], job_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    return load_stage_result(config, job_id, "withdrawn") if job_id else None
+
+
+def delete_job_data(config: Dict[str, Any], job_id: str) -> int:
+    """Clean up a withdrawn job: delete its stored results and packages, keep the withdrawal
+    record (who, when, why) so the job still shows as withdrawn."""
+    from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
+    store = ObjectStorageFactory.create(config)
+    keep = _stage_key(job_id, "withdrawn")
+    n = 0
+    for key in store.list_objects(STAGE_BUCKET, prefix=f"{key_prefix()}by-job/{job_id}/") or []:
+        if key != keep:
+            store.delete(STAGE_BUCKET, key)
+            n += 1
+    return n
+
+
 def save_gate_decision(config: Dict[str, Any], job_id: str, gate_id: str, decision: Dict[str, Any]) -> None:
     """Every HIL decision the Router receives (approve, reject, expire; accepted or not)."""
     save_stage_result(config, job_id, f"gate-{gate_id}", decision)
@@ -446,7 +480,16 @@ def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]]
                 else:
                     next_action = {"gate": GOVERNANCE_HOLD, "stage": hold["run"], "override": hold.get("check")}
     complete = not legacy and any(s["step"] == "SE-REVIEW-SRR" and s["state"] == "approved" for s in steps)
+    out_withdrawn = data.get("withdrawn")
+    if out_withdrawn:
+        # Nothing runs after a withdrawal: a running stage shows as stopped, no next action.
+        next_action = None
+        open_steps = [s for s in steps if s["state"] in ("running", "pending")]
+        for s in open_steps or [next((x for x in steps if x["state"] == "not_reached"), None)]:
+            if s:
+                s["state"] = "withdrawn"
     return {
+        "withdrawn": out_withdrawn,
         "job_id": job_id,
         "process_model": "jcids-legacy" if legacy else _PM.id,
         "document_title": first.get("document_title"),

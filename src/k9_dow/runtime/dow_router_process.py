@@ -32,7 +32,7 @@ from k9_dow.config.instance import group as _group, topic as _topic
 from k9_dow.gates.hil_gateway import (GOVERNANCE_HOLD, governance_override_event, record_governance_alert)
 from k9_dow.gates.hil_gateway import (GATE_INPUT_STAGE, GATE_TOPICS, approvers,
                                       gate_approved_event, mark_started, resume_mode,
-                                      save_gate_decision, stage_result_exists, GATE_NEXT_STAGE)
+                                      save_gate_decision, stage_result_exists, withdrawn, GATE_NEXT_STAGE)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -142,6 +142,9 @@ async def main() -> None:
                 "gate_id": gate_id, "accepted": accepted})
             log.info("[RouterProcess] HIL decision gate=%s job=%s action=%s actor=%s accepted=%s",
                      gate_id, job_id, action, actor, accepted)
+            if await loop.run_in_executor(None, withdrawn, config, job_id):
+                log.info("[RouterProcess] job=%s was withdrawn: decision recorded, nothing started", job_id)
+                return
             _result_event({
                 "type": "GateDecision", "job_id": job_id, "gate_id": gate_id,
                 "action": action, "actor": reply.get("actor"), "comment": reply.get("comment"),
