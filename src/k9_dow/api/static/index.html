@@ -1050,7 +1050,8 @@ function jobDocLinks(j) {
     return `<span style="margin-left:auto"></span>${link('icd', 'View ICD')}` + (done('acquisition') ? link('milestone', 'View Milestone package') : '');
   }
   return `<span style="margin-left:auto"></span>${link('requirement', 'View requirement package')}` +
-    RUN_DOCS.filter(([run]) => done(run)).map(([run, label]) => link(run, 'View ' + label)).join('');
+    RUN_DOCS.filter(([run]) => done(run)).map(([run, label]) => link(run, 'View ' + label)).join('') +
+    ` <a href="/jobs/${id}/record.zip" title="Cover sheet (each stage and decision: who, when, where) and every package as .md and .docx" style="color:var(--green);font-weight:600">${j.complete ? 'Download job record (.zip)' : 'Download record so far (.zip)'}</a>`;
 }
 state.authToken = null; state.role = null;
 try { const a = JSON.parse(sessionStorage.getItem('k9x_das_auth') || 'null'); if (a) { state.authToken = a.token; state.role = a.role; } } catch (_) {}

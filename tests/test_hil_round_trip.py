@@ -545,3 +545,31 @@ def test_view_uses_the_stored_requirement_after_a_later_stage_starts(monkeypatch
                         lambda cfg, job, stage: stored if stage == "requirement" else None)
     monkeypatch.setitem(api._job_store, "JOB-T", {"job_id": "JOB-T", "session_id": "s1"})
     assert api._get_job("JOB-T")["result"] is stored
+
+
+def test_job_record_zip_has_cover_sheet_with_each_decision(monkeypatch):
+    import io
+    import zipfile
+    from fastapi.testclient import TestClient
+    from k9_dow.api import app as api
+    hist = {"job_id": "JOB-R", "document_title": "T", "process_model": "mca-2026-10", "complete": True,
+            "steps": [{"step": "requirement", "kind": "stage", "state": "done"},
+                      {"step": "MDD", "kind": "gate", "state": "approved", "actor": "mda@k9x.ai",
+                       "decided_at": "2026-10-10T04:13:17+00:00", "comment": "Enter MSA",
+                       "hil": {"application": "Major Capability Acquisition", "queue": "Materiel Development Decision"}}]}
+    monkeypatch.setattr(hil_gateway, "job_history", lambda cfg, job: hist)
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: None)
+
+    async def doc(job_id, doc_id):
+        if doc_id != "mdd_package":
+            raise api.HTTPException(status_code=404)
+        return "# MDD package\n\nBody"
+    monkeypatch.setattr(api, "_doc_markdown", doc)
+    r = TestClient(api.app).get("/jobs/JOB-R/record.zip")
+    assert r.status_code == 200
+    names = zipfile.ZipFile(io.BytesIO(r.content)).namelist()
+    assert {"JOB-R/00-Cover-Sheet.md", "JOB-R/00-Cover-Sheet.docx", "JOB-R/04-MDD-Package.md",
+            "JOB-R/04-MDD-Package.docx", "JOB-R/decisions.json"} <= set(names)
+    cover = zipfile.ZipFile(io.BytesIO(r.content)).read("JOB-R/00-Cover-Sheet.md").decode()
+    assert "mda@k9x.ai" in cover and "2026-10-10 04:13:17 UTC" in cover and "Enter MSA" in cover
+    assert "Materiel Development Decision" in cover
