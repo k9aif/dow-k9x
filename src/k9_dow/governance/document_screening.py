@@ -52,6 +52,13 @@ def split_sections(markdown: str) -> List[Tuple[str, str]]:
     return sections
 
 
+def _model_host(config: Dict[str, Any]) -> str:
+    base = ((config.get("inference") or {}).get("llm_factory") or {}).get("base_url")
+    if base and "${" not in str(base):
+        return str(base).rstrip("/")
+    return (os.environ.get("OLLAMA_HOST") or os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434").rstrip("/")
+
+
 def _guardian_config(config: Dict[str, Any]) -> Dict[str, Any]:
     models = ((config.get("inference") or {}).get("llm_factory") or {}).get("models") or {}
     model = (models.get("guardian") or {}).get("model") or "granite4.1-guardian:8b"
@@ -62,7 +69,9 @@ def _guardian_config(config: Dict[str, Any]) -> Dict[str, Any]:
             "on_unavailable": "fail_closed",   # surfaced as "not screened", never as a pass
             "timeout": 60,
         }},
-        "ollama": {"base_url": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")},
+        # The same model host as every DAS agent (OLLAMA_HOST via config.yaml), not the framework's
+        # OLLAMA_BASE_URL default: in a container localhost is the container itself.
+        "ollama": {"base_url": _model_host(config)},
     }
 
 
