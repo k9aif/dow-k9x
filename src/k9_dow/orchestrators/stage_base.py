@@ -139,7 +139,7 @@ class ProcessStageOrchestrator(BaseOrchestrator):
                                       score.get("score") if isinstance(score, dict) else None) if readiness else {}
         published = hil_gateway.publish_gate_task(
             self.config, gate_id, job_id,
-            title=f"{gate.title} ({gate_id}) — {job_id}",
+            title=f"{job_id} · {gate.title}",
             description=f"{description} Decision authority: {gate.authority}.",
             source_orchestrator=self.__class__.__name__,
             source_topic=f"das.{gate.prepared_by}",
