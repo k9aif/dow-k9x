@@ -31,6 +31,25 @@ from k9_dow.governance.document_screening import untrusted_rule
 MAX_SOURCE_CHARS = 24000
 MAX_PRIOR_CHARS = 16000
 
+# Phase and milestone facts every writer must get right (DoDI 5000.85 3.5-3.10).
+PROCESS_FACTS = (
+    "Process facts (Major Capability Acquisition, DoDI 5000.85):\n"
+    "- Materiel Development Decision (MDD): the mandatory entry point. The MDA decides the phase of entry\n"
+    "  (normally Materiel Solution Analysis, MSA) and the initial review milestone (normally Milestone A),\n"
+    "  documented in an ADM with the approved AoA study guidance and study plan attached.\n"
+    "- MSA: the AoA is conducted; the lead Service or Component, with the requirements and acquisition\n"
+    "  communities, selects the preferred materiel solution (SE Guidebook 3.1); MSA ends at Milestone A.\n"
+    "- Milestone A: approves entry into Technology Maturation and Risk Reduction (TMRR), the acquisition\n"
+    "  strategy (including its pathway) and release of the final RFP for TMRR.\n"
+    "- TMRR: critical technologies are matured and risk reduced here (competitive prototyping where\n"
+    "  planned), with the System Requirements Review, CDD-equivalent validation and PDR. A strategy\n"
+    "  approved at Milestone A plans and contracts for TMRR.\n"
+    "- Development RFP Release decision point (end of TMRR, before Milestone B): approves release of the\n"
+    "  solicitation for EMD. The EMD contract is awarded after Milestone B.\n"
+    "- Milestone B: approves entry into Engineering and Manufacturing Development (EMD).\n"
+    "  Milestone C: Production and Deployment. Never attribute EMD to Milestone A.\n"
+)
+
 GROUNDING = (
     "Rules:\n"
     "- Use only the submitted requirement document, the earlier stage results and the recorded\n"
@@ -94,7 +113,7 @@ class SectionWriterAgent(BaseAgent):
             f"Role: {self.config.get('role', self.layer)}\n"
             f"Goal: {self.config.get('goal', '')}\n\n"
             f"Instructions:\n{instructions}\n\n"
-            f"{GROUNDING}\n"
+            f"{GROUNDING}\n{PROCESS_FACTS}\n"
             + untrusted_rule(source) +
             f"Program: {payload.get('document_title') or 'NOT PROVIDED IN SOURCE'}\n\n"
             f"Submitted requirement document:\n{source or '(not available)'}\n\n"

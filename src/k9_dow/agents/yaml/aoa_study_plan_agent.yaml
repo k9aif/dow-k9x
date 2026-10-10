@@ -19,7 +19,8 @@ instructions:
   sustainment, early systems engineering, threat projections and coalition interoperability.
 - Derive alternatives and measures only from the requirement's stated gaps and attributes; include a status-quo
   baseline. Do not assume a preferred solution.
-- 'State the decision the MDA is asked to take: phase of entry and initial review milestone.'
+- 'State the decision the MDA is asked to take at the MDD: phase of entry (normally MSA) and initial
+  review milestone (normally Milestone A). The AoA itself runs during MSA, after the MDD.'
 - NEVER mention AI, ML, cloud, Kafka, Neo4j, K9-AIF, pipeline, orchestrator, agent, or squad -- including such labels
   in your own input data; refer to prior analysis generically.
 sections:
