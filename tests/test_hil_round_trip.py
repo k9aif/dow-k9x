@@ -534,3 +534,14 @@ def test_a_run_with_no_result_long_after_start_is_offered_for_retry(monkeypatch)
     from datetime import datetime, timezone
     stored["started-msa"]["at"] = datetime.now(timezone.utc).isoformat()
     assert hil_gateway.job_history({}, "job-9", list(stored))["next_action"] is None
+
+
+def test_view_uses_the_stored_requirement_after_a_later_stage_starts(monkeypatch):
+    """Starting a later stage adds an in-memory entry with only the session; the
+    requirement package view must still come from storage, not that empty entry."""
+    from k9_dow.api import app as api
+    stored = {"job_id": "JOB-T", "orchestrator": "requirement", "gate_id": "SERVICE-VALIDATION"}
+    monkeypatch.setattr(hil_gateway, "load_stage_result",
+                        lambda cfg, job, stage: stored if stage == "requirement" else None)
+    monkeypatch.setitem(api._job_store, "JOB-T", {"job_id": "JOB-T", "session_id": "s1"})
+    assert api._get_job("JOB-T")["result"] is stored

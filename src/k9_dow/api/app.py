@@ -648,12 +648,15 @@ async def upload_document(
 def _get_job(job_id: str) -> Optional[dict]:
     """In-memory job, else rebuilt from the stage results kept in object
     storage (survives app restarts and closed browser windows)."""
-    if job_id in _job_store:
-        return _job_store[job_id]
+    mem = _job_store.get(job_id)
+    # Starting a later stage (advance_job) or its live events add an entry with only the
+    # session and stage fields; the requirement result itself then comes from storage.
+    if mem and mem.get("result"):
+        return mem
     from k9_dow.gates.hil_gateway import load_stage_result
     first = load_stage_result(_config, job_id, "requirement") or load_stage_result(_config, job_id, "jcids")
     if not first:
-        return None
+        return mem
     return {"job_id": job_id, "status": "complete", "result": first,
             "filename": first.get("filename") or "", "document_type": first.get("document_type") or "",
             "from_storage": True}
