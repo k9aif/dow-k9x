@@ -1119,6 +1119,34 @@ function renderArch() {
     is recorded and joins the evidence of later gates. The stages, gates, criteria and their policy sources come from one
     versioned file, <span style="color:var(--text)">process_model.yaml</span> (mca-2026-10, current as of October 2026).
   </p>
+  <div style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:8px">Policy basis and how DAS stays current</div>
+  <p style="margin:0 0 8px">
+    The flow above follows the requirements and acquisition policy in force today (process model
+    <span style="color:var(--text)">mca-2026-10</span>, current as of October 2026). JCIDS was ended by the Secretary of
+    Defense memo of 20 August 2025 and replaced by the Joint Force Requirements Process. Sources, kept in the repository
+    under <span style="color:var(--text)">data/policy/</span>:
+  </p>
+  <table style="border-collapse:collapse;width:100%;max-width:900px;font-size:11.5px;margin-bottom:10px">
+    <tr><td style="padding:3px 12px 3px 0;color:var(--text);white-space:nowrap;vertical-align:top">Requirements</td>
+        <td style="padding:3px 0;border-bottom:1px solid var(--border)">CJCSI 5123.01J CH 1 and CJCSM 5123.01A (5 Aug 2026): Joint Force Requirements Process, Joint Capability Integration review, Joint Staffing Designators.
+        Joint Staff library: <a href="https://www.jcs.mil/library/cjcs-manuals/" target="_blank" rel="noopener" style="color:var(--accent)">CJCS Manuals</a> ·
+        <a href="https://www.jcs.mil/Library/CJCS-Instructions/" target="_blank" rel="noopener" style="color:var(--accent)">CJCS Instructions</a>.
+        SecDef memo, 20 Aug 2025 (Services validate their own requirements).</td></tr>
+    <tr><td style="padding:3px 12px 3px 0;color:var(--text);white-space:nowrap;vertical-align:top">Acquisition</td>
+        <td style="padding:3px 0;border-bottom:1px solid var(--border)">DoWI 5000.02 Change 2 (8 Apr 2026): Adaptive Acquisition Framework. DoDI 5000.85: Major Capability Acquisition (MDD, MSA, Milestone A, TMRR).
+        <a href="https://www.esd.whs.mil/Directives/issuances/dodi/" target="_blank" rel="noopener" style="color:var(--accent)">DoD Issuances</a>.</td></tr>
+    <tr><td style="padding:3px 12px 3px 0;color:var(--text);white-space:nowrap;vertical-align:top">Systems engineering</td>
+        <td style="padding:3px 0;border-bottom:1px solid var(--border)">DoD Systems Engineering Guidebook (2022): Alternative Systems Review, System Requirements Review criteria.</td></tr>
+  </table>
+  <p style="margin:0 0 22px">
+    <span style="color:var(--text)">How it stays current.</span> The process is not written into the code. It lives in one
+    dated, versioned file, <span style="color:var(--text)">process_model.yaml</span>: every stage and gate, its entry criteria,
+    its decision authority and the paragraph of the source it rests on. The router, the gates, the K9X HIL review tasks,
+    this page's flow diagram and the job history all read it, and tests fail if any stage or gate cites no source or if the
+    joint review could ever block. When the Joint Staff or the Department publishes a change (a new CJCSI or CJCSM in the
+    library above, a change to DoWI 5000.02 or DoDI 5000.85), the change is reviewed against the documents and recorded as
+    a new version of the file; jobs keep the version they ran under, so earlier decisions stay readable.
+  </p>
   <div style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:8px">Architecture-First Agentic AI</div>
   <p>
     This application is built on the <span style="color:var(--accent)">K9-AIF Framework</span>, grounded in
