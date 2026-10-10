@@ -789,19 +789,26 @@ def _extract_docs(job_data: dict) -> list[dict]:
     docs = [{"id": "requirement", "section": "Deliverables",
              "agent": f"Service capability requirement: validation review package — {input_prefix}",
              "filename": f"{job_id}-Requirement-Package.md", "size": len(content)}]
-    if (result.get("joint_review") or {}).get("jsd"):
+    jsd = (result.get("joint_review") or {}).get("jsd")
+    if jsd:
+        from k9_dow.utils.icd_composer import extract_text
         docs.append({"id": "jsd", "section": "Deliverables", "agent": "Joint Staffing Designator recommendation (JCI review)",
-                     "filename": f"{job_id}-JSD-Recommendation.md", "size": 0})
-    if (result.get("screening") or {}).get("status"):
-        docs.append({"id": "screening", "section": "Deliverables",
-                     "agent": f"Document Screening Report ({result['screening'].get('warning_count', 0)} warning(s))",
-                     "filename": f"{job_id}-Document-Screening-Report.md", "size": 0})
+                     "filename": f"{job_id}-JSD-Recommendation.md", "size": len(extract_text(jsd))})
+    screening = load_stage_result(_config, job_id, "screening") or {}
+    if screening.get("screened_at"):
+        from k9_dow.governance.document_screening import report_markdown
+        n_warn, n_open = screening.get("warning_count", 0), screening.get("not_screened_count", 0)
+        status = (f"{n_warn} warning(s)" if screening.get("status") != "incomplete"
+                  else f"incomplete: {n_open} check(s) did not run" + (f", {n_warn} warning(s)" if n_warn else ""))
+        docs.append({"id": "screening", "section": "Deliverables", "agent": f"Document Screening Report ({status})",
+                     "filename": f"{job_id}-Document-Screening-Report.md", "size": len(report_markdown(screening))})
     for run, label in (("mdd_package", "Materiel Development Decision package"),
                        ("msa", "Milestone A package (AoA summary, ASR, acquisition strategy)"),
                        ("tmrr", "System Requirements Review package")):
-        if load_stage_result(_config, job_id, run):
+        md = _compose_run_package(job_id, run)
+        if md:
             docs.append({"id": run, "section": "Deliverables", "agent": label,
-                         "filename": f"{job_id}-{DOC_NAMES[run]}.md", "size": 0})
+                         "filename": f"{job_id}-{DOC_NAMES[run]}.md", "size": len(md)})
     return docs
 
 

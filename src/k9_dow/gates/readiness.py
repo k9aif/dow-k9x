@@ -102,8 +102,8 @@ def score_block(criteria: Sequence[str], verdicts: Sequence[Optional[str]], weig
     total = sum(weights) or 1
     rows = []
     for i, (c, v, w) in enumerate(zip(criteria, verdicts, weights), 1):
-        points = "–" if v is None else f"{100 * w * CREDIT[v] / total:g}"
-        rows.append(f"| {i} | {c} | {LABEL.get(v, 'Not stated')} | {100 * w / total:g}% | {points} |")
+        points = "–" if v is None else f"{round(100 * w * CREDIT[v] / total, 1):g}"
+        rows.append(f"| {i} | {c} | {LABEL.get(v, 'Not stated')} | {round(100 * w / total, 1):g}% | {points} |")
     rows = "\n".join(rows)
     if score is None:
         headline = ("**Overall Readiness Score:** not computed: the assessment does not state a verdict "
