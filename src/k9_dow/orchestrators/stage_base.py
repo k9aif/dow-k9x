@@ -212,12 +212,12 @@ class ProcessStageOrchestrator(BaseOrchestrator):
         job_id = payload.get("job_id", "unknown")
         runs = {r: load_stage_result(self.config, job_id, r) or {} for r in earlier_runs}
         source = load_stage_result(self.config, job_id, "source") or {}
-        # Decisions of record: every recorded decision on a gate an earlier run prepared
-        # (the JCI review's JROCM included when it has come back), then the approval
-        # that started this run.
+        # Decisions of record: every decision recorded for this job so far, in process order
+        # (Service validation, the JCI review's JROCM when it has come back, MDD, ...), then
+        # the approval that started this run. A later gate (e.g. the SRR) cites them all.
         decisions: Dict[str, Any] = {}
         for gate in load_process_model().gates.values():
-            if gate.prepared_by in earlier_runs and gate.id != approved_gate:
+            if gate.id != approved_gate:
                 rec = load_stage_result(self.config, job_id, f"gate-{gate.id}")
                 if rec and rec.get("accepted", True):
                     decisions.update(gate_decision_evidence(gate.id, rec))

@@ -4,7 +4,7 @@ class: AoaStudyPlanAgent
 module: k9_dow.agents.src.package_writers
 description: Drafts AoA study guidance and the AoA study plan the MDD needs (DoDI 5000.85 3.5).
 pattern: reasoning
-model: reasoning
+model: package_synthesis
 sources:
 - DoDI 5000.85 3.5
 - DoDI 5000.85 3.6.b(1)

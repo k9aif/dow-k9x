@@ -313,7 +313,35 @@ def test_artifact_fetcher_counts_agent_records():
         "generated_views": {"agent": "Y", "output": "x" * 200},
         "consistency_report": {"agent": "Z", "output": "y" * 120},
         "status": "completed"}})
-    assert out["artifacts_found"] == 2 and "Fetched 2 artifacts" in out["output"]
+    assert out["artifacts_found"] == 2 and "2 artifacts available" in out["output"]
+    assert "| generated_views | Y | 200 |" in out["output"]
+
+
+def test_criteria_loader_lists_the_criteria_not_a_count():
+    from k9_dow.agents.src.criteria_loader_agent import CriteriaLoaderAgent
+    out = CriteriaLoaderAgent(config={}).execute({"gate_id": "MILESTONE-A", "gate_criteria": ["Test strategy", "Cybersecurity"]})
+    assert "1. Test strategy" in out["output"] and "2. Cybersecurity" in out["output"] and "Loaded" not in out["output"]
+
+
+def test_package_closes_an_unclosed_bold():
+    from k9_dow.utils.icd_composer import balance_bold
+    assert balance_bold("**Overall Readiness Score 46/100\nok **b**") == "**Overall Readiness Score 46/100**\nok **b**"
+
+
+def test_process_facts_state_mdap_and_statute():
+    from k9_dow.agents.src.process_facts import PROCESS_FACTS
+    assert "10 U.S.C. 4251" in PROCESS_FACTS and "only if its ACAT" in PROCESS_FACTS
+    assert "never cite a DoD issuance" in PROCESS_FACTS and "during TMRR" in PROCESS_FACTS
+
+
+def test_srr_sees_every_earlier_decision(monkeypatch):
+    from k9_dow.orchestrators.tmrr_orchestrator import TmrrOrchestrator
+    dec = {"action": "complete", "actor": "mda@k9x.ai", "decided_at": "t", "accepted": True}
+    stored = {"gate-SERVICE-VALIDATION": dec, "gate-MDD": dec, "gate-MILESTONE-A": dec}
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: stored.get(stage))
+    ctx = TmrrOrchestrator(config={}).resume_context({"job_id": "J", "decision": dec}, "MILESTONE-A", ["msa", "requirement"])
+    text = str(ctx["decisions"])
+    assert "MDD" in text and "SERVICE-VALIDATION" in text and "MILESTONE-A" in text
 
 
 def test_auth_me_restores_session(monkeypatch):

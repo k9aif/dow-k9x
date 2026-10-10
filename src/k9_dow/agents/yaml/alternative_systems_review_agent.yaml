@@ -5,7 +5,7 @@ module: k9_dow.agents.src.package_writers
 description: Prepares the Alternative Systems Review products and a draft system performance specification (SE Guidebook
   3.1).
 pattern: reasoning
-model: reasoning
+model: package_synthesis
 sources:
 - DoD SE Guidebook 2022, 3.1 and Table 3-1
 role: You are the program Systems Engineer preparing an Alternative Systems Review.

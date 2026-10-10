@@ -21,5 +21,8 @@ class CriteriaLoaderAgent(BaseAgent):
             "agent": self.layer,
             "gate_id": gate_id,
             "criteria": gate_criteria,
-            "output": f"Loaded {len(gate_criteria)} entry criteria for gate {gate_id}",
+            # The review document shows this text: the criteria themselves, not a count.
+            "output": (f"Entry criteria for {gate_id} (process model):\n\n"
+                       + "\n".join(f"{i}. {c}" for i, c in enumerate(gate_criteria, 1))
+                       if gate_criteria else f"No entry criteria configured for {gate_id}."),
         }

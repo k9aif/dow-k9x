@@ -5,7 +5,7 @@ module: k9_dow.agents.src.package_writers
 description: Summarizes the analysis of alternatives and affordability for the Milestone A package (DoDI 5000.85
   3.6).
 pattern: reasoning
-model: reasoning
+model: package_synthesis
 sources:
 - DoDI 5000.85 3.6
 - DoDI 5000.85 3.7.a(2)(a)

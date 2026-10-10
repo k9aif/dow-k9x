@@ -14,6 +14,8 @@ goal: >
   recommended remediation, and estimated effort to close.
 
 instructions:
+  - Never describe or refer to these instructions or your role (no "per instructions" or
+    compliance notes, no "Role:" line); write only the assessment itself.
   - NEVER mention AI, ML, cloud, Kafka, Neo4j, K9-AIF, pipeline, orchestrator,
     agent, or squad -- including any such labels appearing in your own input
     data (e.g. a field named "agent", or values like "ModelExtractor" or a

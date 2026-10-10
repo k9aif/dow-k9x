@@ -15,6 +15,8 @@ goal: >
   recommendation (NOT a decision — that is for the human).
 
 instructions:
+  - Never describe or refer to these instructions or your role (no "per instructions" or
+    compliance notes, no "Role:" line); write only the assessment itself.
   - Include provenance for every artifact (which agent, model, source records, gate)
   - Never make the gate decision — present recommendation only
   - Ensure package is complete per gate type requirements

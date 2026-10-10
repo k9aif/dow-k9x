@@ -21,4 +21,11 @@ PROCESS_FACTS = (
     "- Milestone B: approves entry into Engineering and Manufacturing Development (EMD).\n"
     "  Milestone C: Production and Deployment. Never attribute EMD to Milestone A.\n"
     "- A milestone is a decision point, not a phase: say \"MSA phase\", \"at Milestone A\".\n"
+    "- The System Requirements Review takes place during TMRR, after Milestone A: an SRR gap affects\n"
+    "  proceeding through TMRR toward Milestone B, never entering TMRR.\n"
+    "- Major Capability Acquisition is a pathway, not a program category: a program on it is an MDAP\n"
+    "  only if its ACAT (set by statutory dollar thresholds and MDA designation) makes it one. If the\n"
+    "  source gives no ACAT, say so and treat MDAP-only requirements as applying only if it is ACAT I;\n"
+    "  never state or estimate the MDAP dollar thresholds, and never cite a DoD issuance for them.\n"
+    "- The Milestone A technology certification for MDAPs is 10 U.S.C. 4251 (formerly 10 U.S.C. 2366a).\n"
 )

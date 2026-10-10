@@ -31,5 +31,9 @@ class ArtifactFetcherAgent(BaseAgent):
             "gate_id": gate_id,
             "artifacts_found": len(artifacts),
             "manifest": artifacts,
-            "output": f"Fetched {len(artifacts)} artifacts for gate {gate_id}",
+            # The review document shows this text: a manifest, not a count.
+            "output": (f"{len(artifacts)} artifacts available for {gate_id}:\n\n"
+                       "| Artifact | Prepared by | Size (characters) |\n| --- | --- | --- |\n"
+                       + "\n".join(f"| {k} | {v['agent'] or 'earlier stage'} | {v['content_length']:,} |"
+                                    for k, v in artifacts.items())),
         }

@@ -5,7 +5,7 @@ module: k9_dow.agents.src.package_writers
 description: Drafts the system requirements (system performance specification) for the System Requirements Review
   (SE Guidebook 3.2).
 pattern: reasoning
-model: reasoning
+model: package_synthesis
 sources:
 - DoD SE Guidebook 2022, 3.2
 - DoDI 5000.85 3.8

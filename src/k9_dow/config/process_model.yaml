@@ -162,7 +162,7 @@ process_model:
         - "Should Cost targets and framing assumptions"
         - "Affordability analysis: program fully funded within the FYDP"
         - "Draft CDD-equivalent approved by the Component"
-        - "For MDAPs: independent cost estimate, independent technical risk assessment, program goals, 10 U.S.C. 2366a technology determination"
+        - "For MDAPs (ACAT I) only: independent cost estimate, independent technical risk assessment, program goals, 10 U.S.C. 4251 (formerly 2366a) technology determination"
       evidence: ["Alternative Systems Review results (best practice, S6 3.1)", "JCI JROCM, tripwires and critical joint requirements, when available"]
       decision_record: "Acquisition Decision Memorandum: materiel solution, acquisition strategy, TMRR strategy, final RFP release, TMRR exit and EMD entry criteria"
       sources: ["S5 3.6-3.7", "S4 4.1", "S6 3.1"]
