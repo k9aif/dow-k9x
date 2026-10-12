@@ -22,6 +22,18 @@ from pydantic import BaseModel
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+
+class _NoCacheStaticFiles(StaticFiles):
+    """Static files sent with an explicit Cache-Control: no-cache. Without it Cloudflare
+    applied its own 4-hour browser/edge TTL (max-age=14400), so a rebuilt diagram or page
+    stayed stale for hours after a deploy. no-cache still allows cheap ETag revalidation
+    (304 Not Modified); same approach as K9X HIL's static files."""
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
 from k9_aif_abb.k9_utils.config_loader import load_yaml
 from k9_dow.config.settings import settings
 from k9_dow.utils.ids import generate_job_id
@@ -489,7 +501,7 @@ async def view_demo(filename: str):
 
 _STATIC_DIR = Path(__file__).parent / "static"
 if _STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+    app.mount("/static", _NoCacheStaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
 @app.get("/")
