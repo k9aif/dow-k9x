@@ -160,10 +160,10 @@ async def main() -> None:
                     "job_id": job_id, "actor": reply.get("actor"), "comment": reply.get("comment"),
                     "decided_at": reply.get("decided_at")})
                 if action == "complete" and resume_mode() == "auto":
-                    event = await loop.run_in_executor(None, governance_override_event, config, job_id, reply)
-                    await loop.run_in_executor(None, mark_started, config, job_id,
-                                               event["governance_override"].get("run"), "auto")
-                    await handle(event)
+                    # The DAS app queues the override re-run (Jobs in Pipeline) from the
+                    # GateDecision event above; it runs when the single slot is free.
+                    print(f"\n  ✔ HIL  governance hold approved by {reply.get('actor')}  job={job_id}"
+                          f"  → queued in Jobs in Pipeline\n", flush=True)
                 elif action != "complete":
                     _result_event({"event_type": "gate_decision", "job_id": job_id, "correlation_id": job_id,
                                    "orchestrator": "DasRouter",
@@ -187,11 +187,11 @@ async def main() -> None:
                 print(f"\n  ✔ HIL  {gate_id} approved by {reply.get('actor')}  job={job_id}"
                       f"  → awaiting DAS admin to start the next stage\n", flush=True)
             elif action == "complete":
-                print(f"\n  ✔ HIL  {gate_id} approved by {reply.get('actor')}  job={job_id}  → resuming\n",
-                      flush=True)
-                await loop.run_in_executor(None, mark_started, config, job_id,
-                                           GATE_NEXT_STAGE[gate_id], "auto")
-                await handle(gate_approved_event(gate_id, reply))
+                # Auto: the DAS app queues the next stage (Jobs in Pipeline) from the
+                # GateDecision event above. It runs when the single slot is free, taking
+                # turns with new jobs, so it never runs beside another run.
+                print(f"\n  ✔ HIL  {gate_id} approved by {reply.get('actor')}  job={job_id}"
+                      f"  → queued in Jobs in Pipeline\n", flush=True)
             elif gate_id in GATE_NEXT_STAGE or gate_id == "SE-REVIEW-SRR":
                 # reject / expire on a blocking gate: the pipeline stops there. (A JCI-REVIEW
                 # rejection is recorded above; it never holds the acquisition flow.)

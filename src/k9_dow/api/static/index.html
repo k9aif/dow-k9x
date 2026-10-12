@@ -259,6 +259,9 @@
     <div id="jobStatus"></div>
     <div id="jobProgress" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 12px 12px;font-size:11px;color:var(--text2)">No job running. Select a document and click Analyze.</div>
 
+    <h3 style="border-top:1px solid var(--border)" title="Stages K9X HIL approved, queued automatically. One run at a time: these and the Job Queue take turns.">Jobs in Pipeline — approved in HIL</h3>
+    <div id="pipelineQueueList" style="flex-shrink:0;max-height:30vh;overflow-y:auto;overflow-x:hidden;padding:6px 12px 12px;font-size:11px;color:var(--text2)">Loading…</div>
+
     <h3 style="border-top:1px solid var(--border)">Job Queue (max 5)</h3>
     <div id="jobQueueList" style="flex-shrink:0;max-height:40vh;overflow-y:auto;overflow-x:hidden;padding:6px 12px 12px;font-size:11px;color:var(--text2)">Loading…</div>
   </div>
@@ -567,6 +570,42 @@ async function refreshJobQueue() {
 refreshJobQueue();
 setInterval(refreshJobQueue, 5000);
 
+// Shared "Jobs in Pipeline" panel: stages K9X HIL approved (auto mode queues them).
+// Same single running slot as the Job Queue, round-robin; shared view for every visitor.
+const PIPELINE_STAGE_LABEL = {mdd_package: 'MDD package', msa: 'MSA → Milestone A package',
+                              tmrr: 'TMRR: SRR package', requirement: 'Requirement (re-run)'};
+async function refreshPipelineQueue() {
+  const el = document.getElementById('pipelineQueueList');
+  if (!el) return;
+  try {
+    const data = await (await fetch('/jobs/pipeline')).json();
+    const items = data.items || [];
+    if (!items.length) {
+      el.innerHTML = '<div style="color:var(--text2)">Nothing approved waiting. Approvals in K9X HIL queue here.</div>';
+      return;
+    }
+    const header = `<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0 4px;border-bottom:1px solid var(--border);color:var(--text2);font-size:10px;letter-spacing:.05em">
+        <span style="width:56px;flex:none;white-space:nowrap">JOB ID</span><span style="flex:1">STAGE · APPROVED BY</span><span>STATUS</span></div>`;
+    el.innerHTML = header + items.map(i => {
+      const st = i.status;
+      const color = st === 'done' ? 'var(--green)' : st === 'failed' ? 'var(--red)' : st === 'running' ? 'var(--accent)' : 'var(--text2)';
+      const label = st === 'done' ? '✓ done' : st === 'failed' ? '✗ failed' : st === 'running' ? '● Running...'
+                  : st === 'skipped' ? '– already started' : '… waiting';
+      const shortId = String(i.job_id || '').slice(-6);
+      const stage = PIPELINE_STAGE_LABEL[i.stage] || i.stage;
+      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span style="width:56px;flex:none;font-family:var(--mono);color:var(--text2);white-space:nowrap" title="${esc(i.job_id)}">${esc(shortId)}</span>
+        <span style="flex:1;min-width:0;line-height:1.35">${esc(stage)}<br><span style="color:var(--text2)">${esc(i.gate || '')} · ${esc(i.approved_by || '?')}</span></span>
+        <span style="color:${color};white-space:nowrap;font-weight:600">${label}</span>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    el.innerHTML = '<div style="color:var(--text2)">Unable to load the pipeline queue.</div>';
+  }
+}
+refreshPipelineQueue();
+setInterval(refreshPipelineQueue, 5000);
+
 // ─── SSE ──────────────────────────────────────────────
 function connectSSE() {
   const dot = document.getElementById('sseDot');
@@ -706,7 +745,7 @@ function renderLive() {
     else if (evtType === 'GateDecision') { cls = 'gate'; detail = (e.gate_id||'?') + ' ' +
         (e.action === 'complete' ? 'APPROVED' : (e.action||'?').toUpperCase()) + ' by ' + (e.actor||'?') + ' in K9X HIL' +
         (e.accepted === false ? ' (not an authorized approver: ignored)'
-          : e.action === 'complete' ? (e.resume === 'manual' ? ' → waiting for DAS admin to start the next stage (Jobs in Pipeline)' : ' → resuming pipeline')
+          : e.action === 'complete' ? (e.resume === 'manual' ? ' → waiting for DAS admin to start the next stage (Jobs in Pipeline)' : ' → queued in Jobs in Pipeline (runs in turn, one at a time)')
           : ' → pipeline stops at this gate'); }
     else if (evtType === 'SquadStarted') { cls = 'squad'; detail = (e.squad||'') + ' (' + (e.total||'?') + ' agents: ' + (e.agents||[]).join(', ') + ')'; }
     else if (evtType === 'SquadCompleted') { cls = 'squad'; detail = (e.squad||'') + ' done in ' + (e.elapsed_s||'?') + 's'; }
@@ -1147,6 +1186,7 @@ async function advanceJob(jobId, btn) {
   } catch (e) { msg = 'Could not reach DAS.'; }
   if (msg) { btn.disabled = false; btn.textContent = 'Retry'; btn.insertAdjacentHTML('afterend', `<span style="color:var(--red);font-size:11px">${esc(msg)}</span>`); return; }
   followStartedStage(jobId, d.started);
+  refreshPipelineQueue();
 }
 
 // After Start <stage>: this browser follows that job (its live events are no

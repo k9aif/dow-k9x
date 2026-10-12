@@ -230,8 +230,11 @@ def test_login_roles_and_admin_check(monkeypatch):
     assert auth.login("admin", "s3cret") is None          # no admin password = no admin
 
 
-def test_advance_starts_next_stage_once(monkeypatch):
+def test_advance_queues_the_next_stage_and_it_starts_once(monkeypatch):
+    """The admin's Start (and auto mode) queue an approved stage in Jobs in Pipeline;
+    the dispatcher starts it once, in the single running slot shared with new jobs."""
     import asyncio
+    import json
     from fastapi import HTTPException
     from k9_dow.api import app as app_mod
     stored = {"requirement": {"status": "awaiting_gate"},
@@ -241,14 +244,38 @@ def test_advance_starts_next_stage_once(monkeypatch):
     monkeypatch.setattr(hil_gateway, "save_stage_result",
                         lambda cfg, job, stage, res: stored.update({stage: res}))
     sent = []
-    monkeypatch.setattr(app_mod, "_publish_to_router", sent.append)
+
+    class FakeSQS:
+        def get_queue_url(self, QueueName): return {"QueueUrl": QueueName}
+        def send_message(self, QueueUrl, MessageBody): sent.append((QueueUrl, json.loads(MessageBody)))
+    monkeypatch.setattr(app_mod, "_get_sqs_client", lambda: FakeSQS())
+    monkeypatch.setattr(app_mod, "_pipeline_store", {})
+
     out = asyncio.run(app_mod.advance_job("job-9", admin={"u": "admin", "r": "admin"}))
-    assert out["started"] == "mdd_package" and out["approved_by"] == "a@k9x.ai"
-    assert sent[0]["event_type"] == "gate_approved" and sent[0]["gate_id"] == "SERVICE-VALIDATION"
-    assert sent[0]["decision"]["started_by"] == "admin" and "started-mdd_package" in stored
+    assert out["queued"] == "mdd_package" and out["status"] == "queued" and out["approved_by"] == "a@k9x.ai"
+    assert sent[0][0] == app_mod._PIPELINE_QUEUE_NAME
+    assert sent[0][1] == {"job_id": "job-9", "stage": "mdd_package", "started_by": "admin"}
+    assert "started-mdd_package" not in stored              # queued, not started yet
+
+    asyncio.run(app_mod.advance_job("job-9", admin={"u": "admin", "r": "admin"}))
+    assert len(sent) == 1                                   # same stage queued once
+
+    event, key = app_mod._prepare_pipeline_run(sent[0][1])  # the dispatcher takes it
+    assert event["event_type"] == "gate_approved" and event["gate_id"] == "SERVICE-VALIDATION"
+    assert event["decision"]["started_by"] == "admin" and "started-mdd_package" in stored
+    assert app_mod._pipeline_store[key]["status"] == "running"
+
+    again, _ = app_mod._prepare_pipeline_run(sent[0][1])    # a duplicate entry starts nothing
+    assert again is None and app_mod._pipeline_store[key]["status"] == "skipped"
     with pytest.raises(HTTPException) as e:                # already started
         asyncio.run(app_mod.advance_job("job-9", admin={"u": "admin", "r": "admin"}))
     assert e.value.status_code == 409
+
+
+def test_dispatcher_takes_turns_between_the_two_queues():
+    from k9_dow.api import app as app_mod
+    assert app_mod._queue_order("pipeline") == ["new", "pipeline"]
+    assert app_mod._queue_order("new") == ["pipeline", "new"]
 
 
 # ── Context enrichment inside the readiness and package squads ──

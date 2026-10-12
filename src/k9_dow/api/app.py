@@ -54,7 +54,17 @@ _sse_clients: list = []
 _QUEUE_ENDPOINT = os.environ.get("DAS_QUEUE_ENDPOINT", "http://localhost:9324")
 from k9_dow.config.instance import group as _inst_group, topic as _inst_topic
 _QUEUE_NAME = _inst_group("das-job-queue")
-_dispatch_state = {"running_job_id": None}
+# Second queue: a stage that K9X HIL approved (MDD package, MSA, TMRR, or a
+# governance-hold re-run) waits here. Both queues share the one running slot
+# below, so a resumed stage never runs beside a new job (GPU contention, and
+# two writers on one job's history); the dispatcher takes them round-robin.
+_PIPELINE_QUEUE_NAME = _inst_group("das-pipeline-queue")
+_dispatch_state = {"running_job_id": None, "kind": None, "key": None, "since": 0.0, "last_kind": "pipeline"}
+# What the "Jobs in Pipeline" box shows: one entry per approved stage, newest last.
+_pipeline_store: dict = {}
+PIPELINE_SHOWN = 5
+# A run that never reports a result frees the slot after this long (minutes).
+SLOT_TIMEOUT_MIN = int(os.getenv("DAS_SLOT_TIMEOUT_MIN", "60"))
 
 
 def _get_sqs_client():
@@ -68,12 +78,87 @@ def _get_sqs_client():
     )
 
 
-def _get_or_create_queue_url(sqs) -> str:
+def _get_or_create_queue_url(sqs, name: str = _QUEUE_NAME) -> str:
     try:
-        return sqs.get_queue_url(QueueName=_QUEUE_NAME)["QueueUrl"]
+        return sqs.get_queue_url(QueueName=name)["QueueUrl"]
     except sqs.exceptions.QueueDoesNotExist:
-        log.info("[Dispatcher] Queue %r doesn't exist yet -- creating it.", _QUEUE_NAME)
-        return sqs.create_queue(QueueName=_QUEUE_NAME)["QueueUrl"]
+        log.info("[Dispatcher] Queue %r doesn't exist yet -- creating it.", name)
+        return sqs.create_queue(QueueName=name)["QueueUrl"]
+
+
+def _next_stage_event(job_id: str, started_by: str):
+    """The event that starts a job's next stage, from its history -- or None when
+    nothing is waiting (already started, withdrawn, or no approval on record).
+    Checked at dispatch time, so a duplicate queue entry starts nothing."""
+    from k9_dow.gates.hil_gateway import (gate_approved_event, governance_override_event,
+                                          job_history, withdrawn)
+    if withdrawn(_config, job_id):
+        return None, None
+    hist = job_history(_config, job_id)
+    nxt = hist.get("next_action")
+    if not nxt:
+        return None, None
+    gate = next(s for s in hist["steps"] if s["step"] == nxt["gate"])
+    reply = {"correlation_id": job_id, "action": "complete", "actor": gate.get("actor"),
+             "comment": gate.get("comment"), "decided_at": gate.get("decided_at"), "status": "completed"}
+    if nxt.get("override"):
+        event = governance_override_event(_config, job_id, reply)
+        event["governance_override"]["started_by"] = started_by
+    else:
+        event = gate_approved_event(nxt["gate"], reply)
+        event["decision"]["started_by"] = started_by
+    return event, {**nxt, "approved_by": gate.get("actor")}
+
+
+def _enqueue_pipeline(job_id: str, stage: str, gate: str, approved_by: str, started_by: str) -> dict:
+    """Queue an approved stage behind whatever is running. Idempotent per job + stage."""
+    import time as _t
+    key = f"{job_id}:{stage}"
+    item = _pipeline_store.get(key)
+    if item and item["status"] in ("queued", "running"):
+        return item
+    item = {"key": key, "job_id": job_id, "stage": stage, "gate": gate, "approved_by": approved_by,
+            "started_by": started_by, "status": "queued", "queued_at": _t.time()}
+    _pipeline_store[key] = item
+    sqs = _get_sqs_client()
+    sqs.send_message(QueueUrl=_get_or_create_queue_url(sqs, _PIPELINE_QUEUE_NAME),
+                     MessageBody=json.dumps({"job_id": job_id, "stage": stage, "started_by": started_by}))
+    log.info("[Dispatcher] queued approved stage %s for job=%s (approved at %s by %s)",
+             stage, job_id, gate, approved_by)
+    return item
+
+
+def _queue_order(last_kind: str) -> list:
+    """Round-robin: after an approved stage, a new job gets the next turn, and vice versa."""
+    return ["new", "pipeline"] if last_kind == "pipeline" else ["pipeline", "new"]
+
+
+def _prepare_pipeline_run(body: dict):
+    """An approved stage taken off the queue: the event to publish (and the stage marked
+    started), or None when it is no longer waiting -- so a stage starts at most once."""
+    from k9_dow.gates.hil_gateway import mark_started
+    job_id, stage = body.get("job_id"), body.get("stage")
+    key = f"{job_id}:{stage}"
+    event, nxt = _next_stage_event(job_id, body.get("started_by") or "auto")
+    if event is None or nxt["stage"] != stage:
+        if key in _pipeline_store:
+            _pipeline_store[key]["status"] = "skipped"
+        log.info("[Dispatcher] approved stage %s for job=%s no longer waiting: not dispatched", stage, job_id)
+        return None, key
+    mark_started(_config, job_id, stage, body.get("started_by") or "auto")
+    if key in _pipeline_store:
+        _pipeline_store[key]["status"] = "running"
+    return event, key
+
+
+def _free_slot(job_id: str, why: str) -> None:
+    if _dispatch_state["running_job_id"] != job_id:
+        return
+    key = _dispatch_state.get("key")
+    if key and key in _pipeline_store and _pipeline_store[key]["status"] == "running":
+        _pipeline_store[key]["status"] = "done"
+    _dispatch_state.update(running_job_id=None, kind=None, key=None)
+    log.info("[Dispatcher] job=%s %s, slot freed", job_id, why)
 
 
 def _publish_to_router(event: dict) -> None:
@@ -90,60 +175,71 @@ def _publish_to_router(event: dict) -> None:
 
 
 async def _dispatch_queue():
-    """Background task: while no job is running, pull one message off the
-    queue and publish it to the Router. Freed to dispatch the next job by
-    _consume_results() when it observes that job's terminal result on
-    das.results -- reuses that existing signal rather than inventing a
-    separate completion-notification mechanism."""
+    """Background task: one run at a time across both queues. When the slot is free,
+    take the next item round-robin -- an approved stage (Jobs in Pipeline), then a new
+    job (Job Queue) -- and publish it to the Router. The slot is freed by the run's
+    result on das.results (_consume_results), or after SLOT_TIMEOUT_MIN."""
+    import time as _t
     sqs = _get_sqs_client()
-    queue_url = _get_or_create_queue_url(sqs)
-    log.info("[Dispatcher] Watching queue: %s", queue_url)
+    urls = {"new": _get_or_create_queue_url(sqs, _QUEUE_NAME),
+            "pipeline": _get_or_create_queue_url(sqs, _PIPELINE_QUEUE_NAME)}
+    log.info("[Dispatcher] Watching queues: %s", urls)
     loop = asyncio.get_event_loop()
     while True:
         if _dispatch_state["running_job_id"] is not None:
+            if _t.time() - _dispatch_state["since"] > SLOT_TIMEOUT_MIN * 60:
+                _free_slot(_dispatch_state["running_job_id"], f"reported nothing in {SLOT_TIMEOUT_MIN} min")
             await asyncio.sleep(1)
             continue
-        try:
-            resp = await loop.run_in_executor(
-                None,
-                lambda: sqs.receive_message(QueueUrl=queue_url, MaxNumberOfMessages=1, WaitTimeSeconds=10),
-            )
-        except Exception as exc:
-            log.warning("[Dispatcher] Queue receive failed: %s", exc)
-            await asyncio.sleep(5)
+        order = _queue_order(_dispatch_state["last_kind"])
+        picked = None
+        for kind in order:
+            try:
+                resp = await loop.run_in_executor(None, lambda u=urls[kind]: sqs.receive_message(
+                    QueueUrl=u, MaxNumberOfMessages=1, WaitTimeSeconds=1))
+            except Exception as exc:
+                log.warning("[Dispatcher] Queue receive failed (%s): %s", kind, exc)
+                continue
+            msgs = resp.get("Messages", [])
+            if msgs:
+                picked = (kind, msgs[0])
+                break
+        if not picked:
+            await asyncio.sleep(1)
             continue
-
-        messages = resp.get("Messages", [])
-        if not messages:
-            continue
-
-        msg = messages[0]
+        kind, msg = picked
+        sqs.delete_message(QueueUrl=urls[kind], ReceiptHandle=msg["ReceiptHandle"])
+        _dispatch_state["last_kind"] = kind
         try:
-            event = json.loads(msg["Body"])
+            body = json.loads(msg["Body"])
         except Exception as exc:
             log.error("[Dispatcher] Bad message body, dropping: %s", exc)
-            sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=msg["ReceiptHandle"])
             continue
+        job_id = body.get("job_id")
 
-        job_id = event.get("job_id")
-        if (_job_store.get(job_id) or {}).get("status") == "withdrawn":
-            log.info("[Dispatcher] job=%s was withdrawn while queued: not dispatched", job_id)
-            sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=msg["ReceiptHandle"])
-            continue
-        _dispatch_state["running_job_id"] = job_id
-        if job_id in _job_store:
-            _job_store[job_id]["status"] = "running"
+        if kind == "new":
+            if (_job_store.get(job_id) or {}).get("status") == "withdrawn":
+                log.info("[Dispatcher] job=%s was withdrawn while queued: not dispatched", job_id)
+                continue
+            event, key = body, None
+            if job_id in _job_store:
+                _job_store[job_id]["status"] = "running"
+        else:
+            event, key = await loop.run_in_executor(None, _prepare_pipeline_run, body)
+            if event is None:
+                continue
 
+        _dispatch_state.update(running_job_id=job_id, kind=kind, key=key, since=_t.time())
         try:
             _publish_to_router(event)
-            log.info("[Dispatcher] Dispatched job=%s to router", job_id)
+            log.info("[Dispatcher] Dispatched %s job=%s to router", kind, job_id)
         except Exception as exc:
             log.error("[Dispatcher] Publish to router failed for job=%s: %s", job_id, exc)
-            if job_id in _job_store:
+            if kind == "new" and job_id in _job_store:
                 _job_store[job_id]["status"] = "failed"
-            _dispatch_state["running_job_id"] = None
-
-        sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=msg["ReceiptHandle"])
+            if key in _pipeline_store:
+                _pipeline_store[key]["status"] = "failed"
+            _dispatch_state.update(running_job_id=None, kind=None, key=None)
 
 
 @app.on_event("startup")
@@ -198,6 +294,18 @@ async def _consume_results():
             # outcomes are kept per run; the requirement result stays the job's
             # "result" (the requirement view and /docs read it).
             later_stage = evt_result.get("orchestrator") if isinstance(evt_result, dict) else None
+            if (evt.get("type") or evt.get("event_type")) == "GateDecision" and job_id \
+                    and evt.get("resume") == "auto" and evt.get("action") == "complete" and evt.get("accepted"):
+                # K9X HIL approved a gate: queue the stage it starts (the Router no longer
+                # starts it directly), behind whatever is running.
+                try:
+                    _ev, nxt = await asyncio.get_event_loop().run_in_executor(None, _next_stage_event, job_id, "auto")
+                    if nxt:
+                        _enqueue_pipeline(job_id, nxt["stage"], nxt["gate"], nxt.get("approved_by") or evt.get("actor"), "auto")
+                except Exception as exc:
+                    log.error("[Dispatcher] could not queue the approved stage for job=%s: %s", job_id, exc)
+            if job_id and isinstance(evt_result, dict) and evt_result.get("status") and _dispatch_state["running_job_id"] == job_id:
+                _free_slot(job_id, f"run finished ({evt_result.get('status')})")
             if matched_key and (evt.get("type") or evt.get("event_type")) == "GateDecision":
                 _job_store[matched_key].setdefault("gates", {})[evt.get("gate_id", "?")] = {
                     k: evt.get(k) for k in ("action", "actor", "comment", "decided_at", "accepted")}
@@ -230,9 +338,7 @@ async def _consume_results():
                 # tracking -- free it to pull the next queued job. Reuses
                 # this existing signal rather than a separate completion
                 # notification path.
-                if _dispatch_state["running_job_id"] == matched_key:
-                    _dispatch_state["running_job_id"] = None
-                    log.info("[Dispatcher] job=%s complete, freed for next dispatch", matched_key)
+                _free_slot(matched_key, "complete")
 
             event_session_id = (
                 _job_store.get(matched_key, {}).get("session_id") if matched_key else None
@@ -547,6 +653,15 @@ def _active_jobs() -> list:
     return jobs
 
 
+@app.get("/jobs/pipeline")
+def list_pipeline_queue():
+    """Stages K9X HIL approved, newest last (the last PIPELINE_SHOWN): queued, running,
+    done or skipped. Shared view, like the Job Queue."""
+    items = sorted(_pipeline_store.values(), key=lambda i: i["queued_at"])[-PIPELINE_SHOWN:]
+    return JSONResponse(content={"items": items, "running_job_id": _dispatch_state["running_job_id"],
+                                 "running_kind": _dispatch_state["kind"], "shown": PIPELINE_SHOWN})
+
+
 @app.get("/jobs/queue")
 def list_job_queue():
     """Last 5 jobs, oldest first (FIFO order) -- a new job is appended at
@@ -728,34 +843,19 @@ async def advance_job(job_id: str, req: Optional[AdvanceReq] = None, admin: dict
     """DAS admin starts the next stage of a job whose gate K9X HIL approved.
     Refuses unless an approval is on record and that stage hasn't started."""
     _require_llm()
-    from k9_dow.gates.hil_gateway import (gate_approved_event, job_history, load_stage_result,
-                                          mark_started)
     loop = asyncio.get_event_loop()
-    hist = await loop.run_in_executor(None, job_history, _config, job_id)
-    nxt = hist.get("next_action")
+    event, nxt = await loop.run_in_executor(None, _next_stage_event, job_id, admin["u"])
     if not nxt:
         raise HTTPException(status_code=409, detail="Nothing to start: no HIL approval waiting, or the next stage already started")
-    gate = next(s for s in hist["steps"] if s["step"] == nxt["gate"])
-    reply = {"correlation_id": job_id, "action": "complete", "actor": gate.get("actor"),
-             "comment": gate.get("comment"), "decided_at": gate.get("decided_at"), "status": "completed"}
-    if nxt.get("override"):
-        # Governance hold approved in K9X HIL: resume the held run with that one check overridden.
-        from k9_dow.gates.hil_gateway import governance_override_event
-        event = await loop.run_in_executor(None, governance_override_event, _config, job_id, reply)
-        event["governance_override"]["started_by"] = admin["u"]
-    else:
-        event = gate_approved_event(nxt["gate"], reply)
-        event["decision"]["started_by"] = admin["u"]
-    await loop.run_in_executor(None, mark_started, _config, job_id, nxt["stage"], admin["u"])
     # Live events for this stage go to the admin's browser session (the job
     # may have been submitted from another session, or before a restart).
     if req and req.session_id:
         _job_store.setdefault(job_id, {"job_id": job_id})["session_id"] = req.session_id
-    _publish_to_router(event)
-    log.info("[API] %s started %s for job=%s (approved at %s by %s)",
-             admin["u"], nxt["stage"], job_id, nxt["gate"], gate.get("actor"))
-    return {"job_id": job_id, "started": nxt["stage"], "after_gate": nxt["gate"],
-            "approved_by": gate.get("actor"), "started_by": admin["u"]}
+    item = _enqueue_pipeline(job_id, nxt["stage"], nxt["gate"], nxt.get("approved_by"), admin["u"])
+    log.info("[API] %s queued %s for job=%s (approved at %s by %s)",
+             admin["u"], nxt["stage"], job_id, nxt["gate"], nxt.get("approved_by"))
+    return {"job_id": job_id, "queued": nxt["stage"], "started": nxt["stage"], "status": item["status"],
+            "after_gate": nxt["gate"], "approved_by": nxt.get("approved_by"), "started_by": admin["u"]}
 
 
 @app.post("/jobs/{job_id}/withdraw")
