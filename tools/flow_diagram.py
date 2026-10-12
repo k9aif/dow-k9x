@@ -27,7 +27,7 @@ THEMES = {
                  in_fill="#241a40", in_line="#a78bfa", par_fill="#33270f", par_line="#fbbf24"),
 }
 
-W, H = 1000, 420
+W, H = 1000, 434
 BW, BH = 150, 74
 
 # (key, system, title, subtitle lines)
@@ -114,7 +114,9 @@ def render(theme: str) -> str:
     # SRR end
     x, y = pos["srr"]
     out.append(f'  <text x="{x + BW / 2}" y="{y + BH + 18}" font-size="10.5" text-anchor="middle" fill="{c["sub"]}">approve → built flow ends</text>')
-    out.append(f'  <text x="20" y="{H - 14}" font-size="10.5" fill="{c["sub"]}">After each approval the DAS admin starts the next run. '
+    out.append(f'  <text x="20" y="{H - 28}" font-size="10.5" fill="{c["sub"]}">After each approval in K9X HIL the next run queues and starts automatically '
+               f'(DAS_RESUME_MODE=auto in .env, as on this demo); in manual mode the DAS admin starts it.</text>')
+    out.append(f'  <text x="20" y="{H - 14}" font-size="10.5" fill="{c["sub"]}">'
                f'Designed, not built: SFR, PDR, CDD-equivalent validation, Development RFP Release, Milestone B, other pathways.</text>')
     out.append("</svg>")
     return "\n".join(out) + "\n"
