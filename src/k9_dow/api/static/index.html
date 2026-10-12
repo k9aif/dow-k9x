@@ -243,8 +243,6 @@
     <div class="tab-bar">
       <div class="tab" id="tab-inputs" onclick="switchTab('inputs')">Input Docs<span class="count" id="inputs-count"></span></div>
       <div class="tab active" id="tab-live" onclick="switchTab('live')">Live Feed<span class="count" id="live-count">0</span></div>
-      <div class="tab" id="tab-agents" onclick="switchTab('agents')">Agents<span class="count" id="agent-count">0</span></div>
-      <div class="tab" id="tab-llm" onclick="switchTab('llm')">LLM Calls<span class="count" id="llm-count">0</span></div>
       <div class="tab" id="tab-docs" onclick="switchTab('docs')">Generated Docs<span class="count" id="docs-count"></span></div>
       <div class="tab" id="tab-jobresults" onclick="switchTab('jobresults')">Job Results</div>
       <div class="tab" id="tab-jobs" onclick="switchTab('jobs')" title="Every job, the stage it has reached, and the HIL decisions so far (kept across restarts)">Jobs in Pipeline<span class="count" id="jobs-count"></span></div>
@@ -271,8 +269,6 @@
 <script>
 const state = {
   events: [],
-  agentEvents: [],
-  llmEvents: [],
   docs: [],
   allRuns: [], // every run this tab has generated docs for this session, newest first
   sessionId: null,
@@ -323,7 +319,7 @@ function resetJobDisplay() {
   document.querySelectorAll('.pipe-dot').forEach(d => {
     d.className = d.className.includes('gate') ? 'pipe-dot gate' : 'pipe-dot';
   });
-  state.events = []; state.agentEvents = []; state.llmEvents = []; state.docs = [];
+  state.events = []; state.docs = [];
   state.lastCompletedJobId = null;
   renderLive();
   renderJobPanel();
@@ -651,22 +647,9 @@ function connectSSE() {
         if (el && evt.accepted && evt.action === 'complete') el.className = 'pipe-dot gate done';
       }
 
-      // LLM calls
-      if (evt.type === 'LLMCall' || (result && result.model_used)) {
-        state.llmEvents.push(evt);
-        document.getElementById('llm-count').textContent = state.llmEvents.length;
-      }
-      // Agent events
-      if (evtType.includes('Agent') || evtType.includes('Squad') || evtType.includes('Orchestrator') || evt.agent) {
-        state.agentEvents.push(evt);
-        document.getElementById('agent-count').textContent = state.agentEvents.length;
-      }
-
       document.getElementById('live-count').textContent = state.events.length;
       renderJobPanel();
       if (state.activeTab === 'live') renderLive();
-      else if (state.activeTab === 'agents') renderAgents();
-      else if (state.activeTab === 'llm') renderLLM();
     } catch(err) { console.error('SSE parse error', err); }
   };
   es.onopen = () => { dot.className = 'status-dot ok'; dot.title = 'SSE connected'; };
@@ -753,45 +736,6 @@ function renderLive() {
   }).join('');
   if (rtPanel) area.innerHTML = rtPanel + area.innerHTML;
   area.scrollTop = area.scrollHeight;
-}
-
-function renderAgents() {
-  const area = document.getElementById('feedArea');
-  const items = state.agentEvents.slice(-80);
-  area.innerHTML = items.length ? items.map(e => {
-    const t = e._ts || '';
-    const evtType = e.type || '?';
-    const agent = e.agent || e.squad || e.orchestrator || '?';
-    let cls = 'agent';
-    let detail = '';
-    if (evtType === 'loop_started') { detail = 'ValidationLoop started'; }
-    else if (evtType === 'hypothesis_generated') { detail = 'iteration ' + (e.iteration||'?') + ' — forming hypothesis'; }
-    else if (evtType === 'validation_tool_invoked') { cls = 'llm'; detail = 'iteration ' + (e.iteration||'?') + ' — LLM validation'; }
-    else if (evtType === 'observation_evaluated') { detail = 'iteration ' + (e.iteration||'?') + ' — confidence: ' + (e.confidence||'?'); }
-    else if (evtType === 'loop_continued') { detail = 'iteration ' + (e.iteration||'?') + ' — below threshold, continuing'; }
-    else if (evtType === 'loop_finalized') { cls = 'result'; detail = '✓ finalized at iteration ' + (e.iteration||'?') + ' — confidence: ' + (e.confidence||'?'); }
-    else if (evtType === 'loop_escalated') { cls = 'gate'; detail = '⚠ escalated for human review'; }
-    else if (evtType === 'AgentCompleted') { detail = 'completed'; }
-    else if (evtType === 'SquadStarted') { cls = 'squad'; detail = 'squad started (' + (e.total||'?') + ' agents)'; }
-    else if (evtType === 'SquadCompleted') { cls = 'squad'; detail = 'squad done in ' + (e.elapsed_s||'?') + 's'; }
-    else if (evtType === 'OrchestratorStarted') { cls = 'orchestrator'; detail = 'orchestrator started'; }
-    else if (evtType === 'OrchestratorCompleted') { cls = 'orchestrator'; detail = 'completed in ' + (e.elapsed_s||'?') + 's → gate: ' + (e.gate||''); }
-    else { detail = evtType; }
-    return `<div class="feed-entry"><span class="feed-ts">${t}</span><span class="feed-type ${cls}">${agent}</span><span class="feed-detail">${detail}</span></div>`;
-  }).join('') : '<div style="color:var(--text2);padding:20px">No agent events yet</div>';
-  area.scrollTop = area.scrollHeight;
-}
-
-function renderLLM() {
-  const area = document.getElementById('feedArea');
-  const items = state.llmEvents.slice(-50);
-  area.innerHTML = items.length ? items.map(e => {
-    const t = e._ts || '';
-    const model = e.model || '?';
-    const ms = e.latency_ms || '?';
-    const agent = e.agent || '?';
-    return `<div class="feed-entry"><span class="feed-ts">${t}</span><span class="feed-type llm">${model}</span><span class="feed-detail">${agent} ${ms}ms</span></div>`;
-  }).join('') : '<div style="color:var(--text2);padding:20px">No LLM calls yet</div>';
 }
 
 async function fetchDocs(jobId, retries) {
@@ -969,8 +913,6 @@ function switchTab(tab) {
   document.getElementById('tab-'+tab).classList.add('active');
   if (tab === 'inputs') renderInputDocs();
   else if (tab === 'live') renderLive();
-  else if (tab === 'agents') renderAgents();
-  else if (tab === 'llm') renderLLM();
   else if (tab === 'docs') renderDocs();
   else if (tab === 'jobresults') renderJobResults();
   else if (tab === 'arch') renderArch();
@@ -1826,7 +1768,7 @@ function enterApp(u, auth) {
   if (govTab) govTab.style.display = auth.role === 'admin' ? '' : 'none';
 
   // A fresh login is a natural "start clean" checkpoint -- clears any
-  // job-in-progress lock/timeout and stale Live Feed/Agents/LLM Calls
+  // job-in-progress lock/timeout and stale Live Feed
   // counts left over from a prior session (e.g. one that died mid-job to
   // a dropped connection). On a real page reload this is a no-op since
   // that state is already fresh; it matters if the login overlay is ever
@@ -1967,14 +1909,7 @@ fetch('/demos/sample-result').then(r=>r.json()).then(data=>{
     {_ts: now, type: 'OrchestratorCompleted', orchestrator: 'RequirementOrchestrator', elapsed_s: 156.1, gate: 'SERVICE-VALIDATION'},
     {_ts: now, type: 'PipelineComplete', orchestrator: 'RequirementOrchestrator', status: 'awaiting_gate', gate: 'SERVICE-VALIDATION'},
   ];
-  state.agentEvents = state.events.filter(e => {
-    const t = e.type||'';
-    return t.includes('Agent') || t.includes('Squad') || t.includes('Orchestrator') || t.includes('loop') || e.agent;
-  });
-  state.llmEvents = state.events.filter(e => e.type === 'LLMCall');
   document.getElementById('live-count').textContent = state.events.length;
-  document.getElementById('agent-count').textContent = state.agentEvents.length;
-  document.getElementById('llm-count').textContent = state.llmEvents.length;
   renderLive();
 
   // Fetch docs
