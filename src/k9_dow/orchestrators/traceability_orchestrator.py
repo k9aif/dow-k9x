@@ -4,23 +4,9 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from k9_aif_abb.k9_agents.registry.agent_registry import AgentRegistry
 from k9_aif_abb.k9_core.orchestration.base_orchestrator import BaseOrchestrator
-from k9_aif_abb.k9_squad.squad_loader import SquadLoader
-
-from k9_dow.utils.agent_loader import AgentLoader
 
 log = logging.getLogger(__name__)
-
-_CROSS_CUTTING_AGENTS = (
-    "LinkProposerAgent",
-    "LinkValidatorAgent",
-    "OrphanDetectorAgent",
-    "CoverageScorerAgent",
-    "BaselineDifferAgent",
-    "FundingDifferAgent",
-    "DriftClassifierAgent",
-)
 
 
 class TraceabilityOrchestrator(BaseOrchestrator):
@@ -33,26 +19,20 @@ class TraceabilityOrchestrator(BaseOrchestrator):
 
     layer = "DAS Traceability Orchestrator"
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None, **kwargs) -> None:
+    def __init__(self, config: Optional[Dict[str, Any]] = None, squads=None, **kwargs) -> None:
         config = config or {}
         if "governance" not in kwargs and ((config.get("security") or {}).get("shield") or {}).get("enabled") is True:
             from k9_aif_abb.k9_security.vulnerability.shield_governance import ShieldGovernance
             kwargs["governance"] = ShieldGovernance(config)
         super().__init__(config=config, **kwargs)
+        if squads is None:
+            from k9_dow.squads.das_squad import squad_layer
+            squads = squad_layer(config)
+        self.squads = squads          # the squad layer: squads by YAML file and id, never agents
         self._squads_dir = Path(__file__).resolve().parent.parent / "squads" / "yaml"
-        self._agents_dir = Path(__file__).resolve().parent.parent / "agents" / "yaml"
 
     def _load_squad(self, yaml_filename: str, squad_id: str):
-        agent_loader = AgentLoader(self._agents_dir)
-        registry = AgentRegistry()
-        for name in _CROSS_CUTTING_AGENTS:
-            cls = agent_loader.resolve_class(name)
-            registry.register(
-                name,
-                lambda c=cls, n=name: c(config=agent_loader.merge_with_global(n, self.config)),
-            )
-        loader = SquadLoader(registry)
-        return loader.load_one(str(self._squads_dir / yaml_filename), squad_id)
+        return self.squads.load_one(self._squads_dir / yaml_filename, squad_id)
 
     def execute_flow(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         job_id = payload.get("job_id", "unknown")

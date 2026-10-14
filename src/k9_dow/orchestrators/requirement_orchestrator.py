@@ -22,8 +22,7 @@ import logging
 import time
 from typing import Any, Callable, Dict, Optional
 
-from k9_dow.orchestrators.stage_base import (PACKAGE_AGENTS, READINESS_AGENTS, ProcessStageOrchestrator,
-                                             das_url)
+from k9_dow.orchestrators.stage_base import ProcessStageOrchestrator, das_url
 
 log = logging.getLogger(__name__)
 
@@ -45,8 +44,6 @@ class RequirementOrchestrator(ProcessStageOrchestrator):
     """Service capability requirement → SERVICE-VALIDATION (+ parallel JCI-REVIEW)."""
 
     layer = "DAS Requirement Orchestrator"
-    AGENTS = ("ModelExtractorAgent", "ViewGeneratorAgent", "ViewConsistencyCheckerAgent",
-              "JsdRecommenderAgent") + READINESS_AGENTS + PACKAGE_AGENTS
 
     def __init__(self, config: Optional[Dict[str, Any]] = None,
                  progress_callback: Optional[Callable[[dict], None]] = None, **kwargs) -> None:

@@ -16,12 +16,11 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from k9_dow.orchestrators.stage_base import PACKAGE_AGENTS, READINESS_AGENTS, ProcessStageOrchestrator
+from k9_dow.orchestrators.stage_base import ProcessStageOrchestrator
 
 
 class TmrrOrchestrator(ProcessStageOrchestrator):
     layer = "DAS TMRR Orchestrator"
-    AGENTS = ("SystemRequirementsAgent",) + READINESS_AGENTS + PACKAGE_AGENTS
 
     def execute_flow(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         # Ingress: the reviewer's comment is the only new free text; screen it before any agent reads it.

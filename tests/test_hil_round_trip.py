@@ -631,32 +631,37 @@ def test_job_record_zip_has_cover_sheet_with_each_decision(monkeypatch):
     assert "Materiel Development Decision" in cover
 
 
+def _squad_of(*agents):
+    """A DasSquad running the given agents in order (what the squad layer builds from YAML)."""
+    from k9_dow.squads.das_squad import DasSquad
+    squad = DasSquad(squad_id="TestSquad", agents=list(agents))
+    squad.config = {}
+    squad.flow = [{"agent": a.__class__.__name__, "result_key": a.__class__.__name__} for a in agents]
+    return squad
+
+
 def test_withdrawn_job_stops_before_the_next_agent(monkeypatch):
-    from k9_dow.orchestrators.tmrr_orchestrator import TmrrOrchestrator as ProcessStageOrchestrator
     monkeypatch.setattr(hil_gateway, "load_stage_result",
                         lambda cfg, job, stage: {"by": "admin@k9x.ai", "at": "t"} if stage == "withdrawn" else None)
 
-    class Agent:
+    class FirstAgent:
         ran = False
 
         def execute(self, payload):
-            Agent.ran = True
+            FirstAgent.ran = True
             return {}
-    orch = ProcessStageOrchestrator(config={})
-    agent = orch._withdrawable(Agent())
     with pytest.raises(hil_gateway.JobWithdrawn):
-        agent.execute({"job_id": "JOB-W"})
-    assert Agent.ran is False
+        _squad_of(FirstAgent()).execute({"job_id": "JOB-W"})
+    assert FirstAgent.ran is False
 
 
 def test_agent_runs_when_the_job_is_not_withdrawn(monkeypatch):
-    from k9_dow.orchestrators.tmrr_orchestrator import TmrrOrchestrator as ProcessStageOrchestrator
     monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: None)
 
-    class Agent:
+    class EchoAgent:
         def execute(self, payload):
             return {"ok": payload["job_id"]}
-    assert ProcessStageOrchestrator(config={})._withdrawable(Agent()).execute({"job_id": "J"}) == {"ok": "J"}
+    assert _squad_of(EchoAgent()).execute({"job_id": "J"})["EchoAgent"] == {"ok": "J"}
 
 
 def test_history_of_a_withdrawn_job_has_no_next_action(monkeypatch):

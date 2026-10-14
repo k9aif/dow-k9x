@@ -98,10 +98,15 @@ async def main() -> None:
     from k9_aif_abb.k9_utils.llm_invoke import register_trace_callback
     register_trace_callback(_publish_progress)
 
-    requirement_orch = RequirementOrchestrator(config=config, progress_callback=_publish_progress)
-    msa_orch = MsaOrchestrator(config=config, progress_callback=_publish_progress)
-    tmrr_orch = TmrrOrchestrator(config=config, progress_callback=_publish_progress)
-    trace_orch = TraceabilityOrchestrator(config=config)
+    # The squad layer, built once here: orchestrators load squads by YAML file and id through it
+    # and never name an agent (three-layer decoupling, k9_inspect K9-DEC-002).
+    from k9_dow.squads.das_squad import squad_layer
+    squads = squad_layer(config)
+
+    requirement_orch = RequirementOrchestrator(config=config, progress_callback=_publish_progress, squads=squads)
+    msa_orch = MsaOrchestrator(config=config, progress_callback=_publish_progress, squads=squads)
+    tmrr_orch = TmrrOrchestrator(config=config, progress_callback=_publish_progress, squads=squads)
+    trace_orch = TraceabilityOrchestrator(config=config, squads=squads)
 
     # Topic → orchestrator. The MSA orchestrator owns two runs (MDD package, MSA).
     handlers = {

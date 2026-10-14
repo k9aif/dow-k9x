@@ -12,11 +12,11 @@ Every class in this project MUST extend or use a K9-AIF ABB. If the framework ha
 | Concern | K9-AIF ABB to use | DO NOT create |
 |---|---|---|
 | Agent | `BaseAgent` — `execute(payload) → dict` | Custom agent base class |
-| Squad | `BaseSquad` via `SquadLoader.load_one(yaml, id)` | Custom squad Python class |
+| Squad | YAML + the one `DasSquad(BaseSquad)` (`squads/das_squad.py`), built by the squad layer | A Python class per squad |
 | Orchestrator | `BaseOrchestrator` — `execute_flow(payload) → dict` | Custom orchestrator base |
 | Router | `BaseRouter` — `route(payload) → dict` | Custom router base |
-| Agent registry | `AgentRegistry.register(name, factory)` | Custom registry |
-| Agent config | `AgentLoader.merge_with_global(name, config)` | Custom config merging |
+| Squad layer | `squad_layer(config)` → `SquadLoader.from_agents` (k9-aif 1.18.1; backport in `das_squad.py`) | Agent lists or `AgentRegistry` in an orchestrator |
+| Agent config | agent YAML `class:` + `module:`; merged by the squad layer (`AgentLoader`) | Custom config merging |
 | LLM calls | `llm_invoke(config, InferenceRequest)` | Direct Ollama/LLM calls |
 | Events | `self.publish_event(dict)` on BaseAgent | Custom EventPublisher class |
 | Monitoring | `monitor` param on BaseAgent/BaseOrchestrator | Custom monitoring |
@@ -39,7 +39,8 @@ dow-k9-aif/
       src/                ← Python agents (extend BaseAgent)
       yaml/               ← Agent YAML configs (role, goal, instructions)
     squads/
-      yaml/               ← Squad YAML (flow definitions — no Python needed)
+      yaml/               ← Squad YAML (agents + flow); no Python per squad
+      das_squad.py        ← DasSquad (one class, every squad) + squad_layer()
     orchestrators/        ← Orchestrators (extend BaseOrchestrator)
     routers/              ← Router (extends BaseRouter)
     config/
@@ -110,35 +111,37 @@ class MyAgent(BaseAgent):
 
 ---
 
-## Orchestrator Pattern (from EOC example)
+## Orchestrator Pattern: an orchestrator knows only squads
 
-An orchestrator module never imports agent classes. Every agent YAML carries `class:` and
-`module:`; check with `k9aif inspect .` (k9-aif >= 1.15) before committing.
+**Rule (three-layer decoupling):** an orchestrator loads a squad by YAML file and squad id. It
+never names, imports, registers or builds an agent: no agent-name lists (`AGENTS = (...)`), no
+`AgentRegistry` / `AgentLoader` in an orchestrator module. **Test: if a squad's agents change, no
+orchestrator changes** — only the squad YAML and the agent's own YAML and class. Not "doesn't
+import": registering agents *by name* in an orchestrator is the same coupling (that was this
+repo's old pattern, copied from the EOC; removed 2026-10-14).
+
+The squad layer:
+
+- Squads are **YAML** (`squads/yaml/`); `BaseSquad` runs the `flow:`.
+- **One** `DasSquad(BaseSquad)` (`squads/das_squad.py`) for every squad; the loader instantiates it
+  once per squad with that squad's agents. Its DAS behaviour: `before_step` stops a withdrawn job.
+- `squad_layer(config)` builds the loader **once at the entry point**
+  (`runtime/dow_orchestrator_process.py`) and passes it to every orchestrator as `squads=`.
 
 ```python
-from k9_aif_abb.k9_agents.registry.agent_registry import AgentRegistry
-from k9_aif_abb.k9_core.orchestration.base_orchestrator import BaseOrchestrator
-from k9_aif_abb.k9_squad.squad_loader import SquadLoader
+# entry point
+squads = squad_layer(config)
+msa = MsaOrchestrator(config=config, progress_callback=cb, squads=squads)
 
-class DodafOrchestrator(BaseOrchestrator):
-    # Agents are named, never imported: each class resolves from its agent YAML's
-    # class + module (k9_inspect rule K9-DEC-001, three-layer decoupling).
-    def _load_squad(self, squads_yaml_path):
-        agent_loader = AgentLoader(agents_yaml_dir)      # k9_dow.utils.agent_loader
-        agent_registry = AgentRegistry()
-        for name in ("MyAgent", ...):
-            cls = agent_loader.resolve_class(name)
-            agent_registry.register(
-                name,
-                lambda c=cls, n=name: c(config=agent_loader.merge_with_global(n, self.config)),
-            )
-        loader = SquadLoader(agent_registry)
-        return loader.load_one(squads_yaml_path, squad_id)
-
-    def execute_flow(self, payload):
-        squad = self._load_squad(yaml_path)
-        return squad.execute(payload)
+# orchestrator: squad file + id, nothing else
+squad = self.squads.load_one(self._squads_dir / "msa_analysis_squad.yaml", "MsaAnalysisSquad",
+                             config=run_config, agent_kwargs={"monitor": self._monitor})
+result = squad.execute(payload)
 ```
+
+Adding an agent to a squad: write the agent (class + YAML with `class:` and `module:`), add it to
+the squad YAML. Nothing else. Checked by `tests/test_squad_layer.py`, by k9_inspect K9-DEC-002
+(k9-aif >= 1.18.1) and by the framework's `check-orchestrator-squads.sh` hook on every edit.
 
 ---
 

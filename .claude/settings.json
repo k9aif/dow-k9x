@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/ravinatarajan/ai/k9-aif-framework/.claude/hooks/check-orchestrator-squads.sh",
+            "timeout": 10,
+            "statusMessage": "Checking orchestrator knows only squads..."
+          }
+        ]
+      }
+    ]
+  }
+}

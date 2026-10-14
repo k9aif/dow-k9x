@@ -9,8 +9,10 @@ review package, the result is stored by job id, and a K9X HIL task is published
 per gate. The next run starts only from a recorded human approval
 (gates/hil_gateway.py, routers/das_router.py).
 
-Agents are named, never imported: classes resolve from each agent YAML's
-``class`` + ``module`` (three-layer decoupling, k9_inspect K9-DEC-001).
+An orchestrator knows only squads (three-layer decoupling, k9_inspect K9-DEC-001/002):
+it loads a squad by YAML file and squad id through ``self.squads`` (the squad layer,
+``k9_dow.squads.das_squad``, built at the entry point). The agents a squad needs are named
+in its YAML and built there; if a squad's agents change, no orchestrator changes.
 """
 
 from __future__ import annotations
@@ -23,16 +25,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
-from k9_aif_abb.k9_agents.registry.agent_registry import AgentRegistry
 from k9_aif_abb.k9_core.orchestration.base_orchestrator import BaseOrchestrator
-from k9_aif_abb.k9_squad.squad_loader import SquadLoader
-
-from k9_dow.utils.agent_loader import AgentLoader
 
 log = logging.getLogger(__name__)
-
-READINESS_AGENTS = ("CriteriaLoaderAgent", "EvidenceCollectorAgent", "ReadinessScorerAgent", "GapReporterAgent")
-PACKAGE_AGENTS = ("ArtifactFetcherAgent", "CompletenessCheckerAgent", "PackageBuilderAgent")
 
 
 def das_url() -> str:
@@ -68,12 +63,10 @@ class ProgressMonitor:
 
 
 class ProcessStageOrchestrator(BaseOrchestrator):
-    """Base for the DAS stage orchestrators. Subclasses set ``AGENTS`` (names) and ``layer``."""
-
-    AGENTS: Tuple[str, ...] = READINESS_AGENTS + PACKAGE_AGENTS
+    """Base for the DAS stage orchestrators. Subclasses set ``layer``; they name squads only."""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None,
-                 progress_callback: Optional[Callable[[dict], None]] = None, **kwargs) -> None:
+                 progress_callback: Optional[Callable[[dict], None]] = None, squads=None, **kwargs) -> None:
         config = config or {}
         # Orchestrators are not wrapped by governance by construction: build k9x Shield from
         # config so apply_shield() screens this boundary (security.shield, as for the agents).
@@ -81,8 +74,11 @@ class ProcessStageOrchestrator(BaseOrchestrator):
             from k9_aif_abb.k9_security.vulnerability.shield_governance import ShieldGovernance
             kwargs["governance"] = ShieldGovernance(config)
         super().__init__(config=config, **kwargs)
+        if squads is None:
+            from k9_dow.squads.das_squad import squad_layer
+            squads = squad_layer(config)
+        self.squads = squads          # k9-aif < 1.18.1 has no squads= on BaseOrchestrator
         self._squads_dir = Path(__file__).resolve().parent.parent / "squads" / "yaml"
-        self._agents_dir = Path(__file__).resolve().parent.parent / "agents" / "yaml"
         self._progress = progress_callback or (lambda e: None)
         self._monitor = ProgressMonitor(self._progress) if progress_callback else None
         self._run_config: Optional[Dict[str, Any]] = None   # set while a governance override applies
@@ -90,40 +86,19 @@ class ProcessStageOrchestrator(BaseOrchestrator):
 
     # ── squads ────────────────────────────────────────────────────────
     def _load_squad(self, yaml_filename: str, squad_id: str):
-        agent_loader = AgentLoader(self._agents_dir)
-        registry = AgentRegistry()
-        # A run resumed with a governance override uses a config with that one check relaxed.
-        config = getattr(self, "_run_config", None) or self.config
-        for name in self.AGENTS:
-            cls = agent_loader.resolve_class(name)
-            registry.register(
-                name,
-                lambda c=cls, n=name: self._withdrawable(
-                    c(config=agent_loader.merge_with_global(n, config), monitor=self._monitor)),
-            )
-        return SquadLoader(registry).load_one(str(self._squads_dir / yaml_filename), squad_id)
-
-    def _withdrawable(self, agent):
-        """Before the agent runs, stop if its job has been withdrawn (Jobs in Pipeline ›
-        Withdraw): a running stage stops at its next agent. The agent's own execute,
-        governance included, is unchanged."""
-        run = agent.execute
-
-        def execute(payload, _run=run):
-            from k9_dow.gates.hil_gateway import JobWithdrawn, withdrawn
-            job_id = (payload or {}).get("job_id") or self._active_job_id
-            wd = withdrawn(self.config, job_id)
-            if wd:
-                raise JobWithdrawn(f"job {job_id} withdrawn by {wd.get('by')} at {wd.get('at')}")
-            return _run(payload)
-        agent.execute = execute
-        return agent
+        """The squad, by YAML file and id. A run resumed with a governance override builds it
+        with that one check relaxed; the progress monitor follows this orchestrator's run."""
+        return self.squads.load_one(self._squads_dir / yaml_filename, squad_id,
+                                    config=getattr(self, "_run_config", None) or self.config,
+                                    agent_kwargs={"monitor": self._monitor})
 
     def _emit(self, event_type: str, **kwargs):
         self._progress({"type": event_type, "orchestrator": self.__class__.__name__, **kwargs})
 
     def _run_squad(self, squad, squad_name: str, payload: dict) -> dict:
         self._active_job_id = payload.get("job_id") or self._active_job_id
+        if not payload.get("job_id") and self._active_job_id:
+            payload = {**payload, "job_id": self._active_job_id}   # DasSquad checks withdrawal by job
         flow = getattr(squad, "flow", [])
         agents = [s.get("agent", "?") for s in flow]
         print(f"\n  ▶ Squad: {squad_name}  ({len(agents)} agents)", flush=True)
