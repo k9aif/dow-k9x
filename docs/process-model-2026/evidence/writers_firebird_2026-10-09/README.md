@@ -1,5 +1,8 @@
 # Package writers on the real model (FIREBIRD, 2026-10-09)
 
+> **Superseded for the requirement stage** by `../firebird_2026-10-15_JOB-20261015-1108EA/` (JSD now "undetermined: ACAT needed" when the source states no ACAT). The MDD, Milestone A and SRR packages here are still the latest, with known writer defects (B7 in `reviews/findings-and-fix/fix_todo.md`).
+
+
 The six package-writer agents run through their squads (JointReview, MddPackage, MsaAnalysis,
 SrrPackage) on the deployment model (qwen3.8:27b via Ollama), input = the FIREBIRD demo CDD, with
 recorded approvals passed as decisions of record. Storage and HIL were not used.
