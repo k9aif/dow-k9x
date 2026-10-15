@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: Apache-2.0
+# Joint Staffing Designator mapping (CJCSM 5123.01A, Enclosure B, paragraph 2.b).
+#
+# Policy as data: the JSD agent is given this file, rendered into its prompt
+# (agents/yaml/jsd_recommender_agent.yaml: mappings: [jsd]). Change the policy here,
+# not in the agent. Every entry cites its paragraph; `source` is a process model
+# source id (config/process_model.yaml sources). tests/test_policy_mappings.py checks
+# the structure and the tier-to-ACAT table.
+#
+# Checked against the repository copy of CJCSM 5123.01A (5 August 2026), Encl. B
+# pages B-3 to B-5, on 2026-10-15.
+
+id: jsd
+version: jsd-2026-10
+title: Joint Staffing Designator (JSD) assignment
+source: S3
+as_of: "2026-08-05"
+
+criteria:
+  cite: "Encl. B 2.b(2)"
+  intro: "Judge each assignment criterion against the submitted requirement:"
+  items:
+    - {id: a, text: "Significant impact on Joint Force Design."}
+    - {id: b, text: "Reliance on materiel or non-materiel solutions external to the validating organization."}
+    - {id: c, text: "A unique DoW capability, one Service providing a capability others depend on, or insufficient resiliency or redundancy."}
+    - {id: d, text: "Significant resource impact on the DoW, including the proposed Acquisition Category (ACAT) level."}
+    - {id: e, text: "A previous JSD designation."}
+
+# Highest oversight first. JROC, JCB and FCB Interest all need the joint condition
+# AND their own ACAT condition; each tier has exactly one ACAT level.
+joint_condition: "necessary to fulfill a capability gap of more than one armed force, or has capabilities with joint dependencies"
+tiers:
+  - designator: JROC Interest
+    cite: "Encl. B 2.b(3)"
+    acat: "ACAT I"
+    condition: "projected to be ACAT I or equivalent, or must be interoperable with or require changes to ACAT I or equivalent programs external to the validating organization"
+    review_authority: JROC
+    note: "Reserved for the largest, most complex, highest-risk or most critical requirements; the JROC may elevate any lower JSD."
+  - designator: JCB Interest
+    cite: "Encl. B 2.b(4)"
+    acat: "ACAT II"
+    condition: "projected to be ACAT II or equivalent, or must be interoperable with or require changes to ACAT II or equivalent programs external to the validating organization"
+    review_authority: JCB
+    note: "Minimum JSD for Joint DOTmLPF-P Change Requests and for documents sponsored by a CCMD other than USSOCOM or USCYBERCOM."
+  - designator: FCB Interest
+    cite: "Encl. B 2.b(5)"
+    acat: "ACAT III"
+    condition: "projected to be ACAT III or equivalent, or must be interoperable with or require changes to ACAT III or equivalent programs external to the validating organization"
+    review_authority: lead FCB
+    note: "The lead FCB is the final review authority."
+  - designator: Service Information
+    cite: "Encl. B 2.b(6)"
+    acat: null
+    condition: "inherently Service-specific with minimal joint impact; every Service-approved document that meets none of the tiers above"
+    review_authority: the sponsor organization
+    note: "The sponsor has independent approval and validation authority."
+
+rules:
+  - "Set the JSD at the lowest level that satisfies the required oversight."
+  - "Match the tier to the ACAT the source states (or the ACAT of the external programs the capability must interoperate with or change). Never assign a tier whose ACAT does not match."
+  - "If the source states no ACAT and no interoperability with an ACAT-level program, write \"JSD undetermined: ACAT needed\" and list the ACAT as an open question; you may say which tier each possible ACAT would give."
+  - "Never infer an ACAT from unit cost times quantity or from any estimate: ACAT is set by statutory dollar thresholds and designation, which the source must state."
+  - "If the source states something about joint staffing that conflicts with this mapping (for example, that an FCB validated a Service requirement), write SOURCE INCONSISTENT WITH POLICY and explain; do not repeat it as fact."
+  - "This is the sponsor's recommendation; J-8 makes the initial determination and any Chair may change it."

@@ -26,6 +26,7 @@ from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
 from k9_dow.agents.src.squad_context import step_output
+from k9_dow.config.policy_mappings import render_mapping
 from k9_dow.governance.document_screening import untrusted_rule
 
 MAX_SOURCE_CHARS = 24000
@@ -92,10 +93,12 @@ class SectionWriterAgent(BaseAgent):
         instructions = self.config.get("instructions") or []
         if isinstance(instructions, list):
             instructions = "\n".join(f"- {i}" for i in instructions)
+        mappings = "".join(render_mapping(m) + "\n" for m in self.config.get("mappings") or [])
         return (
             f"Role: {self.config.get('role', self.layer)}\n"
             f"Goal: {self.config.get('goal', '')}\n\n"
             f"Instructions:\n{instructions}\n\n"
+            + mappings +
             f"{GROUNDING}\n{PROCESS_FACTS}\n"
             + untrusted_rule(source) +
             f"Program: {payload.get('document_title') or 'NOT PROVIDED IN SOURCE'}\n\n"

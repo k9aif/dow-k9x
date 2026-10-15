@@ -111,6 +111,18 @@ class MyAgent(BaseAgent):
 
 ---
 
+## Policy as data: mappings, not prompts
+
+Policy rules an agent applies (tables, thresholds, who decides what) live in **mapping files**,
+`src/k9_dow/config/mappings/<id>.yaml`, never written into an agent's instructions or Python. Each file
+is versioned, names a process model source (`source: S3`) and cites a paragraph per entry. An agent
+names what it needs in its YAML (`mappings: [jsd]`); `SectionWriterAgent` renders it into the prompt via
+`config/policy_mappings.py`. Change the policy in the mapping; the agent doesn't change.
+**Test: a policy change touches one mapping file and its test, no agent.** Checked by
+`tests/test_policy_mappings.py` (structure, citations, and the JSD tier-to-ACAT table against CJCSM
+5123.01A Encl. B 2.b(3)-(6)). When writing a mapping, copy from the primary source's paragraph, not a
+summary: the 2026-10-09 JSD prompt merged three paragraphs into one sentence and lost the ACAT-per-tier rule.
+
 ## Failures propagate: Agent → Squad → Orchestrator
 
 **Rule:** a failed agent (model call, parse, tool) fails the stage; it is never turned into output the
