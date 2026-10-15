@@ -62,3 +62,17 @@ def test_jsd_agent_prompt_carries_the_mapping_not_its_own_rules():
 def test_unknown_mapping_fails_loudly():
     with pytest.raises(FileNotFoundError):
         load_mapping("no_such_mapping")
+
+
+def test_hil_gets_undetermined_not_the_first_tier_listed():
+    """JOB-20261015-A43FF1 (FIREBIRD, no ACAT in the source): the package said 'JSD Undetermined: ACAT
+    Needed' and listed each tier as a possibility; the HIL task showed 'JROC Interest'."""
+    from k9_dow.utils.icd_composer import extract_jsd
+    undetermined = ("# Joint Staffing Designator Recommendation\n## Recommended Joint Staffing Designator\n"
+                    "**JSD Undetermined: ACAT Needed**\nThe submitted requirement document does not state an ACAT.\n"
+                    "*   If the program is designated **ACAT I**: **JROC Interest** (CJCSM 5123.01A Encl. B 2.b(3)).\n"
+                    "*   If ACAT II: **JCB Interest**.\n## Assessment Against the Assignment Criteria\n(a) ...")
+    assert extract_jsd({"joint_review": {"jsd": {"output": undetermined}}}) == "Undetermined: ACAT needed"
+    decided = ("## Recommended Joint Staffing Designator\n**FCB Interest**: projected ACAT III with joint "
+               "dependencies (CJCSM 5123.01A Encl. B 2.b(5)).\n## Assessment Against the Assignment Criteria\n")
+    assert extract_jsd({"joint_review": {"jsd": {"output": decided}}}) == "FCB Interest"

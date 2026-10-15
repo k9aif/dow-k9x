@@ -303,10 +303,17 @@ def compose_icd(job_data: dict) -> str:
 _JSD = re.compile(r"\b(JROC Interest|JCB Interest|FCB Interest|Service Information)\b", re.I)
 
 
+_UNDETERMINED = re.compile(r"JSD\s+undetermined", re.I)       # the rule in config/mappings/jsd.yaml
+
+
 def extract_jsd(result: dict) -> str:
-    """The recommended Joint Staffing Designator named first in the JSD recommendation ('' if none)."""
+    """The recommended Joint Staffing Designator ('' if none). When the source states no ACAT the
+    recommendation is 'JSD undetermined: ACAT needed' and lists each tier only as a possibility,
+    so the first designator named is not the recommendation."""
     text = extract_text(((result or {}).get("joint_review") or {}).get("jsd") or {})
     section = text.split("Assessment Against", 1)[0]
+    if _UNDETERMINED.search(section):
+        return "Undetermined: ACAT needed"
     m = _JSD.search(section) or _JSD.search(text)
     return " ".join(w.capitalize() if w.lower() not in ("jroc", "jcb", "fcb") else w.upper()
                     for w in m.group(1).split()) if m else ""
