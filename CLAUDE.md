@@ -104,10 +104,36 @@ class MyAgent(BaseAgent):
             prompt=f"Role: {self.config.get('role')}\n...",
             task_type=self.config.get("model", "reasoning"),
         )
-        resp = llm_invoke(self.config, req)
+        resp = llm_invoke(self.config, req)     # raises on failure: let it propagate (below)
         self.publish_event({"type": "AgentCompleted", "agent": self.layer})
         return {"agent": self.layer, "output": resp.output}
 ```
+
+---
+
+## Failures propagate: Agent → Squad → Orchestrator
+
+**Rule:** a failed agent (model call, parse, tool) fails the stage; it is never turned into output the
+squad carries on with. **Test: make one agent's model call raise; the stage ends as a recorded error
+with Retry, and no later agent or package writer runs.** (Framework CLAUDE.md "Failures propagate".)
+
+| Layer | Exception handling |
+|---|---|
+| Agent (`agents/src/`) | No try/except around `llm_invoke`, or one that re-raises with context. Never return `[WARN]`/empty/"validation_failed" output. |
+| Loop agent (`K9ValidationLoopAgent`) | The ABB swallows a `run_validation()` error into `{"reason": "validation_failed"}`. Every loop agent overrides `fail()` with `raise_if_step_failed(self.layer, loop_ctx)` (`utils/loop_errors.py`). |
+| Squad (`DasSquad` / `BaseSquad`) | Logs the failed step, re-raises. |
+| Stage orchestrator (`stage_base.py`) | **Required** try/except: `PermissionError` → governance hold; `JobWithdrawn` → stop; anything else → `save_stage_result(status="error")` (Jobs in Pipeline offers Retry), then re-raise. |
+| Orchestrator process (`runtime/dow_orchestrator_process.py`) | **Required** try/except: publishes `status: error` to the results topic; the consumer keeps running. |
+
+- No `except ...: pass`. Optional parts that may be down (retriever, `.docx` rendering) log a warning or
+  record the error in the result (`icd_docx_error`), and the main output still exists.
+- Partial results only for side reports: `quality/icd_grader.py` keeps citation/completeness when the
+  judge model is down and reports faithfulness "not scored".
+- Enforced by `tests/test_loop_agent_errors.py` (the real ViewGenerationSquad stops on a failed model
+  call) and `tests/test_error_propagation.py` (no silent handlers in agents or squads; every loop agent
+  overrides `fail()`).
+- k9_inspect K9-LLM-002 ("not inside try/except") is a false positive for DAS agents: the handling is
+  the squad and orchestrator above. Don't satisfy it by wrapping agents.
 
 ---
 
