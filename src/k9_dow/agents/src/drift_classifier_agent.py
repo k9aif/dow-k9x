@@ -9,6 +9,8 @@ from k9_aif_abb.k9_agents.validation import (
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
 
+from k9_dow.utils.loop_errors import raise_if_step_failed
+
 
 class DriftClassifierAgent(K9ValidationLoopAgent):
     """Classifies detected drifts by severity. Iterates to verify
@@ -71,6 +73,11 @@ class DriftClassifierAgent(K9ValidationLoopAgent):
         if loop_ctx.iteration >= self.config.get("max_iterations", 3):
             return ValidationDisposition.FINALIZE
         return ValidationDisposition.CONTINUE
+
+
+    def fail(self, loop_ctx: ValidationLoopContext) -> ValidationLoopResult:
+        raise_if_step_failed(self.layer, loop_ctx)     # a failed model call goes up to the squad
+        return super().fail(loop_ctx)
 
     def finalize(self, loop_ctx: ValidationLoopContext) -> ValidationLoopResult:
         last = loop_ctx.steps[-1] if loop_ctx.steps else None
