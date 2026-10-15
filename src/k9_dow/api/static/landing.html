@@ -109,6 +109,11 @@
   footer { border-top: 1px solid var(--border); margin-top: 26px; padding: 22px 0 34px; color: var(--muted); font-size: 13px; }
   footer .wrap { display: flex; gap: 18px; flex-wrap: wrap; justify-content: space-between; }
   #startErr { color: #fca5a5; font-size: 13px; }
+  table.threads { width: 100%; border-collapse: collapse; margin: 22px 0 8px; font-size: 14.5px; line-height: 1.5; }
+  table.threads th, table.threads td { border: 1px solid var(--border); padding: 9px 11px; text-align: left; vertical-align: top; }
+  table.threads th { background: var(--bg2); color: var(--muted); font-weight: 700; font-size: 13px; }
+  table.threads td:first-child { font-weight: 700; white-space: nowrap; }
+  .threads-wrap { overflow-x: auto; }
 </style>
 </head>
 <body>
@@ -211,6 +216,16 @@
       <div class="card"><h3>Systems engineering</h3>
         <p>DoD Systems Engineering Guidebook, 2022: the Alternative Systems Review (best practice) and the System Requirements Review criteria.</p></div>
     </div>
+    <h3 style="margin-top:30px">How they fit together: four threads, side by side</h3>
+    <p class="sub">These are not steps one after another. Acquisition sets the decision points; systems engineering is the technical work under them from the start and supplies the evidence each decision rests on; requirements say what is needed; DoDAF is the notation the architecture is described in.</p>
+    <div class="threads-wrap"><table class="threads">
+      <tr><th>Thread</th><th>Governed by</th><th>Answers</th><th>Produces</th><th>In DAS today</th></tr>
+      <tr><td>Requirements</td><td>Joint Force Requirements Process (CJCSI 5123.01J, CJCSM 5123.01A)</td><td>What capability is needed, and how much joint oversight it gets</td><td>Validated requirement, Joint Staffing Designator</td><td>Service validation, JCI review in parallel, JSD recommendation</td></tr>
+      <tr><td>Acquisition</td><td>DoDI 5000.85, Major Capability Acquisition</td><td>Proceed or not, into which phase, with which strategy</td><td>Decisions: MDD, Milestones A, B, C</td><td>MDD and Milestone A built; Milestone B onward designed</td></tr>
+      <tr><td>Systems engineering</td><td>DoD SE Guidebook (companion to DoDI 5000.88)</td><td>Is the solution technically mature enough for the next decision</td><td>Systems Engineering Plan; technical reviews (ASR, SRR, SFR, PDR, CDR and later)</td><td>ASR in the Milestone A package and the SRR gate; the SEP and later reviews are designed, not built</td></tr>
+      <tr><td>Architecture description</td><td>DoDAF 2.02</td><td>How the system and its context are described consistently</td><td>Capability, operational and systems views</td><td>Views drafted at the requirement stage</td></tr>
+    </table></div>
+    <p class="caption">Technical reviews feed the milestones: the ASR comes before Milestone A; the SRR, SFR and PDR come in TMRR, before Milestone B.</p>
   </section>
 
   <section id="flow">
