@@ -191,7 +191,7 @@
       <img src="/static/das-tour-thumb.jpg" alt="DAS video: AI agents prepare, humans decide" loading="lazy">
       <span class="play" aria-hidden="true">▶</span>
     </div>
-    <p class="caption">Plays from YouTube (privacy-enhanced mode) only when you click. <a href="https://youtu.be/rUU9ccJSmLg" target="_blank" rel="noopener">Watch on YouTube</a> · subtitles available.</p>
+    <p class="caption">Plays from YouTube (privacy-enhanced mode) only when you click. <a href="https://youtu.be/rUU9ccJSmLg" target="_blank" rel="noopener">Watch on YouTube</a>.</p>
   </section>
 </div>
 
@@ -384,7 +384,7 @@
     const box = document.getElementById('tourPlayer');
     if (!box) return;
     const play = () => {
-      box.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/rUU9ccJSmLg?autoplay=1&rel=0&cc_load_policy=1" title="DAS: the 5-minute tour" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>';
+      box.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/rUU9ccJSmLg?autoplay=1&rel=0" title="DAS: the 5-minute tour" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>';
       box.style.cursor = 'default'; box.removeAttribute('role'); box.removeAttribute('tabindex');
     };
     box.addEventListener('click', play, {once: true});
