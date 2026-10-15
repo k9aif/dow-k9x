@@ -62,3 +62,15 @@ def test_claims_accept_typed_element_lines():
 def test_no_overall_score_without_the_judge(monkeypatch):
     monkeypatch.setattr(g, "faithfulness", lambda s, i, c: {"score": None, "judged": 0, "note": "no model elements"})
     assert g.grade(SOURCE, ICD, {})["overall"] is None
+
+
+def test_judge_down_keeps_the_code_checks(monkeypatch):
+    import k9_aif_abb.k9_utils.llm_invoke as li
+
+    def down(*_a, **_k):
+        raise RuntimeError("LLM backend unavailable (agent=DAS ICD Grader)")
+    monkeypatch.setattr(li, "llm_invoke", down)
+    r = g.grade(SOURCE, ICD, {})
+    assert r["faithfulness"]["score"] is None and "unavailable" in r["faithfulness"]["error"]
+    assert r["overall"] is None                   # no partial grade shown as a full one
+    assert r["citation_accuracy"]["checked"] == 3 and r["completeness"]["score"] is not None

@@ -126,8 +126,14 @@ def faithfulness(source: str, icd: str, config: Dict[str, Any]) -> Dict[str, Any
         '[{"id": "CN-001", "verdict": "supported|unsupported|contradicted", "evidence": "short quote from the source or empty"}]\n\n'
         f"SOURCE DOCUMENT:\n{source[:24000]}\n\nCLAIMS FROM THE ICD:\n{listing}\n"
     )
-    resp = llm_invoke(config, InferenceRequest(prompt=prompt, task_type="judge",
-                                               metadata={"agent": "DAS ICD Grader"}))
+    try:
+        resp = llm_invoke(config, InferenceRequest(prompt=prompt, task_type="judge",
+                                                   metadata={"agent": "DAS ICD Grader"}))
+    except RuntimeError as exc:
+        # The judge is down: keep the code checks (citation accuracy, completeness) and
+        # report faithfulness as not scored, so grade() gives no overall score.
+        return {"score": None, "claims": len(claims), "judged": 0, "error": str(exc)[:300],
+                "note": "model judge unavailable; faithfulness not scored"}
     verdicts = {d["id"]: d for d in _parse_json_array(resp.output)}
     judged = [dict(c, **{k: verdicts[c["id"]].get(k) for k in ("verdict", "evidence")})
               for c in claims if c["id"] in verdicts]

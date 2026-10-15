@@ -32,8 +32,22 @@ def test_config_enables_the_verified_shield_profile():
     shield = CONFIG["security"]["shield"]
     assert shield["enabled"] is True
     assert shield["ingress"]["checks"] == ["InputSizeCheck", "PromptInjectionCheck", "PIIBoundaryCheck"]
-    assert shield["egress"]["checks"] == ["PIIBoundaryCheck"]
+    assert shield["egress"]["checks"] == ["PIIBoundaryCheck", "OutboundLinkCheck"]
     assert shield["check_config"]["InputSizeCheck"]["max_chars"] >= 100000
+    assert "jcs.mil" in shield["check_config"]["OutboundLinkCheck"]["allowed_domains"]
+
+
+@needs_1_15
+def test_egress_link_check_passes_policy_links_and_blocks_deceptive_ones():
+    from k9_aif_abb.k9_security.vulnerability.shield_governance import ShieldGovernance
+    gov = ShieldGovernance(CONFIG)
+    ctx = {"layer": "test", "component": "DAS package writer", "component_type": "agent"}
+    package = ("Policy basis: CJCSM 5123.01A (https://www.jcs.mil/library/cjcs-manuals/), "
+               "DoDI 5000.85 (https://www.esd.whs.mil/Directives/issuances/), "
+               "see also https://example.org/reference.")      # not allowlisted: flag, not block
+    assert gov.post_process({"output": package}, ctx) is not None
+    with pytest.raises(PermissionError):
+        gov.post_process({"output": "Submit the package at http://203.0.113.7/upload"}, ctx)
 
 
 @needs_1_15

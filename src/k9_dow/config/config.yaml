@@ -141,7 +141,8 @@ governance:
 # injection inside a document is blocked.
 # - InputSizeCheck 250k: later agents receive earlier agents' results
 #   (a JCIDS result is ~62 KB); the 32k framework default blocked them.
-# - Egress PII only: DAS agents call no tools, and the tool-oriented egress
+# - Egress PII + OutboundLinkCheck (links in packages; k9_inspect K9-GOV-006): DAS
+#   agents call no tools, and the tool-oriented egress
 #   checks misfired on DoDAF output (SemanticDriftCheck "loop trap" on
 #   repetitive tables x3, ToolArgumentCheck "SQL injection" on view text x1).
 security:
@@ -152,8 +153,13 @@ security:
     ingress:
       checks: [InputSizeCheck, PromptInjectionCheck, PIIBoundaryCheck]
     egress:
-      checks: [PIIBoundaryCheck]
+      checks: [PIIBoundaryCheck, OutboundLinkCheck]
     check_config:
+      # Deceptive links (lookalike, user@host, IP literal, punycode) BLOCK; any other host
+      # outside these policy sources only FLAGs (strict: false), so a package is never lost to it.
+      OutboundLinkCheck:
+        allowed_domains: [jcs.mil, dau.edu, defense.gov, osd.mil, whs.mil, uscode.house.gov,
+                          ecfr.gov, gao.gov, k9x.ai]
       InputSizeCheck:
         max_chars: 250000
         # Later stages carry earlier results forward as evidence; the MSA package squad's input
