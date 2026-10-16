@@ -513,6 +513,15 @@ async def landing():
     return {"status": "ok", "message": "DAS API running."}
 
 
+@app.get("/se")
+async def se_pipeline():
+    """The systems engineering pipeline: a planned second solution next to DAS (future plan, not built)."""
+    html = _STATIC_DIR / "se.html"
+    if html.exists():
+        return FileResponse(html, headers={"Cache-Control": "no-cache"})
+    return {"status": "ok", "message": "SE pipeline page not found."}
+
+
 @app.get("/app")
 async def index():
     html = _STATIC_DIR / "index.html"

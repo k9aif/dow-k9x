@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K9X DAS — Systems engineering pipeline (planned)</title>
+<!-- The SE pipeline: a planned second solution on K9-AIF next to DAS. Plan: docs/design/se-pipeline-plan.md.
+     Nothing on this page is built except what is marked "In DAS today". Styles follow landing.html. -->
+<style>
+  :root {
+    --bg: #0b1220; --bg2: #111a2e; --card: #14203a; --border: #24324f;
+    --text: #d3dae6; --muted: #aab5c8; --amber: #f2b33d; --amber-d: #d99a1e;
+    --teal: #2dd4bf; --orange: #fb923c; --blue: #60a5fa; --green: #4ade80; --violet: #a78bfa;
+    --mono: ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: var(--amber); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 22px; }
+  header.top { border-bottom: 1px solid var(--border); background: rgba(17,26,46,0.94); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(6px); }
+  header.top .wrap { display: flex; align-items: center; gap: 14px; padding-block: 12px; flex-wrap: wrap; }
+  .logo { font-weight: 800; letter-spacing: -.3px; font-size: 18px; }
+  .logo span { color: var(--amber); }
+  .planned { font: 700 10.5px var(--mono); color: var(--violet); border: 1px solid var(--violet); border-radius: 4px; padding: 2px 6px; }
+  header.top nav { margin-left: auto; display: flex; gap: 16px; font-size: 13px; flex-wrap: wrap; }
+  header.top nav a { color: var(--muted); text-decoration: none; }
+  header.top nav a:hover { color: var(--text); }
+  section[id] { scroll-margin-top: 64px; }
+
+  .hero { padding: 56px 0 30px; border-bottom: 1px solid var(--border); }
+  .eyebrow { font: 700 12px var(--mono); color: var(--teal); letter-spacing: .08em; text-transform: uppercase; }
+  h1 { font-size: clamp(28px, 4vw, 42px); line-height: 1.15; margin: 10px 0 14px; letter-spacing: -.8px; }
+  h1 em { font-style: normal; color: var(--amber); }
+  .lede { font-size: 17px; color: var(--muted); max-width: 780px; margin: 0 0 18px; }
+  .banner { border: 1px solid rgba(167,139,250,.45); background: rgba(167,139,250,.08); border-radius: 10px;
+            padding: 12px 16px; color: #ddd6fe; font-size: 14.5px; max-width: 780px; }
+  .banner b { color: #ede9fe; }
+
+  section { padding: 30px 0; }
+  h2 { font-size: 22px; margin: 0 0 6px; letter-spacing: -.3px; }
+  .sub { color: var(--muted); margin: 0 0 20px; max-width: 780px; }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 18px 16px; }
+  .card h3 { margin: 0 0 6px; font-size: 16px; display: flex; gap: 10px; align-items: center; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; }
+  .tag { font: 700 10.5px var(--mono); letter-spacing: .05em; border-radius: 4px; padding: 1px 6px; margin-left: auto; white-space: nowrap; }
+  .tag.built { color: var(--green); border: 1px solid var(--green); }
+  .tag.plan { color: var(--violet); border: 1px solid var(--violet); }
+  .tbl-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--bg2); color: var(--text); font-weight: 700; }
+  td { color: var(--muted); }
+  td b { color: var(--text); }
+  .flow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .flow span { border: 1px solid var(--border); background: var(--card); border-radius: 8px; padding: 8px 14px; font-size: 14px; }
+  .flow span.built { border-color: var(--green); color: #bbf7d0; }
+  .flow span.plan { border-color: var(--violet); color: #ddd6fe; }
+  .flow i { color: var(--muted); font-style: normal; }
+  .steps { margin: 0; padding-left: 22px; color: var(--muted); }
+  .steps li { margin: 6px 0; }
+  .steps b { color: var(--text); }
+  .limits { border-left: 3px solid var(--amber); background: var(--card); border-radius: 0 10px 10px 0; padding: 16px 20px; }
+  .limits ul { margin: 6px 0 0; padding-left: 20px; color: var(--muted); }
+  .limits li { margin: 4px 0; }
+  .io { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 12px; align-items: stretch; }
+  .io .col { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .io .col h3 { margin: 0 0 8px; font-size: 15px; }
+  .io .col ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+  .io .col li { margin: 3px 0; }
+  .io .mid { border-color: var(--violet); background: rgba(167,139,250,.07); }
+  .io .mid h3 { color: #ddd6fe; } .io .in h3 { color: var(--teal); } .io .out h3 { color: var(--amber); }
+  .io .arrow { align-self: center; color: var(--muted); font-size: 22px; }
+  @media (max-width: 820px) { .io { grid-template-columns: 1fr; } .io .arrow { transform: rotate(90deg); justify-self: center; } }
+  footer { border-top: 1px solid var(--border); margin-top: 26px; padding: 22px 0 34px; color: var(--muted); font-size: 13px; }
+  footer .wrap { display: flex; gap: 18px; flex-wrap: wrap; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="logo"><span>K9X</span> DAS</div>
+    <span class="planned">SE PIPELINE · PLANNED</span>
+    <nav>
+      <a href="#documents">Documents</a>
+      <a href="#idea">The idea</a>
+      <a href="#reviews">Technical reviews</a>
+      <a href="#agents">Agents</a>
+      <a href="#skeleton">How it runs</a>
+      <a href="#inventory">Inventory</a>
+      <a href="#das">With DAS</a>
+      <a href="#pilot">Project plan</a>
+      <a href="#scope">Scope</a>
+      <a href="/">← DAS</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="hero">
+    <div class="eyebrow">Systems engineering · future plan</div>
+    <h1>The same engine, applied to <em>engineering reviews</em>.</h1>
+    <p class="lede">Building a complex system means passing a series of engineering checkpoints, the technical reviews.
+      At each one, engineers show a review board that the design is ready for the next step, against a checklist,
+      with a set of documents to prepare. DAS does this for acquisition decisions; the SE pipeline would do it for the
+      technical reviews: AI agents prepare and check the review documents, and an engineer decides at every review.</p>
+    <div class="banner"><b>Planned, not yet built.</b> This page describes a future plan. What exists today is DAS and
+      the first technical review it already runs (the System Requirements Review); everything else here is marked
+      <b>Planned</b>.</div>
+  </div>
+
+  <section id="documents">
+    <h2>Documents in, documents out</h2>
+    <div class="io">
+      <div class="col in"><h3>Input documents</h3><ul>
+        <li>Approved requirements and the SRR package (from DAS, or the program's own)</li>
+        <li>Design model (SysML v2) or design documents</li>
+        <li>Interface descriptions</li>
+        <li>Previous review decisions and baselines</li></ul></div>
+      <div class="arrow">→</div>
+      <div class="col mid"><h3>SE pipeline</h3><ul>
+        <li>Agents prepare and check, per technical review</li>
+        <li>Every output graded against its sources</li>
+        <li>An engineer decides at every review, in K9X HIL</li></ul></div>
+      <div class="arrow">→</div>
+      <div class="col out"><h3>Output documents</h3><ul>
+        <li>Review package for each review</li>
+        <li>Requirement decomposition and allocation</li>
+        <li>Interface list, mismatches flagged</li>
+        <li>Verification plan</li>
+        <li>Traceability report; readiness score with gaps</li></ul></div>
+    </div>
+  </section>
+
+  <section id="idea">
+    <h2>What stays, what changes</h2>
+    <p class="sub">Same engine and safety; new checklists, new documents, and a few new agent roles, some of which DAS already has.</p>
+    <div class="tbl-wrap"><table>
+      <tr><th></th><th>Stays the same</th><th>Changes for SE</th></tr>
+      <tr><td><b>Engine</b></td><td>K9-AIF: governance on every agent, a person approves every checkpoint in K9X HIL, outputs graded against their sources, failures recorded, everything audited</td><td>Nothing</td></tr>
+      <tr><td><b>Checkpoints and checklists</b></td><td>One versioned process file (policy as data), as in DAS</td><td>The technical reviews and their entry criteria</td></tr>
+      <tr><td><b>Documents</b></td><td>Every output checked against its sources; where a source is silent, the agent says so</td><td>Requirements, design models and interface descriptions in; review packages and test plans out</td></tr>
+      <tr><td><b>Agent roles</b></td><td>Traceability, change detection, readiness scoring and architecture views carry over from DAS</td><td>A few new roles for engineering work (below)</td></tr>
+    </table></div>
+  </section>
+
+  <section id="reviews">
+    <h2>The technical reviews</h2>
+    <p class="sub">The usual sequence. The current set, names and entry criteria are to be confirmed with a systems
+      engineering expert against DoDI 5000.88 (Engineering of Defense Systems) and the DoD Systems Engineering
+      Guidebook before anything is built.</p>
+    <div class="flow">
+      <span class="built">SRR · in DAS today</span><i>→</i><span class="plan">SFR</span><i>→</i><span class="plan">PDR</span><i>→</i>
+      <span class="plan">CDR</span><i>→</i><span class="plan">TRR</span>
+    </div>
+    <div class="tbl-wrap" style="margin-top:16px"><table>
+      <tr><th>Review</th><th>In plain words</th><th>Status</th></tr>
+      <tr><td><b>SRR</b> · System Requirements Review</td><td>Do we understand what the system must do?</td><td>In DAS today</td></tr>
+      <tr><td><b>SFR</b> · System Functional Review</td><td>Are the functions defined and the requirements split into them?</td><td>Planned</td></tr>
+      <tr><td><b>PDR</b> · Preliminary Design Review</td><td>Is the overall design ready to be detailed?</td><td>Planned (pilot candidate)</td></tr>
+      <tr><td><b>CDR</b> · Critical Design Review</td><td>Is the detailed design ready to build?</td><td>Planned</td></tr>
+      <tr><td><b>TRR</b> · Test Readiness Review</td><td>Are we ready to test?</td><td>Planned</td></tr>
+    </table></div>
+  </section>
+
+  <section id="agents">
+    <h2>Agents</h2>
+    <p class="sub">Four DAS squads already do engineering work and carry over; four new roles and one new integration complete it.</p>
+    <div class="grid">
+      <div class="card"><h3>Traceability<span class="tag built">IN DAS</span></h3><p>Every requirement traced to design and test; links proposed and validated; orphans found; coverage scored.</p></div>
+      <div class="card"><h3>Change detection<span class="tag built">IN DAS</span></h3><p>What changed since the last approved baseline, and whether it matters.</p></div>
+      <div class="card"><h3>Review readiness<span class="tag built">IN DAS</span></h3><p>Readiness for each review scored against its entry criteria, with the gaps listed.</p></div>
+      <div class="card"><h3>Architecture views<span class="tag built">IN DAS</span></h3><p>System views generated and checked for consistency with each other.</p></div>
+      <div class="card"><h3>Requirements decomposer<span class="tag plan">PLANNED</span></h3><p>Splits system requirements into functional and subsystem requirements.</p></div>
+      <div class="card"><h3>Interface analyst<span class="tag plan">PLANNED</span></h3><p>Lists the interfaces between parts and checks that each side agrees.</p></div>
+      <div class="card"><h3>Verification planner<span class="tag plan">PLANNED</span></h3><p>Proposes how each requirement will be tested, inspected or analyzed.</p></div>
+      <div class="card"><h3>Review package builder<span class="tag plan">PLANNED</span></h3><p>Assembles the package for each review from the outputs above.</p></div>
+      <div class="card"><h3>Model link (SysML v2)<span class="tag plan">PLANNED</span></h3><p>An integration adapter to read and write the engineers' design models through the SysML v2 API, so agents work on the model, not only documents.</p></div>
+    </div>
+  </section>
+
+  <section id="skeleton">
+    <h2>How it would run</h2>
+    <p class="sub">The same shape as DAS: each approved review starts the next. A router sends the event to one
+      orchestrator, which runs the review's squads; each squad runs its agents in order; the package goes to a review
+      board in K9X HIL, whose decision starts the next review. Each layer knows only the one below it.</p>
+    <div class="flow">
+      <span class="built">SRR approved (DAS)</span><i>→</i><span class="plan">Router</span><i>→</i>
+      <span class="plan">Technical Review Orchestrator</span><i>→</i><span class="plan">squads → agents</span><i>→</i>
+      <span class="plan">review board in K9X HIL</span><i>→</i><span class="plan">next review</span>
+    </div>
+  </section>
+
+  <section id="inventory">
+    <h2>Inventory</h2>
+    <p class="sub">Every component identified for the SE pipeline. <b style="color:var(--green)">In DAS · reused</b>: exists today and carries over.
+      <b style="color:var(--violet)">Identified · pending</b>: designed here, not yet built.</p>
+    <div class="tbl-wrap"><table>
+      <tr><th>Router</th><th>Orchestrator</th><th>Squad</th><th>Reviews</th><th>Agents (in order)</th><th>Status</th></tr>
+      <tr><td rowspan="8"><b>SeRouter</b><br>review approved → next review</td><td rowspan="8"><b>TechnicalReviewOrchestrator</b><br>one orchestrator; the review comes from the process file; loads squads, never names an agent</td><td><b>TraceabilitySquad</b></td><td>All</td><td>LinkProposer, LinkValidator, OrphanDetector, CoverageScorer</td><td><span class="tag built">IN DAS · REUSED</span></td></tr>
+      <tr><td><b>DriftDetectionSquad</b></td><td>All</td><td>BaselineDiffer, DriftClassifier</td><td><span class="tag built">IN DAS · REUSED</span></td></tr>
+      <tr><td><b>ViewGenerationSquad</b></td><td>SFR, PDR, CDR</td><td>ModelExtractor, ViewGenerator, ViewConsistencyChecker</td><td><span class="tag built">IN DAS · REUSED</span></td></tr>
+      <tr><td><b>FunctionalDecompositionSquad</b></td><td>SFR</td><td>RequirementsDecomposer, AllocationChecker</td><td><span class="tag plan">IDENTIFIED · PENDING</span></td></tr>
+      <tr><td><b>DesignAnalysisSquad</b></td><td>PDR, CDR</td><td>ModelReader (SysML v2), InterfaceAnalyst</td><td><span class="tag plan">IDENTIFIED · PENDING</span></td></tr>
+      <tr><td><b>VerificationPlanningSquad</b></td><td>PDR, CDR, TRR</td><td>VerificationPlanner, CoverageScorer (reused)</td><td><span class="tag plan">IDENTIFIED · PENDING</span></td></tr>
+      <tr><td><b>GateReadinessSquad</b></td><td>All</td><td>CriteriaLoader, EvidenceCollector, ReadinessScorer, GapReporter</td><td><span class="tag built">IN DAS · REUSED</span></td></tr>
+      <tr><td><b>ReviewPackageSquad</b></td><td>All</td><td>ReviewPackageBuilder</td><td><span class="tag plan">IDENTIFIED · PENDING</span></td></tr>
+    </table></div>
+    <div class="tbl-wrap" style="margin-top:14px"><table>
+      <tr><th>Also needed</th><th>What</th><th>Status</th></tr>
+      <tr><td><b>Process file</b></td><td>se_process_model.yaml: the reviews, their entry criteria, which squads each runs, the board for each gate</td><td><span class="tag plan">IDENTIFIED · PENDING</span></td></tr>
+      <tr><td><b>Review gates (K9X HIL)</b></td><td>SE-REVIEW-SFR, PDR, CDR, TRR: the review board decides; SE-REVIEW-SRR runs in DAS today</td><td><span class="tag plan">IDENTIFIED · PENDING</span></td></tr>
+      <tr><td><b>SysML v2 adapter</b></td><td>Read and write the engineers' design models (integration adapter on K9-AIF)</td><td><span class="tag plan">IDENTIFIED · PENDING</span></td></tr>
+      <tr><td><b>Document intake</b></td><td>PDF, Word and scans to Markdown with Docling; screening by k9x Shield and Granite Guardian</td><td><span class="tag built">IN DAS · REUSED</span></td></tr>
+    </table></div>
+    <p class="sub" style="margin-top:12px">Squads are YAML and agents are small classes on BaseAgent, as in DAS; every agent is governed,
+      every output graded against its sources, and a failed step stops the review and is recorded for retry.</p>
+  </section>
+
+  <section id="das">
+    <h2>How it works with DAS</h2>
+    <p class="sub">A separate solution on K9-AIF, so DAS stays stable; on this site for users, with the same login,
+      programs, jobs and K9X HIL review queues. The two exchange work by events where they meet. DAS does not have to
+      be finished first: the SE pipeline needs only an approved requirements baseline, which DAS already produces at
+      the SRR, or an existing approved requirements document.</p>
+    <div class="tbl-wrap"><table>
+      <tr><th>From</th><th>To</th><th>What</th><th>When</th></tr>
+      <tr><td><b>DAS</b></td><td>SE pipeline</td><td>Approved requirement, SRR package, traceability, architecture views</td><td>After the SRR decision</td></tr>
+      <tr><td><b>SE pipeline</b></td><td>DAS</td><td>Technical review results as evidence</td><td>Before the next acquisition decision (for example PDR results before Milestone B)</td></tr>
+    </table></div>
+  </section>
+
+  <section id="pilot">
+    <h2>Project plan</h2>
+    <p class="sub">Start small: one review on one program, proven end to end, before the rest.</p>
+    <div class="tbl-wrap"><table>
+      <tr><th>Phase</th><th>What</th><th>Who</th><th>Status</th></tr>
+      <tr><td><b>0 · Plan and inventory</b></td><td>This page: the reviews, the components, what DAS already provides</td><td>K9X</td><td><span class="tag built">DONE</span></td></tr>
+      <tr><td><b>1 · Confirm the reviews</b></td><td>Current reviews, names and entry criteria against DoDI 5000.88 and the DoD SE Guidebook; pick the pilot review (PDR proposed) and one program's artifacts</td><td>SE expert with K9X</td><td><span class="tag plan">IDENTIFIED · PENDING</span></td></tr>
+      <tr><td><b>2 · Build the pilot</b></td><td>Process file for the pilot review; the new squads and agents it needs; the review package template; reuse the DAS squads</td><td>K9X</td><td><span class="tag plan">IDENTIFIED · PENDING</span></td></tr>
+      <tr><td><b>3 · Run the pilot</b></td><td>End to end on the real artifacts, the expert deciding in K9X HIL; compare with the review prepared by hand</td><td>SE expert with K9X</td><td><span class="tag plan">IDENTIFIED · PENDING</span></td></tr>
+      <tr><td><b>4 · Model link</b></td><td>SysML v2 adapter, so agents work on the design model as well as documents</td><td>K9X</td><td><span class="tag plan">IDENTIFIED · PENDING</span></td></tr>
+      <tr><td><b>5 · Remaining reviews</b></td><td>SFR, CDR, TRR, decided from what the pilot shows</td><td>K9X with the program</td><td><span class="tag plan">IDENTIFIED · PENDING</span></td></tr>
+    </table></div>
+  </section>
+
+  <section id="scope">
+    <div class="limits">
+      <h2>Scope</h2>
+      <ul>
+        <li>A future plan. Only the SRR and the reused DAS squads exist today.</li>
+        <li>The reviews and their criteria are to be confirmed by a systems engineering expert against current DoD guidance.</li>
+        <li>People decide at every review. The pipeline prepares and checks; it does not replace engineering judgement.</li>
+        <li>Agents built with other frameworks (CrewAI, LangGraph, Claude Agent SDK) can run inside K9-AIF, governed at the boundary.</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>K9X DAS · systems engineering pipeline (planned) · built on the <a href="https://github.com/k9aif/k9-aif-framework" target="_blank" rel="noopener">K9-AIF framework</a></div>
+    <div>Independent research · Apache-2.0</div>
+  </div>
+</footer>
+
+</body>
+</html>
