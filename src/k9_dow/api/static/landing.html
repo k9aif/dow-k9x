@@ -144,7 +144,7 @@
 
 <nav class="toc" aria-label="On this page">
   <ul>
-    <li><a href="#tour">5-minute tour</a></li>
+    <li><a href="#tour">4-minute tour</a></li>
     <li><a href="#steps">What you'll see</a></li>
     <li><a href="#policy">Policy basis</a></li>
     <li><a href="#flow">Flow</a></li>
@@ -174,7 +174,7 @@
     <p class="readfirst">New here? Read this page first: it explains, at a high level, what the demo shows, how a job flows, and the framework it is built on. Then start the demo.</p>
     <div class="cta">
       <button class="btn btn-primary" id="startDemo">Start Demo →</button>
-      <a class="btn btn-ghost" href="#tour" id="watchTour">▶ Watch the 5-minute tour</a>
+      <a class="btn btn-ghost" href="#tour" id="watchTour">▶ Watch the 4-minute tour</a>
       <button class="btn btn-ghost" id="startAdmin" title="Signs in as the DAS admin, who also starts the next stage after a HIL approval">Start as DAS admin</button>
       <span id="startErr"></span>
     </div>
@@ -185,13 +185,13 @@
 
 <div class="wrap">
   <section id="tour">
-    <h2>The 5-minute tour</h2>
+    <h2>The 4-minute tour</h2>
     <p class="sub">The framework in one picture, then a real run of DAS: screening, grading, and a person deciding in K9X HIL.</p>
-    <div class="tour" id="tourPlayer" role="button" tabindex="0" aria-label="Play the 5-minute tour video (loads YouTube)">
+    <div class="tour" id="tourPlayer" role="button" tabindex="0" aria-label="Play the 4-minute tour video (loads YouTube)">
       <img src="/static/das-tour-thumb.jpg" alt="DAS video: AI agents prepare, humans decide" loading="lazy">
       <span class="play" aria-hidden="true">▶</span>
     </div>
-    <p class="caption">Plays from YouTube (privacy-enhanced mode) only when you click. <a href="https://youtu.be/rUU9ccJSmLg" target="_blank" rel="noopener">Watch on YouTube</a>.</p>
+    <p class="caption">Plays from YouTube (privacy-enhanced mode) only when you click. <a href="https://youtu.be/uVWQMQDU0HY" target="_blank" rel="noopener">Watch on YouTube</a>.</p>
   </section>
 </div>
 
@@ -379,12 +379,12 @@
     });
   }, {rootMargin: '-45% 0px -50% 0px'});
   ids.forEach(id => { const el = document.getElementById(id); if (el) spy.observe(el); });
-  // 5-minute tour: load the YouTube player only on click (privacy-enhanced domain)
+  // 4-minute tour: load the YouTube player only on click (privacy-enhanced domain)
   (function () {
     const box = document.getElementById('tourPlayer');
     if (!box) return;
     const play = () => {
-      box.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/rUU9ccJSmLg?autoplay=1&rel=0" title="DAS: the 5-minute tour" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>';
+      box.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/uVWQMQDU0HY?autoplay=1&rel=0" title="DAS: the 4-minute tour" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>';
       box.style.cursor = 'default'; box.removeAttribute('role'); box.removeAttribute('tabindex');
     };
     box.addEventListener('click', play, {once: true});
