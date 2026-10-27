@@ -16,6 +16,30 @@ def _env(key: str, default: str = "") -> str:
     return os.environ.get(key, default)
 
 
+def build_info() -> dict:
+    """What is running: VERSION from the repo; the commit and build date baked into the image by
+    build-run.sh (DAS_COMMIT / DAS_BUILT; the image has no .git), or read from git in a checkout;
+    and the installed K9-AIF framework version."""
+    import subprocess
+    from importlib.metadata import PackageNotFoundError, version as pkg_version
+    ver_file = _PROJECT_ROOT / "VERSION"
+    version = ver_file.read_text().strip() if ver_file.exists() else "dev"
+    commit = _env("DAS_COMMIT").strip()
+    built = _env("DAS_BUILT").strip()
+    if not commit or commit == "unknown":
+        try:
+            commit = subprocess.run(["git", "-C", str(_PROJECT_ROOT), "rev-parse", "--short", "HEAD"],
+                                    capture_output=True, text=True, timeout=3).stdout.strip()
+        except Exception:
+            commit = ""
+    try:
+        k9aif = pkg_version("k9-aif")
+    except PackageNotFoundError:
+        k9aif = "not installed"
+    return {"version": version, "commit": commit or "unknown",
+            "built": built if built and built != "unknown" else "local run", "k9_aif": k9aif}
+
+
 class Settings:
     ENV = _env("K9_DOW_ENV", "local")
     ACTIVE_LLM = _env("K9_DOW_ACTIVE_LLM", "ollama")

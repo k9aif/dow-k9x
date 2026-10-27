@@ -15,6 +15,9 @@ FROM registry.access.redhat.com/ubi9/python-311:latest
 # hosts) — build-run.sh passes the real directory name here so COPY
 # below works regardless of host-specific clone naming.
 ARG DAS_SRC_DIR=dow-k9-aif
+# What is running, shown on the Architecture tab and /version: build-run.sh passes the commit and date.
+ARG DAS_COMMIT=unknown
+ARG DAS_BUILT=unknown
 
 USER root
 
@@ -39,7 +42,9 @@ RUN chown -R 1001:0 /app/dow-k9-aif && chmod -R g+rwX /app/dow-k9-aif
 
 WORKDIR /app/dow-k9-aif
 
-ENV PYTHONPATH=/app/dow-k9-aif/src \
+ENV DAS_COMMIT=$DAS_COMMIT \
+    DAS_BUILT=$DAS_BUILT \
+    PYTHONPATH=/app/dow-k9-aif/src \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     K9_ENV=production

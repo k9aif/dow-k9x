@@ -1210,8 +1210,15 @@ function renderArch() {
   fetch('/llm').then(r => r.json()).then(d => {
     if (d.ollama_model) document.querySelectorAll('.arch-model').forEach(el => el.textContent = d.ollama_model);
   }).catch(() => {});
+  fetch('/version').then(r => r.json()).then(b => {
+    const el = document.getElementById('archBuild');
+    if (el) el.innerHTML = `DAS <b>${esc(b.version)}</b> · build <b>${esc(b.commit)}</b> · ${esc(b.built)}`
+      + ` · K9-AIF <b>${esc(b.k9_aif)}</b>`;
+  }).catch(() => {});
   area.innerHTML = `
 <div style="padding:20px 24px;line-height:1.7;color:var(--text2);font-size:12px;max-width:960px">
+  <div id="archBuild" title="What is running on this server" style="font:11px/1.6 ui-monospace,Menlo,monospace;color:var(--text2);
+       border:1px solid var(--border);border-radius:6px;padding:4px 10px;margin-bottom:16px;display:inline-block">DAS …</div>
   <div style="font-size:15px;font-weight:700;color:var(--accent);margin-bottom:8px">How a job flows</div>
   <img src="/static/das-hil-flow-dark.svg" alt="DAS job flow: upload with Docling OCR, screening, requirement, Service validation in K9X HIL with the JCI review in parallel, MDD package, MDD, MSA and Milestone A package, Milestone A, SRR package, SRR"
        style="width:100%;max-width:900px;background:#111a2e;border:1px solid var(--border);border-radius:6px;padding:6px;box-sizing:border-box">

@@ -530,6 +530,13 @@ async def index():
     return {"status": "ok", "message": "DAS API running. UI not yet built."}
 
 
+@app.get("/version")
+async def version():
+    """What is running: DAS version, build commit and date, K9-AIF version (Architecture tab)."""
+    from k9_dow.config.settings import build_info
+    return build_info()
+
+
 @app.get("/health")
 async def health():
     # Previously hardcoded {"status": "ok"} with no actual check --
@@ -540,10 +547,16 @@ async def health():
     return {
         "status": "ok" if chk["state"] == "ok" else "degraded",
         "service": "das",
-        "version": "0.2.0",
+        **_health_build(),
         "ollama": ollama,
         "llm": chk,
     }
+
+
+def _health_build() -> Dict[str, Any]:
+    from k9_dow.config.settings import build_info
+    b = build_info()
+    return {"version": b["version"], "build": b["commit"], "built": b["built"], "k9_aif": b["k9_aif"]}
 
 
 _llm_cache: Dict[str, Any] = {"at": 0.0, "value": None}

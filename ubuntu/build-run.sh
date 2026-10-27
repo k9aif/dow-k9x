@@ -97,10 +97,14 @@ case "$cmd" in
     # a forced rebuild). Slower every time, but correctness > speed here.
     echo "Building $IMAGE from $REPO_ROOT (context dir: $DAS_DIRNAME, no cache) ..."
     cd "$REPO_ROOT"
+    COMMIT=$(git -C "$DAS_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
+    BUILT=$(date +%Y-%m-%d)
     sudo podman build --no-cache -t "$IMAGE" \
       -f "$DAS_DIRNAME/ubuntu/Containerfile" \
       --build-arg "DAS_SRC_DIR=$DAS_DIRNAME" \
+      --build-arg "DAS_COMMIT=$COMMIT" --build-arg "DAS_BUILT=$BUILT" \
       .
+    echo "DAS $(cat "$DAS_DIR/VERSION" 2>/dev/null || echo dev) · build $COMMIT · $BUILT"
     echo "Build complete: $IMAGE"
     ;;
 
