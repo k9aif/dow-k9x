@@ -50,6 +50,7 @@ class Gate:
     hil_queue: str = ""
     hil_application: str = ""
     hil_queue_name: str = ""
+    decision_days: Optional[int] = None   # this gate's own decision window (days); None = the deployment default
 
     @property
     def task_topic(self) -> str:
@@ -123,6 +124,9 @@ def _validate(pm: ProcessModel) -> None:
     gate_stages = {s.id for s in pm.stages if s.kind == "gate"}
     if gate_stages != set(pm.gates):
         raise ProcessModelError(f"gate stages {sorted(gate_stages)} != gates {sorted(pm.gates)}")
+    for g in pm.gates.values():
+        if g.decision_days is not None and g.decision_days < 1:
+            raise ProcessModelError(f"{g.id}: decision_days must be at least 1, got {g.decision_days}")
     for s in pm.stages:
         if s.kind not in ("agents", "gate"):
             raise ProcessModelError(f"{s.id}: unknown kind {s.kind!r}")
@@ -182,6 +186,7 @@ def parse_process_model(data: Dict[str, Any]) -> ProcessModel:
             prepared_by=g.get("prepared_by", ""), approval_starts=g.get("approval_starts"),
             hil_queue=g.get("hil_queue", ""),
             hil_application=g.get("hil_application", ""), hil_queue_name=g.get("hil_queue_name", ""),
+            decision_days=int(g["decision_days"]) if g.get("decision_days") is not None else None,
         )
         for gid, g in raw["gates"].items()
     }

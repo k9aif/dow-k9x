@@ -57,6 +57,29 @@ REPLY_TOPIC_TO_GATE: Dict[str, str] = {v["reply_topic"]: k for k, v in GATE_TOPI
 STAGE_BUCKET = "jcids-output"
 
 
+DEFAULT_DECISION_DAYS = 30   # federal and DoW approvals routinely take weeks
+
+
+def decision_days(config: Dict[str, Any], gate_id: str) -> int:
+    """How long a person has to decide a gate in K9X HIL before the task expires (and is rejected).
+    The gate's own decision_days (process_model.yaml) wins; then DAS_HIL_DECISION_DAYS (.env); then
+    hil.decision_days (config.yaml); then 30. A value that isn't a whole number of days >= 1 is an error."""
+    gate = _PM.gates.get(gate_id)
+    for source, value in (("process_model.yaml", gate.decision_days if gate else None),
+                          ("DAS_HIL_DECISION_DAYS", os.environ.get("DAS_HIL_DECISION_DAYS") or None),
+                          ("config.yaml hil.decision_days", (config.get("hil") or {}).get("decision_days"))):
+        if value is None:
+            continue
+        try:
+            days = int(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{source}: decision days must be a whole number, got {value!r}") from None
+        if days < 1:
+            raise ValueError(f"{source}: decision days must be at least 1, got {days}")
+        return days
+    return DEFAULT_DECISION_DAYS
+
+
 def _broker(config: Dict[str, Any]) -> str:
     raw = (os.environ.get("KAFKA_BOOTSTRAP_SERVERS")
            or config.get("messaging", {}).get("bootstrap_servers", "localhost:9092"))

@@ -148,6 +148,7 @@ class ProcessStageOrchestrator(BaseOrchestrator):
             source_topic=f"das.{gate.prepared_by}",
             payload={"Gate": gate_id, **(extra or {}), **summary},
             artifacts=[a for a in artifacts if a],
+            ttl_hours=hil_gateway.decision_days(self.config, gate_id) * 24,
         )
         if published:
             print(f"  → HIL task published: {gate.task_topic} (job={job_id})", flush=True)

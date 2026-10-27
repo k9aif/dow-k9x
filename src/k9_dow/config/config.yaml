@@ -208,6 +208,11 @@ monitoring:
 logging:
   level: DEBUG
 
+# K9X HIL gate decisions: days a person has to decide before the task expires (and is rejected).
+# DAS_HIL_DECISION_DAYS in .env overrides this; a gate's own decision_days in process_model.yaml overrides both.
+hil:
+  decision_days: 30
+
 messaging:
   bootstrap_servers: "${KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}"
   topics:

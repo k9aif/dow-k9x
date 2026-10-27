@@ -95,6 +95,9 @@ process_model:
   # starts (null: the flow ends, or the gate records a decision only, as JCI-REVIEW does).
   # hil_queue: K9X HIL task topic workflow.hil.<hil_queue>; decisions on <hil_queue>.replies.
   # hil_application / hil_queue_name: where the task appears in K9X HIL (k9x-hil backend/seed.py).
+  # decision_days (optional, per gate): how long a person has to decide in K9X HIL; past it the task
+  # expires and is rejected (fail closed: nothing advances without a decision). Without it, the deployment
+  # default applies: DAS_HIL_DECISION_DAYS in .env, else hil.decision_days in config.yaml, else 30.
   gates:
     SERVICE-VALIDATION:
       prepared_by: requirement
