@@ -1,8 +1,29 @@
 # ICD Quality Judge (design)
 
-Status: designed 2026-10-02; **built 2026-10-03** as `src/k9_dow/quality/icd_grader.py`. This file is
-the design; the code is authoritative where they differ. Example output:
+Status: designed 2026-10-02; **built 2026-10-03** as `src/k9_dow/quality/icd_grader.py`. Example output:
 `docs/process-model-2026/evidence/firebird_2026-10-15_JOB-20261015-1108EA/JOB-20261015-1108EA-ICD-Quality.md`.
+
+## As built (updated 2026-10-29)
+
+The build kept the three scores and the independent judge model, and simplified how grading is run.
+Where this section and the original design below differ, this section and the code are current.
+
+| | Original design (below) | As built |
+|---|---|---|
+| When it runs | Automatically, as the last step of the stage, before the HIL task is sent | **On demand:** a signed-in user clicks the grader in the Generated Docs panel (`POST /jobs/{job_id}/grade`); it runs in the background and takes about a minute |
+| Score in the HIL task | Yes (`quality.*` payload fields) | No. The report is a job document beside the package: `<job>-ICD-Quality.md` |
+| Implementation | `QualityJudgeSquad` with four agents | A plain module, `quality/icd_grader.py`, called by the API (`_grade_job` in `api/app.py`) |
+| Faithfulness | Claims extracted from the ICD | The package's typed model elements (capability needs, SE requirements, baseline items), each judged supported / unsupported / contradicted by the `judge` model alias |
+| Completeness, citation accuracy | Code and model | **Code only:** required sections present; verbatim quotes of 20+ characters found in the source (architecture views only) |
+| Overall score | Not specified | Mean of the three. When the judge model is down, citation and completeness are kept and faithfulness is reported as "not evaluated", with no overall score |
+| Judge model | `deepseek-r1:32b` | Same default, set by `GRADER_MODEL`. The judge is loaded for the run and the generator model reloaded afterwards (one GPU) |
+| Stored | `jcids-output/by-job/<job>/quality-jcids.json` | Stage result `quality-jcids` for the job (same by-job storage) |
+
+The terms below (JCIDS, ICD, JROC gate) come from the JCIDS-era flow. Under process model `mca-2026-10`
+the graded document is the Service requirement package, and the review it supports is Service
+Requirements Validation.
+
+## Original design (2026-10-02)
 
 ## Purpose
 
