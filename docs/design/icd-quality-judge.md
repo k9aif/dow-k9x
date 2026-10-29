@@ -1,7 +1,8 @@
-# ICD Quality Judge (design, not built)
+# ICD Quality Judge (design)
 
-Status: **designed 2026-10-02, planned for the IBM demo week (after the IEEE v8 upload)**.
-Not part of DAS v1.2.x.
+Status: designed 2026-10-02; **built 2026-10-03** as `src/k9_dow/quality/icd_grader.py`. This file is
+the design; the code is authoritative where they differ. Example output:
+`docs/process-model-2026/evidence/firebird_2026-10-15_JOB-20261015-1108EA/JOB-20261015-1108EA-ICD-Quality.md`.
 
 ## Purpose
 

@@ -1,6 +1,9 @@
 # Package writers on the real model (FIREBIRD, 2026-10-09)
 
-> **Superseded for the requirement stage** by `../firebird_2026-10-15_JOB-20261015-1108EA/` (JSD now "undetermined: ACAT needed" when the source states no ACAT). The MDD, Milestone A and SRR packages here are still the latest, with known writer defects (B7 in `reviews/findings-and-fix/fix_todo.md`).
+> **Superseded for the requirement stage** by `../firebird_2026-10-15_JOB-20261015-1108EA/` (JSD now "undetermined: ACAT needed" when the source states no ACAT). The MDD, Milestone A and SRR packages here are still the latest, with known writer defects (tracked as B7 in the DAS fix list).
+> They were recorded **before** the 2026-10-10 package fixes (commit `fafb4cc`): the ASR draft (`3_msa_asr.md`)
+> is cut off at the end, and MDAP items are not yet limited to ACAT I. All of these are fixed; see
+> [`../fix-handled.md`](../fix-handled.md).
 
 
 The six package-writer agents run through their squads (JointReview, MddPackage, MsaAnalysis,

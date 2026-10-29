@@ -12,5 +12,5 @@ field, 83db4d0). Saved from the public job document endpoints (`/jobs/<id>/docs/
 
 The job stopped at the Service validation gate (K9X HIL task, Recommended JSD "Undetermined: ACAT needed").
 Later stages (MDD, MSA/Milestone A, TMRR/SRR) have not been rerun since 2026-10-09: for those, see
-`../writers_firebird_2026-10-09/`, which still has the known writer defects tracked as B7 in
-`reviews/findings-and-fix/fix_todo.md`.
+`../writers_firebird_2026-10-09/`, which still has the writer defects since fixed
+(see [`../fix-handled.md`](../fix-handled.md)).

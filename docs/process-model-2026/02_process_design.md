@@ -1,4 +1,7 @@
-# DAS process design, current as of October 2026 (for review before code)
+# DAS process design, current as of October 2026
+
+Status: **built and live** at das.k9x.ai (process model `mca-2026-10`). Written 2026-10-09 for review
+before code; section 8 lists what changed after that, updated 2026-10-29.
 
 Every stage and gate below cites `01_sources_and_findings.md` (S1-S6 = primary documents in
 `data/policy/` and `data/`). Scope: the **Major Capability Acquisition (MCA)** pathway, built through
@@ -123,8 +126,7 @@ Real Service requirement documents arrive as PDF or Word, but DAS today decodes 
 - Keep the original file in object storage beside the converted Markdown; show both to reviewers.
 - Conversion check: stop the job with a clear message if the extracted text is empty or implausibly short.
 - k9x Shield screens the converted text (unchanged ingress screening).
-- **Verified 2026-10-09**: Ravi's existing container (`quay.io/docling-project/docling-serve:latest`,
-  Docling-Serve 1.32.0, Docling 2.124.0) on PowerAI port 5001, healthy. `POST /v1/convert/file`
+- **Verified 2026-10-09** on a self-hosted Docling-Serve container. `POST /v1/convert/file`
   (`to_formats=md`, `do_ocr=true`) converted the **scanned** 9-page SecDef memo in 10 s to 18,085
   characters of Markdown with headings; minor OCR artefacts only. DAS reuses this container; no new
   one. The address goes in `.env` (`DOCLING_ENDPOINT`), never in code.
@@ -194,21 +196,26 @@ Upload (PDF / Word / scanned / Markdown)
    recorded like S15.
 5. Rollout: **separate URL first** (e.g. `das-next.k9x.ai`), then replace das.k9x.ai.
 
-## 7. Paper changes (after the code is verified)
-
-- Section VI (DAS): stages, gates and Fig. 7 (flow) redrawn from the process file; the process is
-  "current as of October 2026" with citations to CJCSI 5123.01J, CJCSM 5123.01A (Joint Staff
-  library: https://www.jcs.mil/library/cjcs-manuals/), DoWI 5000.02 Ch 2, DoDI 5000.85 and the SE
-  Guidebook.
-- S15: new live runs. Table 9 / S5: agent, squad and orchestrator counts. S4: re-inspection.
-- Response letter: answers that cite JROC-VALIDATION / PATHWAY-MILESTONE updated.
-- Table 10: a new DAS release + DOI.
-- Unchanged: the governance evaluation, the LangGraph comparison (it uses the GateReadiness squad,
-  whose behaviour is unchanged), and the HIL experiments.
-
-## 8. Decisions (approved by Ravi, 2026-10-09)
+## 7. Decisions (approved by Ravi, 2026-10-09)
 
 1. **Approved**: scope MCA through Milestone A + SRR; other pathways designed only.
 2. **Approved**: JCI review as a parallel, non-blocking human review (CJCSM Encl. A 6.d).
 3. **Approved**: rollout via a second URL first, then replace das.k9x.ai.
 4. **Approved**: Docling stage 0; Granite Guardian document screening, mandatory and warn-only, with a separate screening report (5a, 5b).
+
+## 8. Changes after 2026-10-09 (as built)
+
+The flow, gates, entry criteria and sources above are unchanged. These changes were made while
+building and running it:
+
+| Date | Change | Where |
+|---|---|---|
+| 2026-10-10 | **Milestone A, MDAP items:** apply to MDAPs (ACAT I) only, decided by ACAT alone (no dollar thresholds); the statute is cited as 10 U.S.C. 4251 (formerly 2366a). The SRR sits within TMRR. Each later gate's package cites every earlier decision (the SRR package now sees the MDD decision). | `process_model.yaml`, package writers |
+| 2026-10-10 | **Governance holds:** if k9x Shield or Granite Guardian refuses content in the middle of a stage, the run is held (work kept) and a K9X HIL task asks a person. Approval resumes the run with only that check relaxed, and the override is recorded and shown to the next gate; rejection stops the job. Every hold, override and rejection is published and listed on the admin Governance tab. Document screening at intake (5b) stays warn-only. | stage orchestrators, K9X HIL |
+| 2026-10-10 | **Withdraw a job:** the submitting visitor can withdraw their own job and the admin any job. A queued job is never dispatched; a running stage stops before its next agent; later HIL decisions start nothing. The withdrawal and who requested it are recorded. | job queue, UI |
+| 2026-10-10 | **Failed or stale runs** are recorded as errors, never as success, and offered to the admin as Retry. | stage orchestrators |
+| 2026-10-10 | **HIL location per gate:** each gate names its K9X HIL application and queue (for example *Requirements (JFRP) / Service Requirements Validation*), shown in Jobs in Pipeline. | `process_model.yaml` (`hil_application`, `hil_queue_name`) |
+| 2026-10-15 | **Joint Staffing Designator as policy data:** the tiers and the tier-to-ACAT rule (S3 Encl. B 2.b(3)-(6)) live in a mapping file with a citation per entry, not in the agent's prompt. When the source states no ACAT, the recommendation is "undetermined: ACAT needed" rather than a guess. | `config/mappings/jsd.yaml`, `tests/test_policy_mappings.py` |
+| 2026-10-26 | **Decision window:** a gate task waits up to 30 days for a decision by default (federal approvals take weeks), settable per gate or per deployment without code. Past it, the task expires and is rejected: nothing advances without a person's decision (fail closed). | `process_model.yaml` (`decision_days`), `DAS_HIL_DECISION_DAYS` |
+
+Live runs after these changes: [`evidence/firebird_2026-10-15_JOB-20261015-1108EA/`](evidence/firebird_2026-10-15_JOB-20261015-1108EA/).
