@@ -18,4 +18,4 @@ real DoW corpus data is not available for a proof-of-concept of this kind.
 - `dodaf_reference_systems_capability_views.md` — DoDAF 2.0 systems/capability-view-family authoring reference
 - `acquisition_review_package_reference.md` — JROC/Milestone Decision review-package content reference
 
-Seeded into pgvector via `scripts/seed_synthetic_corpus.py`.
+Seeded into pgvector via `experiments/seed_synthetic_corpus.py`.

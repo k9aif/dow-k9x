@@ -16,6 +16,9 @@ AI agents prepare every package; a person makes every gate decision.
 Everything here is public or synthetic. The policy documents are public DoD and Joint Staff
 publications. The program documents are fictional.
 
+DAS and K9-AIF are independent, vendor-neutral open-source projects, not IBM products. IBM Context
+Studio and Process Studio are named only as the tools these inputs are prepared for.
+
 This folder is documentation only. The DAS application does not read it, and nothing here appears
 in the das.k9x.ai document list.
 
@@ -23,30 +26,24 @@ in the das.k9x.ai document list.
 
 | Path | What | Use in |
 |---|---|---|
-| `01_context_studio/sources/` | The seven policy documents DAS is built on (table below) | Context Studio |
+| `01_context_studio/sources/README.md` | The seven policy documents DAS is built on: publisher pages and links to the copies in this repository (`data/policy/`, `data/`) | Context Studio |
 | `01_context_studio/schema.jsonld` | DAS domain schema: 6 entities (CapabilityRequirement, JCIReview, AcquisitionProgram, GateReview, SERequirement, DASJob) with their attributes, states, transitions and invariants | Context Studio |
-| `01_context_studio/process_model.yaml` | The DAS process model the application runs: stages, gates, entry criteria and sources. Copy of `src/k9_dow/config/process_model.yaml` | Context Studio (reference) |
-| `01_context_studio/corpus/` | Synthetic knowledge corpus DAS retrieves from: three prior CDDs, DoDAF view references and a review-package reference | Context Studio |
+| `01_context_studio/knowledge-corpus.md` | How the DAS knowledge was built: policy turned into the cited process model and mappings; the synthetic reference corpus (`data/synthetic_corpus/`) seeded into pgvector | Context Studio |
 | `02_process_studio/process_sop.md` | Standard operating procedure for the same flow: steps, gates, entry criteria, controls, exceptions, KPIs, escalation | Process Studio |
 | `03_sample_input/FIREBIRD_UAV_Capability_Development_Document.md` | A fictional sponsor document, one of the DAS demo inputs | Optional: simulate an intake |
 
 ### Policy sources
 
-| Ref | Document | File |
-|---|---|---|
-| S1 | SecDef/DepSecDef memo, Reforming the Joint Requirements Process to Accelerate Fielding of Warfighting Capabilities (20 Aug 2025) | `SecDef_Memo_2025-08-20_requirements.pdf` |
-| S2 | CJCSI 5123.01J, Charter of the JROC and the Joint Force Requirements Process, CH 1 (05 Aug 2026) | `CJCSI 5123.01J CH 1.pdf` |
-| S3 | CJCSM 5123.01A, Manual for the JROC and the Joint Force Requirements Process (05 Aug 2026) | `CJCSM 5123.01A.pdf` |
-| S4 | DoWI 5000.02, Operation of the Adaptive Acquisition Framework, Change 2 (08 Apr 2026) | `500002p.pdf` |
-| S5 | DoDI 5000.85, Major Capability Acquisition, Change 1 (04 Nov 2021) | `500085p.pdf` |
-| S6 | DoD Systems Engineering Guidebook (Feb 2022) | `SE-Guidebook-Feb2022.pdf` |
-| S8 | Joint Staff briefing, Implementation of CJCSI 5123.01J and CJCSM 5123.01 (Aug 2026), cross-check only | `JFRP_overview_mhsrs.pdf` |
+S1 SecDef memo (20 Aug 2025); S2 CJCSI 5123.01J CH 1; S3 CJCSM 5123.01A; S4 DoWI 5000.02; S5 DoDI 5000.85;
+S6 DoD SE Guidebook (Feb 2022); S8 Joint Staff JFRP implementation briefing. Download links and release
+statements: [`01_context_studio/sources/README.md`](01_context_studio/sources/README.md).
 
 ## How to run it
 
-1. **Context Studio:** load `schema.jsonld`, the policy sources and the corpus. If the tool limits the
-   number of documents, start with S1 (SecDef memo) and S6 (SE Guidebook); S2 and S3 carry most of
-   the requirements-process detail.
+1. **Context Studio:** load `schema.jsonld`, the policy sources (download them first; see
+   `01_context_studio/sources/README.md`) and the synthetic corpus in `data/synthetic_corpus/`. See
+   `01_context_studio/knowledge-corpus.md` for what each layer is. If the tool limits the number of
+   documents, start with S1 (SecDef memo) and S3 (CJCSM 5123.01A).
 2. **Process Studio:** upload `02_process_studio/process_sop.md` and run the analysis, then generate
    the blueprint and implementation artifacts.
 
