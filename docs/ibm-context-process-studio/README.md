@@ -30,7 +30,7 @@ in the das.k9x.ai document list.
 | `01_context_studio/schema.jsonld` | DAS domain schema: 6 entities (CapabilityRequirement, JCIReview, AcquisitionProgram, GateReview, SERequirement, DASJob) with their attributes, states, transitions and invariants | Context Studio |
 | `01_context_studio/knowledge-corpus.md` | How the DAS knowledge was built: policy turned into the cited process model and mappings; the synthetic reference corpus (`data/synthetic_corpus/`) seeded into pgvector | Context Studio |
 | `02_process_studio/process_sop.md` | Standard operating procedure for the same flow: steps, gates, entry criteria, controls, exceptions, KPIs, escalation | Process Studio |
-| `03_sample_input/FIREBIRD_UAV_Capability_Development_Document.md` | A fictional sponsor document, one of the DAS demo inputs | Optional: simulate an intake |
+| `03_sample_input/README.md` | The four fictional sponsor documents in the DAS demo (FIREBIRD, IRONCLAD, SENTINEL, F-22 maintenance) and the red-team set, linked | Optional: simulate an intake |
 
 ### Policy sources
 
@@ -50,7 +50,7 @@ statements: [`01_context_studio/sources/README.md`](01_context_studio/sources/RE
 ## How to compare with DAS
 
 - **Live application:** https://das.k9x.ai. Use the demo sign-in shown on the landing page; the
-  FIREBIRD document is in the demo list.
+  four sample documents are in the demo list.
 - **Saved DAS output for FIREBIRD:**
   [`docs/process-model-2026/evidence/firebird_2026-10-15_JOB-20261015-1108EA/`](../process-model-2026/evidence/firebird_2026-10-15_JOB-20261015-1108EA/)
   (requirement package, Joint Staffing Designator recommendation, screening report, independent-model
