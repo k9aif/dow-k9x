@@ -1,0 +1,1179 @@
+{
+  "@context": {
+    "das": "https://k9x.ai/das/ontology/",
+    "schema": "http://schema.org/",
+    "id": "@id",
+    "type": "@type",
+    "name": "schema:name",
+    "description": "schema:description",
+    "attributes": "das:attributes",
+    "identityKey": "das:identityKey",
+    "humanRef": "das:humanRef",
+    "invariant": "das:invariant",
+    "hasState": {
+      "@id": "das:hasState",
+      "@type": "@id"
+    },
+    "initialState": {
+      "@id": "das:initialState",
+      "@type": "@id"
+    },
+    "terminalStates": {
+      "@id": "das:terminalStates",
+      "@type": "@id"
+    },
+    "relatesTo": {
+      "@id": "das:relatesTo",
+      "@type": "@id"
+    },
+    "emitsEvent": {
+      "@id": "das:emitsEvent",
+      "@type": "@id"
+    },
+    "from": {
+      "@id": "das:from",
+      "@type": "@id"
+    },
+    "to": {
+      "@id": "das:to",
+      "@type": "@id"
+    },
+    "precondition": "das:precondition",
+    "postcondition": "das:postcondition",
+    "Entity": "das:Entity",
+    "Operation": "das:Operation",
+    "State": "das:State"
+  },
+  "@graph": [
+    {
+      "id": "das:CapabilityRequirement",
+      "type": "Entity",
+      "name": "CapabilityRequirement",
+      "description": "A Service capability requirement under the Joint Force Requirements Process (JFRP), which replaced JCIDS. DAS normalizes the sponsor's source documents, screens them, and drafts the Service-format requirement with the content the Service later submits for joint review. A Service requirements board validates it; validation starts the Materiel Development Decision package. Process model mca-2026-10 (as of 2026-10-09). Sources: S2: CJCSI 5123.01J, Charter of the JROC and the Joint Force Requirements Process (CH 1) (2026-08-05); S3: CJCSM 5123.01A, Manual for the JROC and the Joint Force Requirements Process (2026-08-05)",
+      "identityKey": "jobId: UUID",
+      "humanRef": "DAS-JOB-XXXXXXXX",
+      "attributes": {
+        "title": "string",
+        "sponsor": "string",
+        "sourceDocument": "string",
+        "documentType": "string",
+        "processModel": "string",
+        "operationalContext": "string",
+        "threatAssessmentRef": "string",
+        "capabilityGaps": "string",
+        "performanceAttributes": "string",
+        "technologyReadinessLevel": "number",
+        "manufacturingReadinessLevel": "number",
+        "projectedCost": "number",
+        "projectedQuantity": "number",
+        "jointStaffingDesignator": "string",
+        "screeningReport": "string",
+        "classification": "string",
+        "createdDate": "date"
+      },
+      "invariant": [
+        "Every source document is screened by k9x Shield and Granite Guardian before drafting; warnings go to the Document Screening Report, never a rejection",
+        "Only a person can validate: the Service Requirements Validation decision is non-delegable",
+        "Validation criteria are Service-defined; DAS checks the joint-review minimum content and the Service-owned certifications",
+        "A requirement keeps the process model version it ran under (mca-2026-10)",
+        "Validated, rejected or withdrawn requirements are not modified"
+      ],
+      "hasState": [
+        "das:CapabilityRequirementSubmitted",
+        "das:CapabilityRequirementScreened",
+        "das:CapabilityRequirementDrafted",
+        "das:CapabilityRequirementUnderServiceValidation",
+        "das:CapabilityRequirementServiceValidated",
+        "das:CapabilityRequirementReturnedForRework",
+        "das:CapabilityRequirementRejected"
+      ],
+      "initialState": "das:CapabilityRequirementSubmitted",
+      "terminalStates": [
+        "das:CapabilityRequirementServiceValidated",
+        "das:CapabilityRequirementRejected"
+      ],
+      "relatesTo": [
+        "das:JCIReview",
+        "das:AcquisitionProgram",
+        "das:GateReview",
+        "das:SERequirement",
+        "das:DASJob"
+      ],
+      "emitsEvent": [
+        "das:CapabilityRequirementSubmitted",
+        "das:CapabilityRequirementScreened",
+        "das:CapabilityRequirementDrafted",
+        "das:ServiceValidationRequested",
+        "das:CapabilityRequirementValidated",
+        "das:CapabilityRequirementRejected",
+        "das:CapabilityRequirementReturnedForRework"
+      ]
+    },
+    {
+      "id": "das:CapabilityRequirementSubmitted",
+      "type": "State",
+      "name": "CapabilityRequirement — Submitted",
+      "description": "The capability requirement has been submitted and its source documents are being normalized"
+    },
+    {
+      "id": "das:CapabilityRequirementScreened",
+      "type": "State",
+      "name": "CapabilityRequirement — Screened",
+      "description": "The capability requirement has been normalized to Markdown and screened"
+    },
+    {
+      "id": "das:CapabilityRequirementDrafted",
+      "type": "State",
+      "name": "CapabilityRequirement — Drafted",
+      "description": "The capability requirement has been drafted by the DAS requirement squads"
+    },
+    {
+      "id": "das:CapabilityRequirementUnderServiceValidation",
+      "type": "State",
+      "name": "CapabilityRequirement — UnderServiceValidation",
+      "description": "The capability requirement is awaiting the Service Requirements Validation decision in K9X HIL"
+    },
+    {
+      "id": "das:CapabilityRequirementServiceValidated",
+      "type": "State",
+      "name": "CapabilityRequirement — ServiceValidated",
+      "description": "The capability requirement has been validated by the Service requirements board"
+    },
+    {
+      "id": "das:CapabilityRequirementReturnedForRework",
+      "type": "State",
+      "name": "CapabilityRequirement — ReturnedForRework",
+      "description": "The capability requirement has been returned to the sponsor for rework"
+    },
+    {
+      "id": "das:CapabilityRequirementRejected",
+      "type": "State",
+      "name": "CapabilityRequirement — Rejected",
+      "description": "The capability requirement has been rejected by the Service requirements board"
+    },
+    {
+      "id": "das:CapabilityRequirementSubmittedToScreened",
+      "type": "Operation",
+      "name": "CapabilityRequirement: Submitted → Screened",
+      "description": "Normalize the source documents (PDF, Word or scan to Markdown via Docling layout and OCR) and screen every section",
+      "from": "das:CapabilityRequirementSubmitted",
+      "to": "das:CapabilityRequirementScreened",
+      "precondition": [
+        "Source document uploaded through the DAS intake API",
+        "The originating DAS job is queued or running"
+      ],
+      "postcondition": [
+        "Markdown text and the original document are both kept",
+        "A Document Screening Report lists any k9x Shield or Granite Guardian warnings"
+      ],
+      "emitsEvent": [
+        "das:CapabilityRequirementScreened"
+      ]
+    },
+    {
+      "id": "das:CapabilityRequirementScreenedToDrafted",
+      "type": "Operation",
+      "name": "CapabilityRequirement: Screened → Drafted",
+      "description": "Service-format requirement document with the content the Service later submits for joint review",
+      "from": "das:CapabilityRequirementScreened",
+      "to": "das:CapabilityRequirementDrafted",
+      "precondition": [
+        "Screening has finished for every section"
+      ],
+      "postcondition": [
+        "The Service-format requirement document is generated with the joint-review minimum content"
+      ],
+      "emitsEvent": [
+        "das:CapabilityRequirementDrafted"
+      ]
+    },
+    {
+      "id": "das:CapabilityRequirementDraftedToUnderServiceValidation",
+      "type": "Operation",
+      "name": "CapabilityRequirement: Drafted → UnderServiceValidation",
+      "description": "Package the draft and its evidence and send it to the Service Requirements Validation queue in K9X HIL",
+      "from": "das:CapabilityRequirementDrafted",
+      "to": "das:CapabilityRequirementUnderServiceValidation",
+      "precondition": [
+        "The draft requirement document exists",
+        "Readiness against each entry criterion is scored in code, not by the model"
+      ],
+      "postcondition": [
+        "A HIL task is open in 'Requirements (JFRP) / Service Requirements Validation'",
+        "The Joint Capability Integration review package is sent in parallel"
+      ],
+      "emitsEvent": [
+        "das:ServiceValidationRequested",
+        "das:JCIReviewRequested"
+      ]
+    },
+    {
+      "id": "das:CapabilityRequirementUnderServiceValidationToServiceValidated",
+      "type": "Operation",
+      "name": "CapabilityRequirement: UnderServiceValidation → ServiceValidated",
+      "description": "Service Requirements Validation: the decision authority approves",
+      "from": "das:CapabilityRequirementUnderServiceValidation",
+      "to": "das:CapabilityRequirementServiceValidated",
+      "precondition": [
+        "CapabilityRequirement is in the UnderServiceValidation state",
+        "The decision is made by a person (Service requirements board) in K9X HIL; no agent may make or impersonate it",
+        "Entry criteria met: Operational context: joint and/or Service task; CONOPS or CONEMP",
+        "Entry criteria met: Threat: SIC/DIA-approved threat assessment; critical intelligence parameters; intelligence supportability",
+        "Entry criteria met: Capability requirements and/or performance attributes, traceable to capability gaps",
+        "Entry criteria met: Technology and manufacturing readiness levels (TRL, MRL)",
+        "Entry criteria met: Projected cost, schedule and quantity",
+        "Entry criteria met: Joint integration: force design impacts, interoperability, inter-Service dependencies, DOTmLPF-P impacts",
+        "Entry criteria met: Service-owned performance attribute certifications identified (net-ready, intelligence supportability, sustainment, energy, survivability and cyber survivability, exportability)"
+      ],
+      "postcondition": [
+        "Decision recorded: Service validation record",
+        "Decision, decider, rationale and evidence package are kept as an immutable gate decision"
+      ],
+      "emitsEvent": [
+        "das:CapabilityRequirementValidated"
+      ]
+    },
+    {
+      "id": "das:CapabilityRequirementUnderServiceValidationToRejected",
+      "type": "Operation",
+      "name": "CapabilityRequirement: UnderServiceValidation → Rejected",
+      "description": "Service Requirements Validation: the decision authority rejects",
+      "from": "das:CapabilityRequirementUnderServiceValidation",
+      "to": "das:CapabilityRequirementRejected",
+      "precondition": [
+        "CapabilityRequirement is in the UnderServiceValidation state",
+        "The decision is made by a person (Service requirements board) in K9X HIL; no agent may make or impersonate it",
+        "A rationale is given"
+      ],
+      "postcondition": [
+        "CapabilityRequirement is Rejected; the flow stops at Service Requirements Validation",
+        "Decision recorded with rationale"
+      ],
+      "emitsEvent": [
+        "das:CapabilityRequirementRejected"
+      ]
+    },
+    {
+      "id": "das:CapabilityRequirementUnderServiceValidationToReturnedForRework",
+      "type": "Operation",
+      "name": "CapabilityRequirement: UnderServiceValidation → ReturnedForRework",
+      "description": "Service Requirements Validation: the decision authority returns the package for rework",
+      "from": "das:CapabilityRequirementUnderServiceValidation",
+      "to": "das:CapabilityRequirementReturnedForRework",
+      "precondition": [
+        "CapabilityRequirement is in the UnderServiceValidation state",
+        "The decision is made by a person (Service requirements board) in K9X HIL; no agent may make or impersonate it",
+        "A rationale is given"
+      ],
+      "postcondition": [
+        "CapabilityRequirement is ReturnedForRework with the reviewer's comments",
+        "Decision recorded with rationale"
+      ],
+      "emitsEvent": [
+        "das:CapabilityRequirementReturnedForRework"
+      ]
+    },
+    {
+      "id": "das:CapabilityRequirementReturnedForReworkToSubmitted",
+      "type": "Operation",
+      "name": "CapabilityRequirement: ReturnedForRework → Submitted",
+      "description": "The sponsor revises the source documents and submits them again as a new DAS run",
+      "from": "das:CapabilityRequirementReturnedForRework",
+      "to": "das:CapabilityRequirementSubmitted",
+      "precondition": [
+        "The reviewer's comments are available to the sponsor"
+      ],
+      "postcondition": [
+        "A new run starts; the returned run and its decision stay on record"
+      ],
+      "emitsEvent": [
+        "das:CapabilityRequirementSubmitted"
+      ]
+    },
+    {
+      "id": "das:JCIReview",
+      "type": "Entity",
+      "name": "JCIReview",
+      "description": "Joint review of a Service-validated requirement by the body set by its Joint Staffing Designator. It runs alongside the acquisition flow and never blocks the Materiel Development Decision or Milestone A; its JROCM, tripwires and critical joint requirements feed Milestone A as evidence when available. Sources: S3: CJCSM 5123.01A, Manual for the JROC and the Joint Force Requirements Process (2026-08-05)",
+      "identityKey": "jciReviewId: UUID",
+      "humanRef": "JCI-XXXXXX",
+      "attributes": {
+        "jointStaffingDesignator": "string",
+        "reviewBody": "JROC|JCB|FCB|ServiceInformation",
+        "jrocmReference": "string",
+        "endorsement": "ALL|SOME|NONE",
+        "tripwires": "string",
+        "criticalJointCapabilityRequirements": "string",
+        "decidedBy": "string",
+        "decidedDate": "date"
+      },
+      "invariant": [
+        "A JCI review never blocks the acquisition flow (non-blocking gate)",
+        "Service Information designations are for awareness only",
+        "The decision is recorded only; approval starts no further DAS run"
+      ],
+      "hasState": [
+        "das:JCIReviewUnderReview",
+        "das:JCIReviewEndorsed",
+        "das:JCIReviewRejected"
+      ],
+      "initialState": "das:JCIReviewUnderReview",
+      "terminalStates": [
+        "das:JCIReviewEndorsed",
+        "das:JCIReviewRejected"
+      ],
+      "relatesTo": [
+        "das:CapabilityRequirement",
+        "das:AcquisitionProgram",
+        "das:GateReview"
+      ],
+      "emitsEvent": [
+        "das:JCIReviewRequested",
+        "das:JCIReviewEndorsed",
+        "das:JCIReviewRejected"
+      ]
+    },
+    {
+      "id": "das:JCIReviewUnderReview",
+      "type": "State",
+      "name": "JCIReview — UnderReview",
+      "description": "The Joint Capability Integration review is with the joint review body"
+    },
+    {
+      "id": "das:JCIReviewEndorsed",
+      "type": "State",
+      "name": "JCIReview — Endorsed",
+      "description": "The Joint Capability Integration review has been endorsed (all, some or none of the requirements) in a JROCM"
+    },
+    {
+      "id": "das:JCIReviewRejected",
+      "type": "State",
+      "name": "JCIReview — Rejected",
+      "description": "The Joint Capability Integration review has been rejected by the joint review body"
+    },
+    {
+      "id": "das:JCIReviewUnderReviewToEndorsed",
+      "type": "Operation",
+      "name": "JCIReview: UnderReview → Endorsed",
+      "description": "The joint review body endorses the requirement in a JROCM",
+      "from": "das:JCIReviewUnderReview",
+      "to": "das:JCIReviewEndorsed",
+      "precondition": [
+        "Entry criteria met: Joint Staffing Designator recommended by the sponsor, set through the Joint Requirements Coordinator (J-8) on the five criteria of CJCSM 5123.01A Encl. B 2.b(2)",
+        "Entry criteria met: Service-validated requirement submitted with the joint-review minimum content",
+        "Decided by: JROC, JCB or FCB by Joint Staffing Designator (Service Information: awareness only)"
+      ],
+      "postcondition": [
+        "Decision recorded: JROCM: endorse (all, some or none) or reject; tripwires; critical joint capability requirements; recommendations to Service boards and the RRAB"
+      ],
+      "emitsEvent": [
+        "das:JCIReviewEndorsed"
+      ]
+    },
+    {
+      "id": "das:JCIReviewUnderReviewToRejected",
+      "type": "Operation",
+      "name": "JCIReview: UnderReview → Rejected",
+      "description": "The joint review body rejects the requirement",
+      "from": "das:JCIReviewUnderReview",
+      "to": "das:JCIReviewRejected",
+      "precondition": [
+        "Decided by: JROC, JCB or FCB by Joint Staffing Designator (Service Information: awareness only)",
+        "A rationale is given"
+      ],
+      "postcondition": [
+        "Decision recorded in a JROCM with rationale",
+        "The acquisition flow is not stopped by this decision"
+      ],
+      "emitsEvent": [
+        "das:JCIReviewRejected"
+      ]
+    },
+    {
+      "id": "das:AcquisitionProgram",
+      "type": "Entity",
+      "name": "AcquisitionProgram",
+      "description": "A program on the Major Capability Acquisition pathway of the Adaptive Acquisition Framework, as far as DAS builds it: Materiel Development Decision, Materiel Solution Analysis, Milestone A, and the System Requirements Review in Technology Maturation and Risk Reduction. DAS squads prepare each package; the Milestone Decision Authority or review chair decides in K9X HIL. Later steps (SFR, PDR, CDD-equivalent validation, Development RFP release, Milestone B, other pathways) are defined in policy and not built in this version. Sources: S4: DoWI 5000.02, Operation of the Adaptive Acquisition Framework (Change 2) (2026-04-08); S5: DoDI 5000.85, Major Capability Acquisition (Change 1) (2021-11-04); S6: DoD Systems Engineering Guidebook (2022-02)",
+      "identityKey": "programId: UUID",
+      "humanRef": "PGM-XXXXXX",
+      "attributes": {
+        "programName": "string",
+        "acquisitionCategory": "ACAT I|ACAT II|ACAT III",
+        "pathway": "string",
+        "milestoneDecisionAuthority": "string",
+        "currentPhase": "MSA|TMRR",
+        "aoaStudyGuidance": "string",
+        "aoaStudyPlan": "string",
+        "preferredMaterielSolution": "string",
+        "acquisitionStrategy": "string",
+        "affordabilityAnalysis": "string",
+        "shouldCostTarget": "number",
+        "draftCddEquivalent": "string",
+        "draftPerformanceSpecification": "string",
+        "processModel": "string",
+        "createdDate": "date"
+      },
+      "invariant": [
+        "A program starts only after its capability requirement is Service-validated",
+        "Each milestone decision is made by a person; DAS prepares packages only",
+        "For MDAPs (ACAT I) the Milestone A package adds an independent cost estimate, an independent technical risk assessment, program goals and the 10 U.S.C. 4251 technology determination",
+        "The JCI review result is evidence for Milestone A when available, never a precondition"
+      ],
+      "hasState": [
+        "das:AcquisitionProgramMDDPackagePrepared",
+        "das:AcquisitionProgramMaterielSolutionAnalysis",
+        "das:AcquisitionProgramMilestoneAPackagePrepared",
+        "das:AcquisitionProgramTechnologyMaturationRiskReduction",
+        "das:AcquisitionProgramSRRPackagePrepared",
+        "das:AcquisitionProgramSRRComplete",
+        "das:AcquisitionProgramReturnedForRework",
+        "das:AcquisitionProgramRejected"
+      ],
+      "initialState": "das:AcquisitionProgramMDDPackagePrepared",
+      "terminalStates": [
+        "das:AcquisitionProgramSRRComplete",
+        "das:AcquisitionProgramRejected"
+      ],
+      "relatesTo": [
+        "das:CapabilityRequirement",
+        "das:JCIReview",
+        "das:GateReview",
+        "das:SERequirement"
+      ],
+      "emitsEvent": [
+        "das:MDDPackageReady",
+        "das:MDDApproved",
+        "das:MilestoneAPackageReady",
+        "das:MilestoneAApproved",
+        "das:SRRPackageReady",
+        "das:SRRApproved",
+        "das:AcquisitionProgramRejected",
+        "das:AcquisitionProgramReturnedForRework"
+      ]
+    },
+    {
+      "id": "das:AcquisitionProgramMDDPackagePrepared",
+      "type": "State",
+      "name": "AcquisitionProgram — MDDPackagePrepared",
+      "description": "The acquisition program has a Materiel Development Decision package awaiting decision"
+    },
+    {
+      "id": "das:AcquisitionProgramMaterielSolutionAnalysis",
+      "type": "State",
+      "name": "AcquisitionProgram — MaterielSolutionAnalysis",
+      "description": "The acquisition program is in the Materiel Solution Analysis phase"
+    },
+    {
+      "id": "das:AcquisitionProgramMilestoneAPackagePrepared",
+      "type": "State",
+      "name": "AcquisitionProgram — MilestoneAPackagePrepared",
+      "description": "The acquisition program has a Milestone A package awaiting decision"
+    },
+    {
+      "id": "das:AcquisitionProgramTechnologyMaturationRiskReduction",
+      "type": "State",
+      "name": "AcquisitionProgram — TechnologyMaturationRiskReduction",
+      "description": "The acquisition program is in the Technology Maturation and Risk Reduction phase"
+    },
+    {
+      "id": "das:AcquisitionProgramSRRPackagePrepared",
+      "type": "State",
+      "name": "AcquisitionProgram — SRRPackagePrepared",
+      "description": "The acquisition program has a System Requirements Review package awaiting review"
+    },
+    {
+      "id": "das:AcquisitionProgramSRRComplete",
+      "type": "State",
+      "name": "AcquisitionProgram — SRRComplete",
+      "description": "The acquisition program has completed the System Requirements Review"
+    },
+    {
+      "id": "das:AcquisitionProgramReturnedForRework",
+      "type": "State",
+      "name": "AcquisitionProgram — ReturnedForRework",
+      "description": "The acquisition program has a package returned for rework"
+    },
+    {
+      "id": "das:AcquisitionProgramRejected",
+      "type": "State",
+      "name": "AcquisitionProgram — Rejected",
+      "description": "The acquisition program has been stopped by a decision authority"
+    },
+    {
+      "id": "das:AcquisitionProgramMDDPackagePreparedToMaterielSolutionAnalysis",
+      "type": "Operation",
+      "name": "AcquisitionProgram: MDDPackagePrepared → MaterielSolutionAnalysis",
+      "description": "Materiel Development Decision: the decision authority approves",
+      "from": "das:AcquisitionProgramMDDPackagePrepared",
+      "to": "das:AcquisitionProgramMaterielSolutionAnalysis",
+      "precondition": [
+        "AcquisitionProgram is in the MDDPackagePrepared state",
+        "The decision is made by a person (Milestone Decision Authority (Service Chief concurrence for MDAPs)) in K9X HIL; no agent may make or impersonate it",
+        "Entry criteria met: Validated requirement document (an ICD or equivalent; under the JFRP, the Service-validated requirement)",
+        "Entry criteria met: AoA study guidance",
+        "Entry criteria met: AoA study plan"
+      ],
+      "postcondition": [
+        "Decision recorded: Acquisition Decision Memorandum: phase of entry and initial review milestone; AoA study guidance and plan attached",
+        "Decision, decider, rationale and evidence package are kept as an immutable gate decision"
+      ],
+      "emitsEvent": [
+        "das:MDDApproved"
+      ]
+    },
+    {
+      "id": "das:AcquisitionProgramMDDPackagePreparedToRejected",
+      "type": "Operation",
+      "name": "AcquisitionProgram: MDDPackagePrepared → Rejected",
+      "description": "Materiel Development Decision: the decision authority rejects",
+      "from": "das:AcquisitionProgramMDDPackagePrepared",
+      "to": "das:AcquisitionProgramRejected",
+      "precondition": [
+        "AcquisitionProgram is in the MDDPackagePrepared state",
+        "The decision is made by a person (Milestone Decision Authority (Service Chief concurrence for MDAPs)) in K9X HIL; no agent may make or impersonate it",
+        "A rationale is given"
+      ],
+      "postcondition": [
+        "AcquisitionProgram is Rejected; the flow stops at Materiel Development Decision",
+        "Decision recorded with rationale"
+      ],
+      "emitsEvent": [
+        "das:AcquisitionProgramRejected"
+      ]
+    },
+    {
+      "id": "das:AcquisitionProgramMDDPackagePreparedToReturnedForRework",
+      "type": "Operation",
+      "name": "AcquisitionProgram: MDDPackagePrepared → ReturnedForRework",
+      "description": "Materiel Development Decision: the decision authority returns the package for rework",
+      "from": "das:AcquisitionProgramMDDPackagePrepared",
+      "to": "das:AcquisitionProgramReturnedForRework",
+      "precondition": [
+        "AcquisitionProgram is in the MDDPackagePrepared state",
+        "The decision is made by a person (Milestone Decision Authority (Service Chief concurrence for MDAPs)) in K9X HIL; no agent may make or impersonate it",
+        "A rationale is given"
+      ],
+      "postcondition": [
+        "AcquisitionProgram is ReturnedForRework with the reviewer's comments",
+        "Decision recorded with rationale"
+      ],
+      "emitsEvent": [
+        "das:AcquisitionProgramReturnedForRework"
+      ]
+    },
+    {
+      "id": "das:AcquisitionProgramMaterielSolutionAnalysisToMilestoneAPackagePrepared",
+      "type": "Operation",
+      "name": "AcquisitionProgram: MaterielSolutionAnalysis → MilestoneAPackagePrepared",
+      "description": "AoA summary, affordability, early systems engineering; SE: Alternative Systems Review (best-practice review) yielding a draft performance specification; draft CDD-equivalent; proposed acquisition strategy matched to a pathway",
+      "from": "das:AcquisitionProgramMaterielSolutionAnalysis",
+      "to": "das:AcquisitionProgramMilestoneAPackagePrepared",
+      "precondition": [
+        "The Materiel Development Decision approved entry into Materiel Solution Analysis"
+      ],
+      "postcondition": [
+        "The Milestone A package is assembled and sent to the Milestone A queue in K9X HIL"
+      ],
+      "emitsEvent": [
+        "das:MilestoneAPackageReady"
+      ]
+    },
+    {
+      "id": "das:AcquisitionProgramMilestoneAPackagePreparedToTechnologyMaturationRiskReduction",
+      "type": "Operation",
+      "name": "AcquisitionProgram: MilestoneAPackagePrepared → TechnologyMaturationRiskReduction",
+      "description": "Milestone A: the decision authority approves",
+      "from": "das:AcquisitionProgramMilestoneAPackagePrepared",
+      "to": "das:AcquisitionProgramTechnologyMaturationRiskReduction",
+      "precondition": [
+        "AcquisitionProgram is in the MilestoneAPackagePrepared state",
+        "The decision is made by a person (Milestone Decision Authority (Service Chief concurrence for MDAPs)) in K9X HIL; no agent may make or impersonate it",
+        "Entry criteria met: Justification for, and affordability and feasibility of, the preferred military solution",
+        "Entry criteria met: Technologies that must be matured in TMRR",
+        "Entry criteria met: Capability requirement trade space and its priorities",
+        "Entry criteria met: Technical, cost and schedule risks with funded mitigation plans",
+        "Entry criteria met: Acquisition strategy matched to a pathway, including IP, program protection and exportability",
+        "Entry criteria met: Cybersecurity addressed early in program planning",
+        "Entry criteria met: Test strategy",
+        "Entry criteria met: Life-cycle mission data plan and projected threat",
+        "Entry criteria met: Should Cost targets and framing assumptions",
+        "Entry criteria met: Affordability analysis: program fully funded within the FYDP",
+        "Entry criteria met: Draft CDD-equivalent approved by the Component",
+        "Entry criteria met: For MDAPs (ACAT I) only: independent cost estimate, independent technical risk assessment, program goals, 10 U.S.C. 4251 (formerly 2366a) technology determination"
+      ],
+      "postcondition": [
+        "Decision recorded: Acquisition Decision Memorandum: materiel solution, acquisition strategy, TMRR strategy, final RFP release, TMRR exit and EMD entry criteria",
+        "Decision, decider, rationale and evidence package are kept as an immutable gate decision"
+      ],
+      "emitsEvent": [
+        "das:MilestoneAApproved"
+      ]
+    },
+    {
+      "id": "das:AcquisitionProgramMilestoneAPackagePreparedToRejected",
+      "type": "Operation",
+      "name": "AcquisitionProgram: MilestoneAPackagePrepared → Rejected",
+      "description": "Milestone A: the decision authority rejects",
+      "from": "das:AcquisitionProgramMilestoneAPackagePrepared",
+      "to": "das:AcquisitionProgramRejected",
+      "precondition": [
+        "AcquisitionProgram is in the MilestoneAPackagePrepared state",
+        "The decision is made by a person (Milestone Decision Authority (Service Chief concurrence for MDAPs)) in K9X HIL; no agent may make or impersonate it",
+        "A rationale is given"
+      ],
+      "postcondition": [
+        "AcquisitionProgram is Rejected; the flow stops at Milestone A",
+        "Decision recorded with rationale"
+      ],
+      "emitsEvent": [
+        "das:AcquisitionProgramRejected"
+      ]
+    },
+    {
+      "id": "das:AcquisitionProgramMilestoneAPackagePreparedToReturnedForRework",
+      "type": "Operation",
+      "name": "AcquisitionProgram: MilestoneAPackagePrepared → ReturnedForRework",
+      "description": "Milestone A: the decision authority returns the package for rework",
+      "from": "das:AcquisitionProgramMilestoneAPackagePrepared",
+      "to": "das:AcquisitionProgramReturnedForRework",
+      "precondition": [
+        "AcquisitionProgram is in the MilestoneAPackagePrepared state",
+        "The decision is made by a person (Milestone Decision Authority (Service Chief concurrence for MDAPs)) in K9X HIL; no agent may make or impersonate it",
+        "A rationale is given"
+      ],
+      "postcondition": [
+        "AcquisitionProgram is ReturnedForRework with the reviewer's comments",
+        "Decision recorded with rationale"
+      ],
+      "emitsEvent": [
+        "das:AcquisitionProgramReturnedForRework"
+      ]
+    },
+    {
+      "id": "das:AcquisitionProgramTechnologyMaturationRiskReductionToSRRPackagePrepared",
+      "type": "Operation",
+      "name": "AcquisitionProgram: TechnologyMaturationRiskReduction → SRRPackagePrepared",
+      "description": "Prepare the System Requirements Review package",
+      "from": "das:AcquisitionProgramTechnologyMaturationRiskReduction",
+      "to": "das:AcquisitionProgramSRRPackagePrepared",
+      "precondition": [
+        "Milestone A approved entry into Technology Maturation and Risk Reduction"
+      ],
+      "postcondition": [
+        "The SRR package is sent to the System Requirements Review queue in K9X HIL"
+      ],
+      "emitsEvent": [
+        "das:SRRPackageReady"
+      ]
+    },
+    {
+      "id": "das:AcquisitionProgramSRRPackagePreparedToSRRComplete",
+      "type": "Operation",
+      "name": "AcquisitionProgram: SRRPackagePrepared → SRRComplete",
+      "description": "System Requirements Review: the decision authority approves",
+      "from": "das:AcquisitionProgramSRRPackagePrepared",
+      "to": "das:AcquisitionProgramSRRComplete",
+      "precondition": [
+        "AcquisitionProgram is in the SRRPackagePrepared state",
+        "The decision is made by a person (Technical review chair appointed by the Service; criteria tailored by the Chief Engineer) in K9X HIL; no agent may make or impersonate it",
+        "Entry criteria met: System requirements consistent with the preferred materiel solution and its support concept",
+        "Entry criteria met: Consistent with technology maturation plans",
+        "Entry criteria met: Maturity of interdependent systems considered",
+        "Entry criteria met: Requirements clearly stated, measurable and testable",
+        "Entry criteria met: Requirements traceable to the requirement document; prior reviews complete and their actions closed"
+      ],
+      "postcondition": [
+        "Decision recorded: Review minutes and action items",
+        "Decision, decider, rationale and evidence package are kept as an immutable gate decision"
+      ],
+      "emitsEvent": [
+        "das:SRRApproved"
+      ]
+    },
+    {
+      "id": "das:AcquisitionProgramSRRPackagePreparedToRejected",
+      "type": "Operation",
+      "name": "AcquisitionProgram: SRRPackagePrepared → Rejected",
+      "description": "System Requirements Review: the decision authority rejects",
+      "from": "das:AcquisitionProgramSRRPackagePrepared",
+      "to": "das:AcquisitionProgramRejected",
+      "precondition": [
+        "AcquisitionProgram is in the SRRPackagePrepared state",
+        "The decision is made by a person (Technical review chair appointed by the Service; criteria tailored by the Chief Engineer) in K9X HIL; no agent may make or impersonate it",
+        "A rationale is given"
+      ],
+      "postcondition": [
+        "AcquisitionProgram is Rejected; the flow stops at System Requirements Review",
+        "Decision recorded with rationale"
+      ],
+      "emitsEvent": [
+        "das:AcquisitionProgramRejected"
+      ]
+    },
+    {
+      "id": "das:AcquisitionProgramSRRPackagePreparedToReturnedForRework",
+      "type": "Operation",
+      "name": "AcquisitionProgram: SRRPackagePrepared → ReturnedForRework",
+      "description": "System Requirements Review: the decision authority returns the package for rework",
+      "from": "das:AcquisitionProgramSRRPackagePrepared",
+      "to": "das:AcquisitionProgramReturnedForRework",
+      "precondition": [
+        "AcquisitionProgram is in the SRRPackagePrepared state",
+        "The decision is made by a person (Technical review chair appointed by the Service; criteria tailored by the Chief Engineer) in K9X HIL; no agent may make or impersonate it",
+        "A rationale is given"
+      ],
+      "postcondition": [
+        "AcquisitionProgram is ReturnedForRework with the reviewer's comments",
+        "Decision recorded with rationale"
+      ],
+      "emitsEvent": [
+        "das:AcquisitionProgramReturnedForRework"
+      ]
+    },
+    {
+      "id": "das:GateReview",
+      "type": "Entity",
+      "name": "GateReview",
+      "description": "A human decision point. DAS agents prepare the evidence package and score readiness against the gate's entry criteria; the named authority decides in K9X HIL (approve, reject or return for rework). The gates in this process model are: Service Requirements Validation (blocking), Joint Capability Integration review (non-blocking), Materiel Development Decision (blocking), Milestone A (blocking), System Requirements Review (blocking).",
+      "identityKey": "gateReviewId: UUID",
+      "humanRef": "GATE-XXXXXX",
+      "attributes": {
+        "gateId": "SERVICE-VALIDATION|JCI-REVIEW|MDD|MILESTONE-A|SE-REVIEW-SRR",
+        "gateType": "PREPARE_DECIDE|REVIEW_APPROVE|SIGN",
+        "authority": "string",
+        "blocking": "boolean",
+        "nonDelegable": "boolean",
+        "readinessScore": "number",
+        "criteriaMet": "string",
+        "evidencePackageRef": "string",
+        "hilQueue": "string",
+        "action": "APPROVE|REJECT|RETURN_FOR_REWORK",
+        "decidedBy": "string",
+        "rationale": "string",
+        "decidedDate": "date"
+      },
+      "invariant": [
+        "Agents prepare only; the decision belongs to a person (agent role PREPARE_ONLY, human role DECISION_AUTHORITY)",
+        "No agent may synthesize or impersonate a human decision token",
+        "The readiness score is computed in code from per-criterion verdicts, never by the language model",
+        "A gate decision is immutable once recorded"
+      ],
+      "hasState": [
+        "das:GateReviewPending",
+        "das:GateReviewReadyForDecision",
+        "das:GateReviewApproved",
+        "das:GateReviewRejected",
+        "das:GateReviewReturnedForRework"
+      ],
+      "initialState": "das:GateReviewPending",
+      "terminalStates": [
+        "das:GateReviewApproved",
+        "das:GateReviewRejected",
+        "das:GateReviewReturnedForRework"
+      ],
+      "relatesTo": [
+        "das:CapabilityRequirement",
+        "das:JCIReview",
+        "das:AcquisitionProgram",
+        "das:DASJob"
+      ],
+      "emitsEvent": [
+        "das:GateReady",
+        "das:GateApproved",
+        "das:GateRejected",
+        "das:GateReturnedForRework"
+      ]
+    },
+    {
+      "id": "das:GateReviewPending",
+      "type": "State",
+      "name": "GateReview — Pending",
+      "description": "The gate review is waiting for its evidence package"
+    },
+    {
+      "id": "das:GateReviewReadyForDecision",
+      "type": "State",
+      "name": "GateReview — ReadyForDecision",
+      "description": "The gate review has a complete evidence package in K9X HIL"
+    },
+    {
+      "id": "das:GateReviewApproved",
+      "type": "State",
+      "name": "GateReview — Approved",
+      "description": "The gate review has been approved"
+    },
+    {
+      "id": "das:GateReviewRejected",
+      "type": "State",
+      "name": "GateReview — Rejected",
+      "description": "The gate review has been rejected"
+    },
+    {
+      "id": "das:GateReviewReturnedForRework",
+      "type": "State",
+      "name": "GateReview — ReturnedForRework",
+      "description": "The gate review has been returned for rework"
+    },
+    {
+      "id": "das:GateReviewPendingToReadyForDecision",
+      "type": "Operation",
+      "name": "GateReview: Pending → ReadyForDecision",
+      "description": "Publish the evidence package to the gate's K9X HIL queue",
+      "from": "das:GateReviewPending",
+      "to": "das:GateReviewReadyForDecision",
+      "precondition": [
+        "The preparing DAS run has finished",
+        "Each entry criterion has a verdict"
+      ],
+      "postcondition": [
+        "A HIL task is open for the decision authority"
+      ],
+      "emitsEvent": [
+        "das:GateReady"
+      ]
+    },
+    {
+      "id": "das:GateReviewReadyForDecisionToApproved",
+      "type": "Operation",
+      "name": "GateReview: ReadyForDecision → Approved",
+      "description": "The decision authority approves",
+      "from": "das:GateReviewReadyForDecision",
+      "to": "das:GateReviewApproved",
+      "precondition": [
+        "The gate is ReadyForDecision",
+        "The decider holds the gate's authority"
+      ],
+      "postcondition": [
+        "Decision, decider, rationale and evidence reference recorded",
+        "Approval starts the next DAS run where the process model says so"
+      ],
+      "emitsEvent": [
+        "das:GateApproved"
+      ]
+    },
+    {
+      "id": "das:GateReviewReadyForDecisionToRejected",
+      "type": "Operation",
+      "name": "GateReview: ReadyForDecision → Rejected",
+      "description": "The decision authority rejects",
+      "from": "das:GateReviewReadyForDecision",
+      "to": "das:GateReviewRejected",
+      "precondition": [
+        "The gate is ReadyForDecision",
+        "The decider holds the gate's authority"
+      ],
+      "postcondition": [
+        "Decision, decider, rationale and evidence reference recorded",
+        "Approval starts the next DAS run where the process model says so"
+      ],
+      "emitsEvent": [
+        "das:GateRejected"
+      ]
+    },
+    {
+      "id": "das:GateReviewReadyForDecisionToReturnedForRework",
+      "type": "Operation",
+      "name": "GateReview: ReadyForDecision → ReturnedForRework",
+      "description": "The decision authority returns the package for rework",
+      "from": "das:GateReviewReadyForDecision",
+      "to": "das:GateReviewReturnedForRework",
+      "precondition": [
+        "The gate is ReadyForDecision",
+        "The decider holds the gate's authority"
+      ],
+      "postcondition": [
+        "Decision, decider, rationale and evidence reference recorded",
+        "Approval starts the next DAS run where the process model says so"
+      ],
+      "emitsEvent": [
+        "das:GateReturnedForRework"
+      ]
+    },
+    {
+      "id": "das:SERequirement",
+      "type": "Entity",
+      "name": "SERequirement",
+      "description": "A 'shall' requirement in the DAS traceability graph: derived from the capability requirement documents, allocated to technical baseline items, expressed in DoDAF views, verified by test cases, funded by PPBE funding lines and baselined in the Systems Engineering Plan. Source: DoD Systems Engineering Guidebook (2022-02).",
+      "identityKey": "requirementId: string",
+      "humanRef": "SR-XXXX",
+      "attributes": {
+        "shallText": "string",
+        "rationale": "string",
+        "requirementType": "functional|performance|interface|constraint|nfr",
+        "verificationMethod": "Test|Demonstration|Analysis|Inspection",
+        "priority": "threshold|objective",
+        "maturity": "identified|analyzed|allocated|verified",
+        "owner": "string",
+        "baselineRev": "string",
+        "sourceHash": "string",
+        "createdDate": "date"
+      },
+      "invariant": [
+        "Every SE requirement traces to a capability requirement document",
+        "Requirements are clearly stated, measurable and testable",
+        "A superseded requirement is kept and linked to the requirement that replaces it"
+      ],
+      "hasState": [
+        "das:SERequirementProposed",
+        "das:SERequirementReviewed",
+        "das:SERequirementBaselined",
+        "das:SERequirementSuperseded"
+      ],
+      "initialState": "das:SERequirementProposed",
+      "terminalStates": [
+        "das:SERequirementSuperseded"
+      ],
+      "relatesTo": [
+        "das:CapabilityRequirement",
+        "das:AcquisitionProgram"
+      ],
+      "emitsEvent": [
+        "das:SERequirementReviewed",
+        "das:SERequirementBaselined",
+        "das:SERequirementSuperseded"
+      ]
+    },
+    {
+      "id": "das:SERequirementProposed",
+      "type": "State",
+      "name": "SERequirement — Proposed",
+      "description": "The systems engineering requirement has been proposed"
+    },
+    {
+      "id": "das:SERequirementReviewed",
+      "type": "State",
+      "name": "SERequirement — Reviewed",
+      "description": "The systems engineering requirement has been reviewed"
+    },
+    {
+      "id": "das:SERequirementBaselined",
+      "type": "State",
+      "name": "SERequirement — Baselined",
+      "description": "The systems engineering requirement has been baselined"
+    },
+    {
+      "id": "das:SERequirementSuperseded",
+      "type": "State",
+      "name": "SERequirement — Superseded",
+      "description": "The systems engineering requirement has been superseded by a newer revision"
+    },
+    {
+      "id": "das:SERequirementProposedToReviewed",
+      "type": "Operation",
+      "name": "SERequirement: Proposed → Reviewed",
+      "description": "Review the requirement",
+      "from": "das:SERequirementProposed",
+      "to": "das:SERequirementReviewed",
+      "precondition": [
+        "The requirement has shall text, a type and a verification method"
+      ],
+      "postcondition": [
+        "Review outcome recorded"
+      ],
+      "emitsEvent": [
+        "das:SERequirementReviewed"
+      ]
+    },
+    {
+      "id": "das:SERequirementReviewedToBaselined",
+      "type": "Operation",
+      "name": "SERequirement: Reviewed → Baselined",
+      "description": "Baseline the requirement (for example at the System Requirements Review)",
+      "from": "das:SERequirementReviewed",
+      "to": "das:SERequirementBaselined",
+      "precondition": [
+        "The requirement is traceable to the requirement document",
+        "It is measurable and testable"
+      ],
+      "postcondition": [
+        "The requirement carries a baseline revision"
+      ],
+      "emitsEvent": [
+        "das:SERequirementBaselined"
+      ]
+    },
+    {
+      "id": "das:SERequirementBaselinedToSuperseded",
+      "type": "Operation",
+      "name": "SERequirement: Baselined → Superseded",
+      "description": "Replace the requirement with a new revision",
+      "from": "das:SERequirementBaselined",
+      "to": "das:SERequirementSuperseded",
+      "precondition": [
+        "A newer revision exists"
+      ],
+      "postcondition": [
+        "The old revision is kept and linked by SUPERSEDES"
+      ],
+      "emitsEvent": [
+        "das:SERequirementSuperseded"
+      ]
+    },
+    {
+      "id": "das:DASJob",
+      "type": "Entity",
+      "name": "DASJob",
+      "description": "One DAS run: the requirement, MDD package, MSA or TMRR orchestrator run started by an upload or by a gate approval. Jobs share one queue; results are kept by job id.",
+      "identityKey": "jobId: UUID",
+      "humanRef": "DAS-JOB-XXXXXXXX",
+      "attributes": {
+        "run": "requirement|mdd_package|msa|tmrr",
+        "sessionId": "string",
+        "startedBy": "string",
+        "filename": "string",
+        "documentType": "string",
+        "correlationId": "string",
+        "queuedAt": "date",
+        "finishedAt": "date"
+      },
+      "invariant": [
+        "The queue has a fixed maximum size, and each visitor may have at most two jobs queued or running; submissions over either limit are refused, not queued",
+        "Only the DAS admin or the visitor who submitted a job can withdraw it",
+        "A complete job cannot be withdrawn",
+        "A failed model or tool call propagates as an error; it is never reported as a successful result"
+      ],
+      "hasState": [
+        "das:DASJobQueued",
+        "das:DASJobRunning",
+        "das:DASJobComplete",
+        "das:DASJobError",
+        "das:DASJobWithdrawn"
+      ],
+      "initialState": "das:DASJobQueued",
+      "terminalStates": [
+        "das:DASJobComplete",
+        "das:DASJobError",
+        "das:DASJobWithdrawn"
+      ],
+      "relatesTo": [
+        "das:CapabilityRequirement",
+        "das:AcquisitionProgram",
+        "das:GateReview"
+      ],
+      "emitsEvent": [
+        "das:DASJobQueued",
+        "das:DASJobStarted",
+        "das:DASJobCompleted",
+        "das:DASJobFailed",
+        "das:DASJobWithdrawn"
+      ]
+    },
+    {
+      "id": "das:DASJobQueued",
+      "type": "State",
+      "name": "DASJob — Queued",
+      "description": "The DAS job is waiting in the shared job queue"
+    },
+    {
+      "id": "das:DASJobRunning",
+      "type": "State",
+      "name": "DASJob — Running",
+      "description": "The DAS job is being run by its orchestrator"
+    },
+    {
+      "id": "das:DASJobComplete",
+      "type": "State",
+      "name": "DASJob — Complete",
+      "description": "The DAS job has finished and its result is stored"
+    },
+    {
+      "id": "das:DASJobError",
+      "type": "State",
+      "name": "DASJob — Error",
+      "description": "The DAS job has failed"
+    },
+    {
+      "id": "das:DASJobWithdrawn",
+      "type": "State",
+      "name": "DASJob — Withdrawn",
+      "description": "The DAS job has been withdrawn"
+    },
+    {
+      "id": "das:DASJobQueuedToRunning",
+      "type": "Operation",
+      "name": "DASJob: Queued → Running",
+      "description": "The dispatcher starts the next queued job",
+      "from": "das:DASJobQueued",
+      "to": "das:DASJobRunning",
+      "precondition": [
+        "No other job is being tracked by the dispatcher"
+      ],
+      "postcondition": [
+        "The orchestrator run has started"
+      ],
+      "emitsEvent": [
+        "das:DASJobStarted"
+      ]
+    },
+    {
+      "id": "das:DASJobRunningToComplete",
+      "type": "Operation",
+      "name": "DASJob: Running → Complete",
+      "description": "The orchestrator run finishes",
+      "from": "das:DASJobRunning",
+      "to": "das:DASJobComplete",
+      "precondition": [
+        "Every stage of the run has finished"
+      ],
+      "postcondition": [
+        "The result is stored by job id and its queue slot is freed"
+      ],
+      "emitsEvent": [
+        "das:DASJobCompleted"
+      ]
+    },
+    {
+      "id": "das:DASJobRunningToError",
+      "type": "Operation",
+      "name": "DASJob: Running → Error",
+      "description": "The orchestrator run fails",
+      "from": "das:DASJobRunning",
+      "to": "das:DASJobError",
+      "precondition": [
+        "A stage raised an error"
+      ],
+      "postcondition": [
+        "The error is recorded and the queue slot is freed"
+      ],
+      "emitsEvent": [
+        "das:DASJobFailed"
+      ]
+    },
+    {
+      "id": "das:DASJobQueuedToWithdrawn",
+      "type": "Operation",
+      "name": "DASJob: Queued → Withdrawn",
+      "description": "The DAS admin or the submitting visitor withdraws the job",
+      "from": "das:DASJobQueued",
+      "to": "das:DASJobWithdrawn",
+      "precondition": [
+        "The requester is the DAS admin or the job's own visitor",
+        "The job is not complete"
+      ],
+      "postcondition": [
+        "The withdrawal and who made it are recorded"
+      ],
+      "emitsEvent": [
+        "das:DASJobWithdrawn"
+      ]
+    },
+    {
+      "id": "das:DASJobRunningToWithdrawn",
+      "type": "Operation",
+      "name": "DASJob: Running → Withdrawn",
+      "description": "The DAS admin or the submitting visitor withdraws the job",
+      "from": "das:DASJobRunning",
+      "to": "das:DASJobWithdrawn",
+      "precondition": [
+        "The requester is the DAS admin or the job's own visitor",
+        "The job is not complete"
+      ],
+      "postcondition": [
+        "The withdrawal and who made it are recorded"
+      ],
+      "emitsEvent": [
+        "das:DASJobWithdrawn"
+      ]
+    }
+  ]
+}
