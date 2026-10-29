@@ -74,6 +74,8 @@ Selected endpoints from the app backend (`src/k9_dow/api/app.py`):
 - `GET /events/stream` — server-sent event stream of pipeline progress
 - `GET /pipeline`, `GET /llm`, `GET /health` — status/diagnostics
 
+Authentication and what is left open on purpose for the public demo: [`docs/design/authentication-and-demo-scope.md`](docs/design/authentication-and-demo-scope.md).
+
 ## License
 
 Apache License 2.0.
