@@ -26,3 +26,6 @@ docs/samples/
 
 # Credentials — never commit
 watsonx-apikey.json
+
+# Inspector reports: local only, not public
+docs/inspector_reports/
