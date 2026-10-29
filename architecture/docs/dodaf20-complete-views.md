@@ -101,6 +101,10 @@
 5. Operational Planning (OPLAN)
 6. Capability Portfolio Management (CPM)
 
+As listed in DoDAF 2.02. JCIDS has since been replaced by the Joint Force Requirements Process
+(SecDef memo of 20 Aug 2025; CJCSI 5123.01J and CJCSM 5123.01A), which DAS models; see
+`src/k9_dow/config/process_model.yaml`.
+
 ## View Count: 52 views across 8 viewpoints
 
 | Viewpoint | Views |

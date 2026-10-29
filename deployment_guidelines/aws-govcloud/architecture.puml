@@ -7,7 +7,7 @@ actor "Decision authority (CAC)" as decider
 node "DoDIN / NIPRNet" as dodin
 node "DISA BCAP\n(Enterprise or approved Component CAP)" as bcap
 
-cloud "AWS GovCloud (US)" {
+frame "AWS GovCloud (US)" {
   node "Transit account" {
     component "Direct Connect gateway" as dx
     component "Transit Gateway" as tgw

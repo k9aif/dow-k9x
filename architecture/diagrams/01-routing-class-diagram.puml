@@ -1,111 +1,65 @@
-@startuml
-skinparam classAttributeIconSize 0
-skinparam shadowing false
-skinparam defaultFontName Helvetica
-skinparam defaultFontSize 11
-skinparam packageStyle rectangle
-skinparam nodesep 60
-skinparam ranksep 40
+@startuml 01-routing-class-diagram
+title DAS routing (process model mca-2026-10)
 
-title **DoW Architecture Workbench — Routing Layer**\nSBB extends K9-AIF BaseRouter
-
-' ── ABB ───────────────────────────────────────────────────
-
-package "K9-AIF Framework (ABB)" #E8F5E9 {
-
-    abstract class BaseRouter <<ABB>> {
-        +config: dict
-        +monitor
-        +message_bus
-        +object_store
-        +governance
-        --
-        {abstract} +route(payload: dict): dict
-        +store_document(bucket, key, data): str
-        +normalize(payload): dict
-        +register_orchestrator(intent, orch)
-        +apply_zero_trust(payload, ctx): dict
-        #_bootstrap_object_store(config)
-        #_bootstrap_session(config)
-    }
-
-    class ObjectStorageFactory <<ABB>> {
-        {static} +create(config): BaseObjectStorage
-    }
-
-    abstract class BaseObjectStorage <<ABB>> {
-        {abstract} +upload(bucket, key, data): str
-        {abstract} +download(bucket, key): bytes
-        {abstract} +get_uri(bucket, key): str
-    }
-
-    class S3ObjectStorageAdapter <<OOB>> {
-        -_client
-        --
-        +upload(bucket, key, data): str
-        +download(bucket, key): bytes
-        +get_uri(bucket, key): str
-    }
-
-    S3ObjectStorageAdapter --|> BaseObjectStorage
-    ObjectStorageFactory ..> BaseObjectStorage : creates
-    BaseRouter *-- BaseObjectStorage : object_store
+package "k9_aif_abb (K9-AIF framework)" {
+  abstract class BaseRouter {
+    +route(payload) : dict
+    +admit(payload, credentials) : dict
+    +apply_zero_trust(payload)
+  }
+  class K9EventBus {
+    +subscribe_async(handler)
+    +publish(event)
+  }
 }
 
-' ── SBB ───────────────────────────────────────────────────
-
-package "DoW Workbench (SBB)" #E3F2FD {
-
-    class DowDocumentRouter <<SBB>> {
-        -_routing_rules: dict
-        --
-        +route(payload: dict): dict
-        +route_document(doc: DocumentInput): RoutingDecision
-        -_deterministic_route(job_id, text): RoutingDecision
-        -_default_decision(job_id): RoutingDecision
-        -_store_document_if_present(payload): dict
-    }
-
-    class RoutingDecision <<Domain Model>> {
-        +job_id: str
-        +classification: Literal["BD","DODAF","JCIDS","SE","UNKNOWN"]
-        +document_type: str
-        +route_to: str
-        +dodaf_eligible: bool
-        +jcids_eligible: bool
-        +se_eligible: bool
-        +recommended_stages: list
-        +confidence: float
-        +rationale: str
-        +matched_rules: list
-    }
-
-    class DocumentInput <<Domain Model>> {
-        +job_id: str
-        +filename: str
-        +content_type: str
-        +document_uri: str
-        +raw_text: str
-        +markdown: str
-        +metadata: dict
-    }
-
-    note bottom of DowDocumentRouter
-        **Deterministic routing:**
-        User selects document type in UI.
-        Router maps selection → pipeline.
-        No LLM classification needed.
-
-        Stores uploaded document in S3
-        before publishing event to topic.
-    end note
+package "k9_dow" {
+  class DasRouter {
+    +layer = "DAS Router"
+    +route(payload) : dict
+  }
+  class "dow_router_process" as RP <<process>> {
+    consumes dow.router.in
+    consumes K9X HIL reply topics (one per gate)
+    publishes to the run topics (stamps _topic)
+  }
+  class "hil_gateway" as HG <<module>> {
+    GATE_NEXT_STAGE
+    GATE_TOPICS
+    approvers()
+    save_gate_decision()
+    gate_approved_event()
+  }
+  class "process_model.yaml" as PM <<config>> {
+    stages
+    gates (entry criteria, authority,
+    blocking, approval_starts, hil_queue)
+    sources S1-S8
+  }
+  class "DAS_TOPICS" as T <<topics>> {
+    das.requirement
+    das.mdd
+    das.msa
+    das.tmrr
+    das.traceability
+    das.drift
+    das.results
+  }
 }
 
-' ── Inheritance ───────────────────────────────────────────
+BaseRouter <|-- DasRouter
+RP --> DasRouter : route()
+RP --> K9EventBus
+RP --> HG : record decision, build gate_approved
+HG --> PM : gate -> next run
+DasRouter --> T : event_type / gate_id -> topic
 
-DowDocumentRouter --|> BaseRouter
-DowDocumentRouter ..> RoutingDecision : returns
-DowDocumentRouter ..> DocumentInput : accepts
-DowDocumentRouter ..> ObjectStorageFactory : stores documents
-
+note right of DasRouter
+  capability_gap (any document) -> das.requirement
+  gate_approved -> the run the gate's approval starts
+  JCI-REVIEW -> das.results (decision recorded only)
+  SE-REVIEW-SRR -> das.results (flow ends)
+  traceability_check -> das.traceability
+  drift_check -> das.drift
+end note
 @enduml
