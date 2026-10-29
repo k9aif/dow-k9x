@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: Apache-2.0
+# Sample: DAS Router (Kafka consumer on dow.router.in and the K9X HIL reply topics).
+# Stateless: replicas share one consumer group; useful replicas <= partitions of the inbound topic.
+# Placeholders: <ACCOUNT>, <REGION>, <TAG>, <ROLE_ARN>.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: das-router
+  namespace: das
+  annotations:
+    eks.amazonaws.com/role-arn: <ROLE_ARN>     # IRSA: MSK read/write on DAS topics; S3 read/write on decision records
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: das-router
+  namespace: das
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: das-router}
+  template:
+    metadata:
+      labels: {app: das-router}
+    spec:
+      serviceAccountName: das-router
+      topologySpreadConstraints:
+        - {maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: ScheduleAnyway,
+           labelSelector: {matchLabels: {app: das-router}}}
+      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: router
+          image: <ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/das:<TAG>
+          command: ["python", "-m", "k9_dow.runtime.dow_router_process"]
+          envFrom:
+            - configMapRef: {name: das-config}
+            - secretRef: {name: das-secrets}
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {memory: 1Gi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true,
+                            capabilities: {drop: [ALL]}}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: das-router
+  namespace: das
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app: das-router}

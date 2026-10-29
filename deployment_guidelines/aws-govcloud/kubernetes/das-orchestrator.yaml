@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: Apache-2.0
+# Sample: DAS orchestrators (one process consumes the run topics: requirement, MDD package, MSA, TMRR).
+# Stages are long LLM calls, so scale on Kafka consumer lag with KEDA, not on CPU. Each extra replica
+# needs model capacity: scale the GPU pool (or Bedrock throughput) with it.
+# Placeholders: <ACCOUNT>, <REGION>, <TAG>, <ROLE_ARN>, <MSK_BOOTSTRAP_BROKERS_IAM>.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: das-orchestrator
+  namespace: das
+  annotations:
+    eks.amazonaws.com/role-arn: <ROLE_ARN>     # IRSA: MSK read/write; S3 read/write on stage results; RDS; model endpoint
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: das-orchestrator
+  namespace: das
+spec:
+  replicas: 1                                  # KEDA manages this
+  selector:
+    matchLabels: {app: das-orchestrator}
+  template:
+    metadata:
+      labels: {app: das-orchestrator}
+    spec:
+      serviceAccountName: das-orchestrator
+      terminationGracePeriodSeconds: 120       # let a stage record its result or error before exit
+      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: orchestrator
+          image: <ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/das:<TAG>
+          command: ["python", "-m", "k9_dow.runtime.dow_orchestrator_process"]
+          envFrom:
+            - configMapRef: {name: das-config}
+            - secretRef: {name: das-secrets}
+          resources:
+            requests: {cpu: "1", memory: 2Gi}
+            limits: {memory: 4Gi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true,
+                            capabilities: {drop: [ALL]}}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {}}]
+---
+# KEDA: scale on the lag of the orchestrator consumer group (all run topics of the group).
+# MSK IAM authentication in the KEDA Kafka scaler: (verify) support in the KEDA version you deploy.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: das-orchestrator
+  namespace: das
+spec:
+  scaleTargetRef: {name: das-orchestrator}
+  minReplicaCount: 1
+  maxReplicaCount: 6                           # bounded by GPU capacity and topic partitions
+  cooldownPeriod: 600
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: <MSK_BOOTSTRAP_BROKERS_IAM>
+        consumerGroup: dow-orchestrator         # DAS_INSTANCE adds its prefix if set
+        lagThreshold: "1"                       # one waiting stage per replica
+      authenticationRef: {name: das-msk-auth}
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: das-msk-auth
+  namespace: das
+spec:
+  podIdentity: {provider: aws}                 # uses the IAM role of the KEDA operator

@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: Apache-2.0
+# Sample: DAS app backend (FastAPI web UI and API, job dispatcher) on Amazon EKS in AWS GovCloud (US).
+# ONE replica: the backend keeps jobs, live event streams and dispatcher state in memory
+# (see ../README.md section 5 for the changes needed before scaling it out).
+# Placeholders: <ACCOUNT>, <REGION>, <TAG>, <CERT_ARN>, <ROLE_ARN>.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: das-app-backend
+  namespace: das
+  annotations:
+    eks.amazonaws.com/role-arn: <ROLE_ARN>     # IRSA: SQS send, S3 read/write on the DAS prefixes, MSK
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: das-app-backend
+  namespace: das
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate                             # never two dispatchers at once
+  selector:
+    matchLabels: {app: das-app-backend}
+  template:
+    metadata:
+      labels: {app: das-app-backend}
+    spec:
+      serviceAccountName: das-app-backend
+      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: app-backend
+          image: <ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/das:<TAG>
+          ports: [{name: http, containerPort: 8000}]
+          envFrom:
+            - configMapRef: {name: das-config}     # non-secret settings (below)
+            - secretRef: {name: das-secrets}       # synced from AWS Secrets Manager
+          readinessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 30, failureThreshold: 5}
+          resources:
+            requests: {cpu: "1", memory: 2Gi}
+            limits: {memory: 4Gi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true,
+                            capabilities: {drop: [ALL]}}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {}}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: das-app-backend
+  namespace: das
+spec:
+  selector: {app: das-app-backend}
+  ports: [{name: http, port: 80, targetPort: http}]
+---
+# Internal Application Load Balancer only: reached from the DoDIN through the BCAP and the VDSS.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: das-app-backend
+  namespace: das
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: <CERT_ARN>
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-FIPS-2023-04
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - {path: /, pathType: Prefix, backend: {service: {name: das-app-backend, port: {name: http}}}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: das-config
+  namespace: das
+data:
+  K9_ENV: production
+  DEMO_MODE: "OFF"
+  KAFKA_BOOTSTRAP_SERVERS: <MSK_BOOTSTRAP_BROKERS_IAM>
+  S3_ENDPOINT_URL: https://s3-fips.<REGION>.amazonaws.com
+  DAS_QUEUE_ENDPOINT: https://sqs-fips.<REGION>.amazonaws.com
+  OLLAMA_HOST: http://llm.das.svc.cluster.local:11434     # or an OpenAI-compatible vLLM service
+  POSTGRES_HOST: <RDS_ENDPOINT>
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: das
+  NEO4J_URI: bolt+s://neo4j.das.svc.cluster.local:7687
+  DAS_PUBLIC_URL: https://<INTERNAL_HOSTNAME>
+  # Secrets (DAS_SESSION_SECRET, K9_IDENTITY_SECRET, K9_PG_PASSWORD, NEO4J_PASSWORD, ...) live in
+  # AWS Secrets Manager and reach the pod as the das-secrets Secret (External Secrets Operator).

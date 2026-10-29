@@ -1,0 +1,69 @@
+@startuml das-aws-govcloud
+title DAS on AWS GovCloud (US): sample deployment
+
+actor "DoW user (CAC)" as user
+actor "Decision authority (CAC)" as decider
+
+node "DoDIN / NIPRNet" as dodin
+node "DISA BCAP\n(Enterprise or approved Component CAP)" as bcap
+
+cloud "AWS GovCloud (US)" {
+  node "Transit account" {
+    component "Direct Connect gateway" as dx
+    component "Transit Gateway" as tgw
+    component "Inspection VPC (VDSS)\nNetwork Firewall / GWLB, WAF" as vdss
+  }
+
+  node "DAS workload account: VPC, private subnets, 3 AZs" {
+    component "Internal ALB" as alb
+
+    node "Amazon EKS" {
+      component "App backend\n(1 replica)" as app
+      component "Router\n(N replicas)" as router
+      component "Orchestrators\n(KEDA on Kafka lag)" as orch
+      component "K9X HIL" as hil
+      component "Docling-Serve" as docling
+      component "LLM serving on GPU nodes\n(generator, Granite Guardian, judge, embeddings)" as llm
+      component "Neo4j\n(traceability graph)" as neo4j
+    }
+
+    queue "Amazon MSK\n(Kafka, TLS + IAM)" as msk
+    queue "Amazon SQS FIFO\n(job queue)" as sqs
+    database "Amazon S3\n(SSE-KMS, Object Lock)" as s3
+    database "RDS / Aurora PostgreSQL\n(pgvector, HIL)" as rds
+    component "Amazon Bedrock\n(optional, approved models)" as bedrock
+    component "Secrets Manager + KMS" as secrets
+  }
+
+  node "Logging and security accounts (VDMS)" {
+    component "CloudTrail, CloudWatch,\nSecurity Hub, GuardDuty" as logs
+  }
+}
+
+user --> dodin
+decider --> dodin
+dodin --> bcap
+bcap --> dx : Direct Connect
+dx --> tgw
+tgw --> vdss
+vdss --> alb
+alb --> app
+alb --> hil
+
+app --> docling : convert uploads
+app --> sqs : enqueue job
+app --> msk : dispatch to router
+router --> msk : route by event type
+orch --> msk : consume run topics
+hil --> msk : gate decisions
+orch --> llm
+orch ..> bedrock : or
+orch --> s3 : stage results
+orch --> rds : knowledge corpus
+orch --> neo4j
+app --> s3
+app --> secrets
+orch --> secrets
+app ..> logs
+orch ..> logs
+@enduml
