@@ -672,3 +672,25 @@ def test_history_of_a_withdrawn_job_has_no_next_action(monkeypatch):
     assert h["withdrawn"]["by"] == "demo@k9x.ai" and h["next_action"] is None
     sv = next(s for s in h["steps"] if s["step"] == "SERVICE-VALIDATION")
     assert sv["state"] == "withdrawn"
+
+
+def test_gate_task_names_its_decision_authority_and_required_role(monkeypatch):
+    """K9X HIL 1.3.0 refuses a decision below the required role; every gate
+    task names the process model's authority and that role."""
+    from k9_dow.config.process_model import load_process_model
+    pm = load_process_model()
+    for gate_id in hil_gateway.GATE_TOPICS:
+        msg = hil_gateway.gate_task_message(gate_id, "JOB-T", title="t", description="d",
+                                            source_orchestrator="o", source_topic="s",
+                                            payload={}, artifacts=[])
+        expected = pm.gates[gate_id].authority if gate_id in pm.gates else None
+        assert msg["decision_authority"] == (expected or msg["decision_authority"])
+        assert msg["decision_authority"] and msg["required_role"] == "manager"
+    assert hil_gateway.gate_task_message("GOVERNANCE-HOLD", "J", title="t", description="d",
+                                         source_orchestrator="o", source_topic="s", payload={},
+                                         artifacts=[])["decision_authority"] == "DAS administrator"
+    monkeypatch.setenv("DAS_HIL_DECISION_ROLE", "admin")
+    assert hil_gateway.decision_role() == "admin"
+    monkeypatch.setenv("DAS_HIL_DECISION_ROLE", "anyone")
+    with pytest.raises(ValueError):
+        hil_gateway.decision_role()

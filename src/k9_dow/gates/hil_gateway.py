@@ -86,6 +86,51 @@ def _broker(config: Dict[str, Any]) -> str:
     return raw.split(",")[0].strip()
 
 
+def decision_role() -> str:
+    """DAS_HIL_DECISION_ROLE: the minimum K9X HIL role that may approve or
+    reject a gate (worker | manager | admin; default manager). K9X HIL 1.3.0
+    refuses a decision by a lower role (403)."""
+    role = os.environ.get("DAS_HIL_DECISION_ROLE", "manager").strip().lower()
+    if role not in ("worker", "manager", "admin"):
+        raise ValueError(f"DAS_HIL_DECISION_ROLE must be worker, manager or admin, not {role!r}")
+    return role
+
+
+def gate_task_message(gate_id: str, job_id: str, *, title: str, description: str,
+                      source_orchestrator: str, source_topic: str, payload: Dict[str, Any],
+                      artifacts: List[str], priority: str = "high", ttl_hours: int = 168,
+                      ttl_action: str = "reject") -> Dict[str, Any]:
+    """The HIL task for ``gate_id``: the twelve contract fields plus who decides
+    (the process model's decision authority and the HIL role required)."""
+    topics = GATE_TOPICS[gate_id]
+    return {
+        "title": title,
+        "description": description,
+        "source_orchestrator": source_orchestrator,
+        "source_topic": source_topic,
+        "reply_to": topics["reply_topic"],
+        "correlation_id": job_id,
+        "priority": priority,
+        "payload": {"job_id": job_id, "gate_id": gate_id, **payload},
+        "artifacts": [a for a in artifacts if a],
+        "pii": False,
+        "ttl_hours": ttl_hours,
+        "ttl_action": ttl_action,
+        "decision_authority": _decision_authority(gate_id),
+        "required_role": decision_role(),
+    }
+
+
+def _decision_authority(gate_id: str) -> str:
+    """The process model's authority for a gate; a governance hold is decided
+    by the DAS administrator; JCIDS-era gates (process model before
+    mca-2026-10) keep a generic label."""
+    gate = load_process_model().gates.get(gate_id)
+    if gate is not None:
+        return gate.authority
+    return "DAS administrator" if gate_id == "GOVERNANCE-HOLD" else "Decision authority"
+
+
 def publish_gate_task(
     config: Dict[str, Any],
     gate_id: str,
@@ -105,20 +150,10 @@ def publish_gate_task(
     gate's reply topic, correlated by ``job_id``. Never raises: a failed
     publish is logged and reported as False (the stage result is kept)."""
     topics = GATE_TOPICS[gate_id]
-    task = {
-        "title": title,
-        "description": description,
-        "source_orchestrator": source_orchestrator,
-        "source_topic": source_topic,
-        "reply_to": topics["reply_topic"],
-        "correlation_id": job_id,
-        "priority": priority,
-        "payload": {"job_id": job_id, "gate_id": gate_id, **payload},
-        "artifacts": [a for a in artifacts if a],
-        "pii": False,
-        "ttl_hours": ttl_hours,
-        "ttl_action": ttl_action,
-    }
+    task = gate_task_message(gate_id, job_id, title=title, description=description,
+                             source_orchestrator=source_orchestrator, source_topic=source_topic,
+                             payload=payload, artifacts=artifacts, priority=priority,
+                             ttl_hours=ttl_hours, ttl_action=ttl_action)
     try:
         from k9_aif_abb.k9_core.messaging.k9_event_bus import K9EventBus
         bus = K9EventBus(broker_url=_broker(config), topic=topics["task_topic"],
