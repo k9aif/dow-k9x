@@ -694,3 +694,32 @@ def test_gate_task_names_its_decision_authority_and_required_role(monkeypatch):
     monkeypatch.setenv("DAS_HIL_DECISION_ROLE", "anyone")
     with pytest.raises(ValueError):
         hil_gateway.decision_role()
+
+
+def test_auto_mode_queues_and_starts_the_next_stage_without_an_admin(monkeypatch):
+    """DAS_RESUME_MODE=auto: an accepted approval queues the next stage with no
+    administrator, and the dispatcher starts it from the stored results (the path
+    the app's GateDecision handler takes; the hosted deployment runs in manual mode)."""
+    import json
+    from k9_dow.api import app as app_mod
+    stored = {"requirement": {"status": "awaiting_gate"},
+              "gate-SERVICE-VALIDATION": {"action": "complete", "actor": "mda@k9x.ai", "decided_at": "t"}}
+    monkeypatch.setattr(hil_gateway, "load_stage_result", lambda cfg, job, stage: stored.get(stage))
+    monkeypatch.setattr(hil_gateway, "list_job_ids", lambda cfg: {"job-a": list(stored)})
+    monkeypatch.setattr(hil_gateway, "save_stage_result",
+                        lambda cfg, job, stage, res: stored.update({stage: res}))
+    sent = []
+
+    class FakeSQS:
+        def get_queue_url(self, QueueName): return {"QueueUrl": QueueName}
+        def send_message(self, QueueUrl, MessageBody): sent.append(json.loads(MessageBody))
+    monkeypatch.setattr(app_mod, "_get_sqs_client", lambda: FakeSQS())
+    monkeypatch.setattr(app_mod, "_pipeline_store", {})
+
+    _, nxt = app_mod._next_stage_event("job-a", "auto")
+    assert nxt["stage"] == "mdd_package" and nxt["approved_by"] == "mda@k9x.ai"
+    app_mod._enqueue_pipeline("job-a", nxt["stage"], nxt["gate"], nxt["approved_by"], "auto")
+    assert sent == [{"job_id": "job-a", "stage": "mdd_package", "started_by": "auto"}]
+    event, _ = app_mod._prepare_pipeline_run(sent[0])
+    assert event["event_type"] == "gate_approved" and event["gate_id"] == "SERVICE-VALIDATION"
+    assert event["decision"]["started_by"] == "auto" and event["decision"]["actor"] == "mda@k9x.ai"
