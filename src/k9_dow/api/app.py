@@ -1219,7 +1219,18 @@ DOC_NAMES = {"requirement": "Requirement-Package", "icd": "ICD", "jsd": "JSD-Rec
 
 
 async def _doc_markdown(job_id: str, doc_id: str) -> str:
-    """The markdown behind every View page and Word download of a job."""
+    """The markdown behind every View page, Word download and job record of a job, with each
+    "Awaiting HIL Review" status replaced by the gate's decision of record once it is decided."""
+    from k9_dow.gates.hil_gateway import job_history, stamp_decisions
+    md = await _doc_markdown_as_written(job_id, doc_id)
+    if "Awaiting HIL Review" not in md:
+        return md
+    hist = await asyncio.get_event_loop().run_in_executor(None, job_history, _config, job_id)
+    return stamp_decisions(md, hist.get("steps") or [])
+
+
+async def _doc_markdown_as_written(job_id: str, doc_id: str) -> str:
+    """The markdown of a package as it was generated (before its gate was decided)."""
     if doc_id in ("mdd_package", "msa", "tmrr"):
         md = _compose_run_package(job_id, doc_id)
         if md is None:

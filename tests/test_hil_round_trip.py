@@ -723,3 +723,18 @@ def test_auto_mode_queues_and_starts_the_next_stage_without_an_admin(monkeypatch
     event, _ = app_mod._prepare_pipeline_run(sent[0])
     assert event["event_type"] == "gate_approved" and event["gate_id"] == "SERVICE-VALIDATION"
     assert event["decision"]["started_by"] == "auto" and event["decision"]["actor"] == "mda@k9x.ai"
+
+
+def test_a_decided_gate_replaces_awaiting_hil_review_in_the_package():
+    """A package is written before its gate is decided; once K9X HIL decides, every View page,
+    Word download and job record shows the decision of record, not "Awaiting HIL Review"."""
+    md = "# SRR Package\n**Status:** Awaiting HIL Review (SE-REVIEW-SRR)\n\nbody"
+    steps = [{"step": "SE-REVIEW-SRR", "kind": "gate", "state": "approved", "actor": "demo@k9x.ai",
+              "decided_at": "2026-10-31T17:48:00.123+00:00"}]
+    out = hil_gateway.stamp_decisions(md, steps)
+    assert "**Status:** Approved in K9X HIL by demo@k9x.ai, 2026-10-31 17:48 UTC (SE-REVIEW-SRR)" in out
+    assert "Awaiting" not in out and out.endswith("body")
+    rejected = [{**steps[0], "state": "reject"}]
+    assert "Rejected in K9X HIL by demo@k9x.ai" in hil_gateway.stamp_decisions(md, rejected)
+    pending = [{"step": "SE-REVIEW-SRR", "kind": "gate", "state": "pending"}]
+    assert hil_gateway.stamp_decisions(md, pending) == md

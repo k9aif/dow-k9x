@@ -23,6 +23,7 @@ history and their late decisions are recorded, but they start no run.
 from __future__ import annotations
 
 import json
+import re
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -556,3 +557,27 @@ def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]]
         "next_action": next_action,
         "complete": complete,
     }
+
+
+_AWAITING = re.compile(r"\*\*Status:\*\* Awaiting HIL Review \(([A-Z0-9-]+)\)")
+_DECIDED = {"approved": "Approved", "reject": "Rejected", "expire": "Expired (no decision in time)",
+            "ignored": "Decision not accepted"}
+
+
+def stamp_decisions(md: str, steps: List[Dict[str, Any]]) -> str:
+    """Replace a package's "Awaiting HIL Review (<gate>)" status with the gate's decision of
+    record once K9X HIL has decided it. A package is written before its gate is decided, so the
+    stored text keeps the old status; every View page, Word download and job record shows the
+    decision instead. Pending gates keep the original line."""
+    decided = {s["step"]: s for s in steps if s.get("kind") == "gate" and s.get("state") not in
+               (None, "pending", "not_reached")}
+
+    def repl(m):
+        st = decided.get(m.group(1))
+        if not st:
+            return m.group(0)
+        when = (st.get("decided_at") or "")[:16].replace("T", " ")
+        outcome = _DECIDED.get(st.get("state"), str(st.get("state")).capitalize())
+        by = f" by {st['actor']}" if st.get("actor") else ""
+        return f"**Status:** {outcome} in K9X HIL{by}{', ' + when + ' UTC' if when else ''} ({m.group(1)})"
+    return _AWAITING.sub(repl, md)
