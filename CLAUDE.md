@@ -132,11 +132,19 @@ with Retry, and no later agent or package writer runs.** (Framework CLAUDE.md "F
 | Layer | Exception handling |
 |---|---|
 | Agent (`agents/src/`) | No try/except around `llm_invoke`, or one that re-raises with context. Never return `[WARN]`/empty/"validation_failed" output. |
-| Loop agent (`K9ValidationLoopAgent`) | The ABB swallows a `run_validation()` error into `{"reason": "validation_failed"}`. Every loop agent overrides `fail()` with `raise_if_step_failed(self.layer, loop_ctx)` (`utils/loop_errors.py`). |
+| Loop agent (`K9ValidationLoopAgent`) | Since k9-aif 1.18.2 the ABB re-raises a `run_validation()` error itself. The `fail()` override (`raise_if_step_failed`, `utils/loop_errors.py`) is kept as a second guard. |
 | Squad (`DasSquad` / `BaseSquad`) | Logs the failed step, re-raises. |
 | Stage orchestrator (`stage_base.py`) | **Required** try/except: `PermissionError` → governance hold; `JobWithdrawn` → stop; anything else → `save_stage_result(status="error")` (Jobs in Pipeline offers Retry), then re-raise. |
 | Orchestrator process (`runtime/dow_orchestrator_process.py`) | **Required** try/except: publishes `status: error` to the results topic; the consumer keeps running. |
 
+- **Storage, HIL tasks and alerts (v1.3.4, k9-aif 1.23):** `save_stage_result`, `load_stage_result`,
+  `stage_result_exists`, `publish_gate_task` and `record_governance_alert` raise
+  (`StageStoreError` / `GateTaskPublishError`) instead of logging and carrying on, so a stage that
+  could not store its package or send its HIL task ends as a recorded error, and a storage outage is
+  never read as "no package" (which dropped the approval). A HIL decision is marked seen only after
+  it is applied; a failure raises and k9-aif 1.23's bus delivers the reply again. An event with no
+  orchestrator (topic map `TOPIC_ORCHESTRATOR`) is reported as an error, never run as a requirement
+  run. Tests: `tests/test_failures_are_recorded.py`.
 - No `except ...: pass`. Optional parts that may be down (retriever, `.docx` rendering) log a warning or
   record the error in the result (`icd_docx_error`), and the main output still exists.
 - Partial results only for side reports: `quality/icd_grader.py` keeps citation/completeness when the

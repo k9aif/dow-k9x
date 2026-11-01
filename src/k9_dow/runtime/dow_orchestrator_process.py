@@ -35,7 +35,17 @@ logging.basicConfig(
 )
 log = logging.getLogger("dow.orchestrator_process")
 
-DOMAIN_TOPICS = [DAS_TOPICS[k] for k in ("requirement", "mdd_package", "msa", "tmrr", "traceability", "drift")]
+# Which orchestrator runs each subscribed topic. The MSA orchestrator owns two runs (MDD package,
+# MSA); the Traceability orchestrator runs both cross-cutting squads (traceability, drift).
+TOPIC_ORCHESTRATOR = {
+    "requirement": "requirement",
+    "mdd_package": "msa",
+    "msa": "msa",
+    "tmrr": "tmrr",
+    "traceability": "traceability",
+    "drift": "traceability",
+}
+DOMAIN_TOPICS = [DAS_TOPICS[k] for k in TOPIC_ORCHESTRATOR]
 RESULTS_TOPIC = DAS_TOPICS["results"]
 GROUP_ID = _group("dow-orchestrator")
 
@@ -108,14 +118,9 @@ async def main() -> None:
     tmrr_orch = TmrrOrchestrator(config=config, progress_callback=_publish_progress, squads=squads)
     trace_orch = TraceabilityOrchestrator(config=config, squads=squads)
 
-    # Topic → orchestrator. The MSA orchestrator owns two runs (MDD package, MSA).
-    handlers = {
-        DAS_TOPICS["requirement"]: requirement_orch,
-        DAS_TOPICS["mdd_package"]: msa_orch,
-        DAS_TOPICS["msa"]: msa_orch,
-        DAS_TOPICS["tmrr"]: tmrr_orch,
-        DAS_TOPICS["traceability"]: trace_orch,
-    }
+    orchestrators = {"requirement": requirement_orch, "msa": msa_orch, "tmrr": tmrr_orch,
+                     "traceability": trace_orch}
+    handlers = {DAS_TOPICS[k]: orchestrators[v] for k, v in TOPIC_ORCHESTRATOR.items()}
 
     log.info(
         "[OrchestratorProcess] Ready | handlers=%d | broker=%s",
@@ -135,7 +140,17 @@ async def main() -> None:
 
         # `_topic` is stamped by the DAS Router process (the run it routed to);
         # gate_approved events resume a later run, so event_type alone can't pick it.
-        orch = handlers.get(topic) or requirement_orch
+        # v1.3.4: an event with no handler is reported, never run as a requirement run
+        # (a drift check used to fall through to the Requirement orchestrator).
+        orch = handlers.get(topic)
+        if orch is None:
+            log.error("[OrchestratorProcess] no orchestrator for topic=%r event_type=%s", topic, event_type)
+            results_bus.publish({
+                "event_type": event_type, "job_id": payload.get("job_id", ""), "correlation_id": corr,
+                "orchestrator": "none",
+                "result": {"status": "error", "detail": f"no orchestrator for topic {topic!r}"},
+            })
+            return
 
         orch_name = orch.__class__.__name__
         print(

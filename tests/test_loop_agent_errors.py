@@ -47,6 +47,8 @@ def test_the_squad_stops_and_passes_it_up(monkeypatch):
                         lambda *_a, **_k: ran.append(1) or SimpleNamespace(output="ok", model_alias="t"))
     squads_dir = Path(k9_dow.__file__).parent / "squads" / "yaml"
     squad = squad_layer({}).load_one(squads_dir / "view_generation_squad.yaml", "ViewGenerationSquad")
-    with pytest.raises(RuntimeError, match="DAS ViewGenerator"):
+    # k9-aif >= 1.18.2 re-raises the model error from the loop itself (before, DAS's
+    # loop_errors wrapper re-raised it naming the agent); the squad still stops here.
+    with pytest.raises(RuntimeError, match="LLM backend unavailable"):
         squad.execute({"source_markdown": "# CDD\nKPP 1", "prior_outputs": {}, "job_id": "JOB-T"})
     assert ran == []

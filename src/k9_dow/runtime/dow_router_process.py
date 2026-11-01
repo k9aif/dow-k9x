@@ -109,9 +109,15 @@ async def main() -> None:
                     flush=True,
                 )
             else:
-                log.warning("[RouterProcess] No outbound bus for topic=%s", route_to)
+                raise RuntimeError(f"no outbound bus for topic {route_to!r}")
         except Exception as exc:
+            # v1.3.4: the job is reported as failed, not dropped (it used to vanish from the pipeline)
             log.error("[RouterProcess] Routing failed: %s", exc, exc_info=True)
+            results_bus.publish({
+                "event_type": event_type, "job_id": payload.get("job_id", ""), "correlation_id": corr,
+                "orchestrator": "DasRouter",
+                "result": {"status": "error", "detail": f"routing failed: {exc}"},
+            })
 
     results_bus = outbound_buses[DAS_TOPICS["results"]]
     seen_decisions: set = set()  # (job_id, gate_id): HIL's outbox is at-least-once
@@ -128,7 +134,12 @@ async def main() -> None:
             actor = (reply.get("actor") or "").lower()
             if not job_id or (job_id, gate_id) in seen_decisions:
                 return
+            # v1.3.4: marked seen only once the decision is applied. A failure (storage
+            # unreachable) raises before that, and k9-aif 1.23's bus delivers the reply again.
+            await _apply(reply, job_id, action, actor)
             seen_decisions.add((job_id, gate_id))
+
+        async def _apply(reply: dict, job_id: str, action: str, actor: str) -> None:
             loop = asyncio.get_event_loop()
             if not await loop.run_in_executor(
                     None, stage_result_exists, config, job_id, GATE_INPUT_STAGE[gate_id]):
@@ -201,6 +212,7 @@ async def main() -> None:
                     "result": {"status": "stopped_at_gate", "gate_id": gate_id, "action": action,
                                "actor": reply.get("actor"), "orchestrator": "router"},
                 })
+
         return handle_reply
 
     reply_buses = [

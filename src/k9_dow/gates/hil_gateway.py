@@ -30,6 +30,18 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
 
+
+class StageStoreError(RuntimeError):
+    """A stage result, gate decision or alert could not be stored or read (v1.3.4). Raised so the
+    stage or decision fails as a recorded error that can be retried, instead of carrying on as if
+    it were stored: a decision is applied only to a stored package, so a lost save silently
+    turned the reviewer's approval into nothing."""
+
+
+class GateTaskPublishError(RuntimeError):
+    """A gate's HIL task could not be published (v1.3.4); before, the stage reported success and
+    the job waited for a task that was never sent."""
+
 from k9_dow.config.instance import group as _group, key_prefix
 from k9_dow.config.process_model import load_process_model
 
@@ -148,8 +160,9 @@ def publish_gate_task(
     ttl_action: str = "reject",
 ) -> bool:
     """Publish one HIL task for ``gate_id``. The decision comes back on the
-    gate's reply topic, correlated by ``job_id``. Never raises: a failed
-    publish is logged and reported as False (the stage result is kept)."""
+    gate's reply topic, correlated by ``job_id``. A failed publish raises
+    :class:`GateTaskPublishError` (v1.3.4), so the stage ends as a recorded
+    error that can be retried; the stage result is already stored."""
     topics = GATE_TOPICS[gate_id]
     task = gate_task_message(gate_id, job_id, title=title, description=description,
                              source_orchestrator=source_orchestrator, source_topic=source_topic,
@@ -167,8 +180,8 @@ def publish_gate_task(
                  gate_id, job_id, topics["task_topic"], topics["reply_topic"])
         return True
     except Exception as exc:
-        log.warning("[HILGateway] %s task publish failed for job=%s (non-fatal): %s", gate_id, job_id, exc)
-        return False
+        log.error("[HILGateway] %s task publish failed for job=%s: %s", gate_id, job_id, exc)
+        raise GateTaskPublishError(f"{gate_id} task for {job_id} was not published: {exc}") from exc
 
 
 def gate_approved_event(gate_id: str, reply: Dict[str, Any]) -> Dict[str, Any]:
@@ -208,7 +221,9 @@ def _alerts_key(day: str) -> str:
 
 def record_governance_alert(config: Dict[str, Any], alert: Dict[str, Any]) -> Dict[str, Any]:
     """Publish to the governance-alerts topic and append to that day's log (read by the admin's
-    Governance page). Never raises: a failed publish or write is logged, the flow goes on."""
+    Governance page). Raises :class:`StageStoreError` when either fails (v1.3.4): every hold and
+    override must be published and listed. Before, a failure was logged and the flow went on, and
+    a failed read of the day's log replaced the whole log with this one alert."""
     from datetime import datetime, timezone
     alert = {"at": datetime.now(timezone.utc).isoformat(), **alert}
     try:
@@ -219,19 +234,21 @@ def record_governance_alert(config: Dict[str, Any], alert: Dict[str, Any]) -> Di
             bus._producer.flush()
         bus.close()
     except Exception as exc:
-        log.warning("[HILGateway] governance alert publish failed (non-fatal): %s", exc)
+        log.error("[HILGateway] governance alert publish failed: %s", exc)
+        raise StageStoreError(f"governance alert not published: {exc}") from exc
     try:
         from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
         store = ObjectStorageFactory.create(config)
         key = _alerts_key(alert["at"][:10])
         try:
             day = json.loads(store.download(STAGE_BUCKET, key).decode("utf-8"))
-        except Exception:
-            day = []
+        except FileNotFoundError:
+            day = []          # first alert of the day; any other read error must not erase the log
         day.append(alert)
         store.upload(STAGE_BUCKET, key, json.dumps(day, indent=1, default=str).encode("utf-8"))
     except Exception as exc:
-        log.warning("[HILGateway] governance alert log write failed (non-fatal): %s", exc)
+        log.error("[HILGateway] governance alert log write failed: %s", exc)
+        raise StageStoreError(f"governance alert not listed: {exc}") from exc
     return alert
 
 
@@ -332,8 +349,8 @@ def save_stage_result(config: Dict[str, Any], job_id: str, stage: str, result: D
         store.upload(STAGE_BUCKET, key, json.dumps(result, indent=2, default=str).encode("utf-8"))
         return store.get_uri(STAGE_BUCKET, key)
     except Exception as exc:
-        log.warning("[HILGateway] saving %s result for job=%s failed (non-fatal): %s", stage, job_id, exc)
-        return None
+        log.error("[HILGateway] saving %s result for job=%s failed: %s", stage, job_id, exc)
+        raise StageStoreError(f"{stage} result for {job_id} was not stored: {exc}") from exc
 
 
 # The run whose stored package a gate reviews (a decision is recorded only if it exists).
@@ -346,12 +363,10 @@ def stage_result_exists(config: Dict[str, Any], job_id: str, stage: str) -> bool
     """A decision only resumes a job whose package was stored by this code.
     Reply topics are read from the earliest offset, so this also keeps old
     decisions (jobs from before the round trip existed) from starting runs."""
-    try:
-        from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
-        return ObjectStorageFactory.create(config).exists(STAGE_BUCKET, _stage_key(job_id, stage))
-    except Exception as exc:
-        log.warning("[HILGateway] checking %s result for job=%s failed: %s", stage, job_id, exc)
-        return False
+    # A store that cannot be reached raises (k9-aif 1.23 exists()): an outage must not read as
+    # "no package", which would drop the decision (v1.3.4).
+    from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
+    return ObjectStorageFactory.create(config).exists(STAGE_BUCKET, _stage_key(job_id, stage))
 
 
 def load_stage_result(config: Dict[str, Any], job_id: str, stage: str) -> Optional[Dict[str, Any]]:
@@ -359,9 +374,11 @@ def load_stage_result(config: Dict[str, Any], job_id: str, stage: str) -> Option
         from k9_aif_abb.k9_factories.object_storage_factory import ObjectStorageFactory
         store = ObjectStorageFactory.create(config)
         return json.loads(store.download(STAGE_BUCKET, _stage_key(job_id, stage)).decode("utf-8"))
-    except Exception as exc:
-        log.warning("[HILGateway] loading %s result for job=%s failed: %s", stage, job_id, exc)
+    except FileNotFoundError:
         return None
+    except Exception as exc:
+        log.error("[HILGateway] loading %s result for job=%s failed: %s", stage, job_id, exc)
+        raise StageStoreError(f"{stage} result for {job_id} could not be read: {exc}") from exc
 
 
 # ── Job history (survives app restarts; read by the UI's Jobs tab) ──
