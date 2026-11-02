@@ -113,11 +113,9 @@ def render(theme: str) -> str:
     out.append(f'  <text x="{jx + (BW - 6) / 2}" y="{jy + 27}" font-size="10" text-anchor="middle" fill="{c["sub"]}">parallel, never blocks</text>')
     # SRR end
     x, y = pos["srr"]
-    out.append(f'  <text x="{x + BW / 2}" y="{y + BH + 18}" font-size="10.5" text-anchor="middle" fill="{c["sub"]}">approve → built flow ends</text>')
-    out.append(f'  <text x="20" y="{H - 28}" font-size="10.5" fill="{c["sub"]}">After each approval in K9X HIL the next run queues and starts automatically '
-               f'(DAS_RESUME_MODE=auto in .env, as on this demo); in manual mode the DAS admin starts it.</text>')
-    out.append(f'  <text x="20" y="{H - 14}" font-size="10.5" fill="{c["sub"]}">'
-               f'Designed, not built: SFR, PDR, CDD-equivalent validation, Development RFP Release, Milestone B, other pathways.</text>')
+    out.append(f'  <text x="{x + BW / 2}" y="{y + BH + 18}" font-size="10.5" text-anchor="middle" fill="{c["sub"]}">approve → flow ends</text>')
+    out.append(f'  <text x="20" y="{H - 18}" font-size="10.5" fill="{c["sub"]}">After each approval in K9X HIL the next stage starts automatically '
+               f'(DAS_RESUME_MODE=auto) or, in manual mode, when the DAS administrator starts it.</text>')
     out.append("</svg>")
     return "\n".join(out) + "\n"
 
