@@ -46,7 +46,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s
 app = FastAPI(
     title="DAS — Defense Acquisition System",
     description="Requirements-to-acquisition flow (JFRP + Major Capability Acquisition to Milestone A and the SRR), built on K9-AIF",
-    version="0.2.0",
+    version=__import__("k9_dow.config.settings", fromlist=["build_info"]).build_info()["version"],
 )
 
 from k9_dow.config.runtime import apply_runtime_settings  # noqa: E402

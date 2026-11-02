@@ -19,7 +19,8 @@ def serve(host, port):
 
 @cli.command()
 def version():
-    click.echo("DAS — Defense Acquisition System v0.2.0")
+    from k9_dow.config.settings import build_info
+    click.echo(f"DAS — Defense Acquisition System v{build_info()['version']}")
 
 
 if __name__ == "__main__":
