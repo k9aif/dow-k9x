@@ -27,7 +27,7 @@ THEMES = {
                  in_fill="#241a40", in_line="#a78bfa", par_fill="#33270f", par_line="#fbbf24"),
 }
 
-W, H = 1000, 434
+W, H = 1000, 420
 BW, BH = 150, 74
 
 # (key, system, title, subtitle lines)
