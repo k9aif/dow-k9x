@@ -52,16 +52,16 @@ GROUP_ID = _group("dow-orchestrator")
 
 def _load_config() -> dict:
     config_path = Path(__file__).resolve().parents[1] / "config" / "config.yaml"
-    try:
-        from k9_dow.config.runtime import apply_runtime_settings
-        return apply_runtime_settings(load_yaml(config_path))
-    except Exception as exc:
-        log.warning("Config load skipped: %s", exc)
-        return {}
+    # No fallback: an empty config silently ran every agent on the framework's default model
+    # instead of OLLAMA_MODEL. A config that does not load stops the process.
+    from k9_dow.config.runtime import apply_runtime_settings
+    return apply_runtime_settings(load_yaml(config_path))
 
 
 async def main() -> None:
     config = _load_config()
+    from k9_dow.config.runtime import describe_models
+    log.info("DAS Orchestrator — models: %s", describe_models(config))
 
     from k9_dow.utils.health_check import check_dependencies
     log.info("DAS Orchestrator — dependency check:")

@@ -84,6 +84,23 @@ approval → das.tmrr → TmrrOrchestrator: SrrPackage squad → SE-REVIEW-SRR t
   gets its own topics, groups, queue and storage prefix. Unset = unchanged names.
 - Tests: `tests/test_process_model.py`, `test_hil_round_trip.py`, `test_document_screening.py`.
 
+## Switching the model
+
+One setting: `OLLAMA_MODEL` in `.env` drives every agent alias (`general`, `reasoning`,
+`package_synthesis` in `config/config.yaml`), the UI badge and the ICD footer. The grader
+(`GRADER_MODEL`) and Guardian (`DAS_GUARDIAN_MODEL`) are separate on purpose.
+
+1. Pull the model on the Ollama host (`ollama pull <model>`).
+2. Set `OLLAMA_MODEL=<model>` in `.env`.
+3. Redeploy: `ubuntu/build-run.sh up`. A `podman pod restart` keeps the old model: the value is
+   written into the pod spec at deploy time. A model exported in the shell overrides `.env`
+   (`up` warns).
+4. Confirm: `up` prints `Model: <model> (from .env)`; `build-run.sh logs-orch` shows
+   `DAS Orchestrator — models: OLLAMA_MODEL=<model> ...` at startup.
+
+A config that fails to load stops the router/orchestrator process (before 2026-11-11 it was skipped
+and every agent silently ran the framework's default model).
+
 ## Agent Pattern (from SKILLS.md Skill 1)
 
 Every agent MUST follow this pattern:
