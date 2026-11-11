@@ -47,5 +47,5 @@ class ReadinessScorerAgent(BaseAgent):
         )
         resp = llm_invoke(self.config, req)
         scored = apply_computed_score(resp.output or "", gate_id, criteria, today)
-        self.publish_event({"type": "AgentCompleted", "agent": self.layer, "score": scored["score"]})
+        self.notify_monitor({"type": "AgentCompleted", "agent": self.layer, "score": scored["score"]})
         return {"agent": self.layer, **scored}

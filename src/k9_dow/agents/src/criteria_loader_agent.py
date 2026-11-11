@@ -16,7 +16,7 @@ class CriteriaLoaderAgent(BaseAgent):
         gate_id = payload.get("gate_id", "")
         gate_criteria = payload.get("gate_criteria", [])
 
-        self.publish_event({"type": "AgentCompleted", "agent": self.layer, "gate_id": gate_id})
+        self.notify_monitor({"type": "AgentCompleted", "agent": self.layer, "gate_id": gate_id})
         return {
             "agent": self.layer,
             "gate_id": gate_id,

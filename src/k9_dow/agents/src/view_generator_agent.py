@@ -142,7 +142,7 @@ class ViewGeneratorAgent(K9ValidationLoopAgent):
         view_type = last.observation.get("view_type", "") if last else ""
         confidence = last.confidence if last else 0.0
 
-        self.publish_event({"type": "AgentCompleted", "agent": self.layer, "view_type": view_type})
+        self.notify_monitor({"type": "AgentCompleted", "agent": self.layer, "view_type": view_type})
         return ValidationLoopResult(
             disposition=ValidationDisposition.FINALIZE,
             output={"agent": self.layer, "view_type": view_type, "output": output},

@@ -36,5 +36,5 @@ class CoverageScorerAgent(BaseAgent):
             task_type=self.config.get("model", "reasoning"),
         )
         resp = llm_invoke(self.config, req)
-        self.publish_event({"type": "AgentCompleted", "agent": self.layer})
+        self.notify_monitor({"type": "AgentCompleted", "agent": self.layer})
         return {"agent": self.layer, "output": resp.output}

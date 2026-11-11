@@ -25,7 +25,7 @@ class ArtifactFetcherAgent(BaseAgent):
                 artifacts[key] = {"content_length": len(text), "available": True,
                                   "agent": value.get("agent") if isinstance(value, dict) else None}
 
-        self.publish_event({"type": "AgentCompleted", "agent": self.layer})
+        self.notify_monitor({"type": "AgentCompleted", "agent": self.layer})
         return {
             "agent": self.layer,
             "gate_id": gate_id,

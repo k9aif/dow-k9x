@@ -84,7 +84,7 @@ class DriftClassifierAgent(K9ValidationLoopAgent):
         output = last.observation.get("classification", "") if last else ""
         confidence = last.confidence if last else 0.0
 
-        self.publish_event({"type": "AgentCompleted", "agent": self.layer})
+        self.notify_monitor({"type": "AgentCompleted", "agent": self.layer})
         return ValidationLoopResult(
             disposition=ValidationDisposition.FINALIZE,
             output={"agent": self.layer, "output": output},

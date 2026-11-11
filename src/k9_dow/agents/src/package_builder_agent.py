@@ -62,11 +62,11 @@ class PackageBuilderAgent(BaseAgent):
                     config=self.config,
                 )
                 result["icd_docx_uri"] = uri
-                self.publish_event({"type": "ArtifactGenerated", "artifact": "ICD.docx", "uri": uri})
+                self.notify_monitor({"type": "ArtifactGenerated", "artifact": "ICD.docx", "uri": uri})
             except ImportError:
                 pass
             except Exception as exc:
                 result["icd_docx_error"] = str(exc)
 
-        self.publish_event({"type": "AgentCompleted", "agent": self.layer})
+        self.notify_monitor({"type": "AgentCompleted", "agent": self.layer})
         return result
