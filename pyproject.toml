@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "k9-dow"
-version = "1.3.5"
+version = "1.3.6"
 description = "K9-AIF DoW Architecture Workbench — DoDAF, JCIDS, SE, and Business document analysis"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -14,7 +14,7 @@ authors = [
 ]
 
 dependencies = [
-    "k9-aif[s3,docling]==1.23.0",
+    "k9-aif[s3,docling]==1.26.1",
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "python-multipart>=0.0.9",
