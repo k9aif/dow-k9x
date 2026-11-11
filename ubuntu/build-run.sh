@@ -157,8 +157,14 @@ case "$cmd" in
     # Missing keys fall back to defaults: `|| true` keeps grep's "no match"
     # exit status from stopping the script under `set -euo pipefail`.
     envval() { { grep -E "^$1=" "$DAS_DIR/.env" 2>/dev/null || true; } | tail -1 | cut -d= -f2- | sed -e 's/^["'"'"']//' -e 's/["'"'"']$//'; }
-    OLLAMA_MODEL="${OLLAMA_MODEL:-$(envval OLLAMA_MODEL)}"
-    OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3.8:27b}"
+    # A model exported in the shell wins over .env; say which one is used and why.
+    ENV_MODEL="$(envval OLLAMA_MODEL)"
+    if [ -n "${OLLAMA_MODEL:-}" ]; then
+      MODEL_SRC="shell environment"
+      [ -n "$ENV_MODEL" ] && [ "$ENV_MODEL" != "$OLLAMA_MODEL" ] && \
+        echo "WARNING: OLLAMA_MODEL=$OLLAMA_MODEL from the shell overrides .env ($ENV_MODEL). Run 'unset OLLAMA_MODEL' to use .env."
+    elif [ -n "$ENV_MODEL" ]; then OLLAMA_MODEL="$ENV_MODEL"; MODEL_SRC=".env"
+    else OLLAMA_MODEL="qwen3.8:27b"; MODEL_SRC="default (not set in .env)"; fi
     # Login + resume settings from .env (src/k9_dow/api/auth.py, gates/hil_gateway.py)
     DAS_RESUME_MODE="$(envval DAS_RESUME_MODE)"; DAS_RESUME_MODE="${DAS_RESUME_MODE:-manual}"
     DAS_ADMIN_USER="$(envval DAS_ADMIN_USER)"; DAS_ADMIN_USER="${DAS_ADMIN_USER:-admin}"
@@ -186,6 +192,7 @@ case "$cmd" in
     [ -n "$DAS_ADMIN_PASSWORD" ] || echo "Note: DAS_ADMIN_PASSWORD not set in .env -- no admin login (nobody can start the next stage in manual mode)."
     echo "Deploying pod: $POD_NAME (3 containers, port ${HOST_PORT}, instance '${DAS_INSTANCE:-live}', ${DAS_PUBLIC_URL}, host IP ${PODMAN_HOST_IP}, model ${OLLAMA_MODEL}, num_ctx ${OLLAMA_NUM_CTX}) ..."
     echo "Ollama: ${OLLAMA_HOST} (from ${OLLAMA_SRC})"
+    echo "Model: ${OLLAMA_MODEL} (from ${MODEL_SRC})"
     sudo podman play kube "$RENDERED_YAML" --replace
     echo ""
     echo "Pod running. Containers:"
