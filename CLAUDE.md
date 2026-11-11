@@ -18,7 +18,7 @@ Every class in this project MUST extend or use a K9-AIF ABB. If the framework ha
 | Squad layer | `squad_layer(config)` → `SquadLoader.from_agents` (k9-aif 1.18.1; backport in `das_squad.py`) | Agent lists or `AgentRegistry` in an orchestrator |
 | Agent config | agent YAML `class:` + `module:`; merged by the squad layer (`AgentLoader`) | Custom config merging |
 | LLM calls | `llm_invoke(config, InferenceRequest)` | Direct Ollama/LLM calls |
-| Events | `self.publish_event(dict)` on BaseAgent | Custom EventPublisher class |
+| Events | `self.notify_monitor(dict)` on BaseAgent (monitor + log; agents never publish to Kafka) | Custom EventPublisher class |
 | Monitoring | `monitor` param on BaseAgent/BaseOrchestrator | Custom monitoring |
 | Object storage | `ObjectStorageFactory.create(config)` | Custom file repository |
 | Governance | `self.enforce_governance()` / `require_governance()` | Custom governance wrapper |
@@ -105,7 +105,7 @@ class MyAgent(BaseAgent):
             task_type=self.config.get("model", "reasoning"),
         )
         resp = llm_invoke(self.config, req)     # raises on failure: let it propagate (below)
-        self.publish_event({"type": "AgentCompleted", "agent": self.layer})
+        self.notify_monitor({"type": "AgentCompleted", "agent": self.layer})
         return {"agent": self.layer, "output": resp.output}
 ```
 
