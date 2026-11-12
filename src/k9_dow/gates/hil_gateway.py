@@ -508,6 +508,8 @@ def job_history(config: Dict[str, Any], job_id: str, stages: Optional[List[str]]
                      "done" if rec and rec.get("status") not in (None, "error") else
                      "error" if rec else "not_reached")
             step = {"step": name, "kind": "stage", "state": state}
+            if state == "error" and rec.get("detail"):
+                step["detail"] = rec.get("detail")
             if rec and rec.get("demo_stub"):
                 step["demo"] = True
             steps.append(step)

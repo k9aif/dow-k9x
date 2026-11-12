@@ -1066,6 +1066,7 @@ function jobStepChip(st, hilUrl) {
     else if (st.state !== 'not_reached') text += ' — ' + esc(st.state) + (st.actor ? ' by ' + esc(st.actor) : '');
   } else if (st.state === 'done') text += st.demo ? ' ✓ (demo)' : ' ✓';
   else if (st.state === 'held') text += ' — held by governance';
+  else if (st.state === 'error') text += ' ✗ failed' + (st.detail ? ': ' + esc(String(st.detail).split('\n')[0].slice(0, 120)) : '');
   else if (st.state === 'running') text += ' — running' + (st.started_by && st.started_by !== 'auto' ? ' (started by ' + esc(st.started_by) + ')' : '');
   const where = st.hil && st.hil.application ? `K9X HIL › ${st.hil.application} › ${st.hil.queue} (topic ${st.hil.topic})` : '';
   const when = st.decided_at

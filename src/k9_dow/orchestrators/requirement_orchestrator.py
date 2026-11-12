@@ -115,11 +115,24 @@ class RequirementOrchestrator(ProcessStageOrchestrator):
             from k9_dow.governance.document_screening import mark_untrusted
             payload = {**payload, "source_markdown": mark_untrusted(payload.get("source_markdown", ""), screening)}
 
-        view_result = self._run_squad(self._load_squad("view_generation_squad.yaml", "ViewGenerationSquad"),
-                                      "ViewGenerationSquad", payload)
-        gate_result, package_result = self.prepare_gate(GATE, payload, view_result)
-        joint_result = self._run_squad(self._load_squad("joint_review_squad.yaml", "JointReviewSquad"),
-                                       "JointReviewSquad", {**payload, "prior_outputs": {**view_result, **gate_result}})
+        from k9_dow.gates.hil_gateway import JobWithdrawn, save_stage_result
+        try:
+            view_result = self._run_squad(self._load_squad("view_generation_squad.yaml", "ViewGenerationSquad"),
+                                          "ViewGenerationSquad", payload)
+            gate_result, package_result = self.prepare_gate(GATE, payload, view_result)
+            joint_result = self._run_squad(self._load_squad("joint_review_squad.yaml", "JointReviewSquad"),
+                                           "JointReviewSquad", {**payload, "prior_outputs": {**view_result, **gate_result}})
+        except JobWithdrawn:
+            raise                      # withdrawn: no error record
+        except Exception as exc:
+            # Recorded so the job's record and Jobs in Pipeline show the failure and its reason; before
+            # 1.3.7 a failed requirement stage stayed "not reached" there (only the job queue said error).
+            from datetime import datetime, timezone
+            save_stage_result(self.config, job_id, "requirement", {
+                "job_id": job_id, "orchestrator": self.__class__.__name__, "orchestrator_run": "requirement",
+                "status": "error", "detail": str(exc)[:500], "failed_at": datetime.now(timezone.utc).isoformat()})
+            self._emit("OrchestratorFailed", job_id=job_id, run="requirement", error=str(exc)[:300])
+            raise
 
         total_elapsed = time.monotonic() - flow_t0
         print("━" * 60, flush=True)
