@@ -12,3 +12,5 @@ kafka-python>=2.0
 psycopg2-binary>=2.9
 aiohttp>=3.9
 python-docx>=1.1
+# Embeddings for K9Retriever's corpus (OllamaEmbeddingService); without it retrieval is off (v1.3.7)
+ollama==0.6.2

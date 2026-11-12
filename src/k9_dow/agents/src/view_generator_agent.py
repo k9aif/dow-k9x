@@ -30,16 +30,32 @@ class ViewGeneratorAgent(K9ValidationLoopAgent):
     def __init__(self, config=None, monitor=None, **kwargs):
         super().__init__(config or {}, monitor=monitor, **kwargs)
         self._retriever = None
+        self._retriever_error = ""
+        # What retrieval contributed to this view, recorded in the output (v1.3.7): the retriever is
+        # optional, so it may be down, but the job record must say so rather than only a log line.
+        self._retrieval = {"status": "not_run", "passages": 0, "sources": []}
 
     def _get_retriever(self):
-        if self._retriever is None:
+        if self._retriever is None and not self._retriever_error:
             try:
                 from k9_aif_abb.k9_data.retrieval.k9_retriever import K9Retriever
                 self._retriever = K9Retriever(config=self.config)
             except Exception as exc:
+                self._retriever_error = f"{type(exc).__name__}: {exc}"
                 log.warning("[%s] retriever unavailable, generating without retrieved context: %s",
                             self.layer, exc)
         return self._retriever
+
+    def _retrieval_record(self, retriever, chunks) -> dict:
+        if retriever is None:
+            return {"status": "unavailable", "reason": self._retriever_error or "no retriever", "passages": 0, "sources": []}
+        # K9Retriever falls back (with a warning) when its vector store or embedding service cannot be
+        # reached; it exposes that only as _vectordb_available, so it is read here.
+        if getattr(retriever, "_vectordb_available", None) is False:
+            return {"status": "unavailable", "reason": "vector store or embedding service not available",
+                    "passages": 0, "sources": []}
+        return {"status": "used" if chunks else "no_match", "passages": len(chunks),
+                "sources": sorted({str(c.get("source", "")) for c in chunks})}
 
     def generate_hypothesis(self, loop_ctx: ValidationLoopContext):
         view_type = loop_ctx.payload.get("view_type", "OV-1")
@@ -58,12 +74,15 @@ class ViewGeneratorAgent(K9ValidationLoopAgent):
         context_text = source[:8000] if source else ""
 
         retriever = self._get_retriever()
+        if retriever is None:
+            self._retrieval = self._retrieval_record(None, [])
         if retriever and source:
             chunks = retriever.retrieve(
                 intent="dodaf_view_generation",
                 query=f"DoDAF {view_type} operational capability system",
                 top_k=5,
             )
+            self._retrieval = self._retrieval_record(retriever, chunks)
             if chunks:
                 reference_text = "\n\n".join(c["text"] for c in chunks)
                 context_text += (
@@ -145,7 +164,8 @@ class ViewGeneratorAgent(K9ValidationLoopAgent):
         self.notify_monitor({"type": "AgentCompleted", "agent": self.layer, "view_type": view_type})
         return ValidationLoopResult(
             disposition=ValidationDisposition.FINALIZE,
-            output={"agent": self.layer, "view_type": view_type, "output": output},
+            output={"agent": self.layer, "view_type": view_type, "output": output,
+                    "retrieval": dict(self._retrieval)},
             steps=loop_ctx.steps,
             iterations=loop_ctx.iteration,
             final_confidence=confidence,

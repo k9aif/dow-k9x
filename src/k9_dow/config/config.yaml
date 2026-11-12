@@ -96,7 +96,7 @@ inference:
 
 postgres:
   host: "${POSTGRES_HOST:-localhost}"
-  port: 5432
+  port: "${POSTGRES_PORT:-5432}"
   user: "${POSTGRES_USER:-postgres}"
   password: "${K9_PG_PASSWORD:-postgres}"
   database: "${POSTGRES_DB:-dow}"
