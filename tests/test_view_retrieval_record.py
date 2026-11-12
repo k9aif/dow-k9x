@@ -48,3 +48,13 @@ def test_missing_retriever_is_recorded_with_reason():
     a._get_retriever = lambda: None
     a.generate_hypothesis(_ctx())
     assert a._retrieval["status"] == "unavailable" and "ollama" in a._retrieval["reason"]
+
+
+def test_a_store_that_cannot_be_searched_is_recorded_and_the_view_still_builds():
+    class _Broken(_Retriever):
+        def retrieve(self, **kwargs):
+            raise RuntimeError('extension "vector" is not available')
+    a = _agent(_Broken(True, []))
+    h = a.generate_hypothesis(_ctx())
+    assert a._retrieval["status"] == "unavailable" and "vector" in a._retrieval["reason"]
+    assert "Program X needs Y." in h["context"]

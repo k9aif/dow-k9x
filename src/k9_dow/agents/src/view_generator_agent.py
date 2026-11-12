@@ -77,12 +77,21 @@ class ViewGeneratorAgent(K9ValidationLoopAgent):
         if retriever is None:
             self._retrieval = self._retrieval_record(None, [])
         if retriever and source:
-            chunks = retriever.retrieve(
-                intent="dodaf_view_generation",
-                query=f"DoDAF {view_type} operational capability system",
-                top_k=5,
-            )
-            self._retrieval = self._retrieval_record(retriever, chunks)
+            try:
+                chunks = retriever.retrieve(
+                    intent="dodaf_view_generation",
+                    query=f"DoDAF {view_type} operational capability system",
+                    top_k=5,
+                )
+                self._retrieval = self._retrieval_record(retriever, chunks)
+            except Exception as exc:
+                # The retriever is optional (DAS CLAUDE.md, "Failures propagate"): a store it cannot
+                # search -- no pgvector extension, database down -- is recorded in the output and the
+                # view is built from the document alone; the model call itself still fails the stage.
+                log.warning("[%s] retrieval failed, generating without retrieved context: %s", self.layer, exc)
+                chunks = []
+                self._retrieval = {"status": "unavailable", "reason": f"{type(exc).__name__}: {str(exc).splitlines()[0][:200]}",
+                                   "passages": 0, "sources": []}
             if chunks:
                 reference_text = "\n\n".join(c["text"] for c in chunks)
                 context_text += (
