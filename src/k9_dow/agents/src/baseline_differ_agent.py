@@ -3,6 +3,7 @@ from __future__ import annotations
 from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
+from k9_dow.agents.src.squad_context import assert_fits_window, prior_text
 
 
 class BaselineDifferAgent(BaseAgent):
@@ -23,7 +24,7 @@ class BaselineDifferAgent(BaseAgent):
                 f"Role: {self.config.get('role', 'Baseline Drift Analyst')}\n"
                 f"Goal: {self.config.get('goal', 'Detect drift between requirements and SE baseline')}\n\n"
                 f"Instructions: {self.config.get('instructions', '')}\n\n"
-                f"Current state:\n{prior}\n\n"
+                f"Current state:\n{prior_text(prior)}\n\n"
                 "Compare JCIDS requirements state against SEP baseline:\n"
                 "1. Requirements added since last baseline\n"
                 "2. Requirements modified but baseline not updated\n"
@@ -34,6 +35,7 @@ class BaselineDifferAgent(BaseAgent):
             metadata={"agent": self.layer},
             task_type=self.config.get("model", "reasoning"),
         )
+        assert_fits_window(req.prompt, self.layer)
         resp = llm_invoke(self.config, req)
         self.notify_monitor({"type": "AgentCompleted", "agent": self.layer})
         return {"agent": self.layer, "output": resp.output}

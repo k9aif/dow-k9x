@@ -3,6 +3,7 @@ from __future__ import annotations
 from k9_aif_abb.k9_core.agent.base_agent import BaseAgent
 from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
+from k9_dow.agents.src.squad_context import assert_fits_window, prior_text
 
 
 class CoverageScorerAgent(BaseAgent):
@@ -23,7 +24,7 @@ class CoverageScorerAgent(BaseAgent):
                 f"Role: {self.config.get('role', 'Traceability Coverage Analyst')}\n"
                 f"Goal: {self.config.get('goal', 'Score traceability coverage')}\n\n"
                 f"Instructions: {self.config.get('instructions', '')}\n\n"
-                f"Trace analysis:\n{prior}\n\n"
+                f"Trace analysis:\n{prior_text(prior)}\n\n"
                 "Compute and report:\n"
                 "1. Total requirements vs verified requirements (coverage %)\n"
                 "2. Requirements by maturity level (identified/analyzed/allocated/verified)\n"
@@ -35,6 +36,7 @@ class CoverageScorerAgent(BaseAgent):
             metadata={"agent": self.layer},
             task_type=self.config.get("model", "reasoning"),
         )
+        assert_fits_window(req.prompt, self.layer)
         resp = llm_invoke(self.config, req)
         self.notify_monitor({"type": "AgentCompleted", "agent": self.layer})
         return {"agent": self.layer, "output": resp.output}

@@ -5,6 +5,7 @@ from k9_aif_abb.k9_inference.models.inference_request import InferenceRequest
 from k9_aif_abb.k9_utils.llm_invoke import llm_invoke
 from k9_dow.agents.src.process_facts import PROCESS_FACTS
 from k9_dow.agents.src.squad_context import gate_criteria, step_output
+from k9_dow.agents.src.squad_context import assert_fits_window, prior_text
 
 
 class CompletenessCheckerAgent(BaseAgent):
@@ -29,7 +30,7 @@ class CompletenessCheckerAgent(BaseAgent):
                 + PROCESS_FACTS + "\n" +
                 f"Gate: {gate_id}\n"
                 f"Artifact manifest (from the Artifact Fetcher):\n{step_output(payload, 'artifact_manifest')}\n\n"
-                f"Available artifacts:\n{prior}\n\n"
+                f"Available artifacts:\n{prior_text(prior)}\n\n"
                 "Check:\n"
                 "1. All required artifacts present for this gate type\n"
                 "2. No placeholder or stub content in critical artifacts\n"
@@ -40,6 +41,7 @@ class CompletenessCheckerAgent(BaseAgent):
             metadata={"agent": self.layer},
             task_type=self.config.get("model", "extraction"),
         )
+        assert_fits_window(req.prompt, self.layer)
         resp = llm_invoke(self.config, req)
         self.notify_monitor({"type": "AgentCompleted", "agent": self.layer})
         return {"agent": self.layer, "output": resp.output}

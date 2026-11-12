@@ -52,19 +52,7 @@ def _clip(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[:limit] + "\n[... truncated ...]"
 
 
-def _prior_text(prior: Any) -> str:
-    if not prior:
-        return "(none)"
-    if isinstance(prior, str):
-        return prior
-    parts = []
-    for key, value in prior.items():
-        if isinstance(value, dict) and "output" in value:
-            value = value["output"]
-        elif not isinstance(value, str):
-            value = json.dumps(value, default=str, indent=1)
-        parts.append(f"### {key}\n{value}")
-    return "\n\n".join(parts)
+from k9_dow.agents.src.squad_context import prior_text as _prior_text  # shared with the other agents
 
 
 class SectionWriterAgent(BaseAgent):
