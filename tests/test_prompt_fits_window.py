@@ -24,7 +24,22 @@ def test_prior_text_keeps_outputs_and_drops_loop_records():
 
 
 def test_a_prompt_over_the_window_is_refused(monkeypatch):
+    from k9_dow.agents.src import squad_context
     monkeypatch.setenv("OLLAMA_NUM_CTX", "32768")
-    assert_fits_window("x" * 50_000, "DAS PackageBuilder")               # ~16.7k tokens: fits
-    with pytest.raises(RuntimeError, match="does not fit"):
+    counted = []
+    monkeypatch.setattr(squad_context, "_exact_tokens", lambda p: counted.append(len(p)) or len(p) // 4)
+    assert_fits_window("x" * 50_000, "DAS PackageBuilder")               # estimate fits: not counted
+    assert counted == []
+    assert_fits_window("x" * 95_000, "DAS CompletenessChecker")         # estimate over, exact 23.7k: fits
+    with pytest.raises(RuntimeError, match="38000 tokens does not fit"):
         assert_fits_window("x" * 152_000, "DAS PackageBuilder")          # the 38k-token CDD case
+
+
+def test_an_uncountable_prompt_near_the_limit_is_refused(monkeypatch):
+    from k9_dow.agents.src import squad_context
+    monkeypatch.setenv("OLLAMA_NUM_CTX", "32768")
+    def down(p):
+        raise OSError("connection refused")
+    monkeypatch.setattr(squad_context, "_exact_tokens", down)
+    with pytest.raises(RuntimeError, match="could not be counted"):
+        assert_fits_window("x" * 95_000, "DAS CompletenessChecker")

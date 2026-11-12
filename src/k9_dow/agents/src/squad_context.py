@@ -53,17 +53,36 @@ def prior_text(prior: Any) -> str:
     return "\n\n".join(parts)
 
 
-# Conservative: these documents measure about 4 characters per qwen3.8 token; 3 errs toward refusing.
+# A first filter only: these documents measure about 4 characters per qwen3.8 token, 3 errs high.
 CHARS_PER_TOKEN = 3.0
 OUTPUT_RESERVE = 2048
+
+
+def _exact_tokens(prompt: str) -> int:
+    """The model's own count of ``prompt`` (Ollama prompt_eval_count for a raw prompt, one token generated)."""
+    import urllib.request
+    host = (os.environ.get("OLLAMA_HOST") or "http://localhost:11434").rstrip("/")
+    model = os.environ.get("OLLAMA_MODEL") or "qwen3.8:27b"
+    body = json.dumps({"model": model, "prompt": prompt, "raw": True, "stream": False, "think": False,
+                       "options": {"num_predict": 1, "temperature": 0, "num_ctx": 262144}}).encode()
+    req = urllib.request.Request(host + "/api/generate", data=body, headers={"Content-Type": "application/json"})
+    return int(json.loads(urllib.request.urlopen(req, timeout=900).read())["prompt_eval_count"])
 
 
 def assert_fits_window(prompt: str, agent: str = "") -> None:
     """Refuse a prompt that would exceed the model's context window. Ollama drops the oldest part of a
     prompt longer than num_ctx without an error, so the model would read part of its input and the run
-    would look normal. The failure goes up to the stage, which records it (Retry)."""
+    would look normal. A cheap estimate passes most prompts; one near or over the limit is counted
+    exactly by the model and refused only if it does not fit. The failure goes up to the stage, which
+    records it (Retry)."""
     window = int(os.environ.get("OLLAMA_NUM_CTX") or 32768)
-    estimate = int(len(prompt) / CHARS_PER_TOKEN)
-    if estimate + OUTPUT_RESERVE > window:
-        raise RuntimeError(f"{agent or 'agent'}: prompt of about {estimate} tokens does not fit the "
+    if int(len(prompt) / CHARS_PER_TOKEN) + OUTPUT_RESERVE <= window:
+        return
+    try:
+        exact = _exact_tokens(prompt)
+    except Exception as exc:
+        raise RuntimeError(f"{agent or 'agent'}: prompt may not fit the {window}-token window and could not "
+                           f"be counted ({type(exc).__name__}: {exc})") from exc
+    if exact + OUTPUT_RESERVE > window:
+        raise RuntimeError(f"{agent or 'agent'}: prompt of {exact} tokens does not fit the "
                            f"{window}-token context window (it would be truncated without an error)")
