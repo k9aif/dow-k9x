@@ -13,6 +13,8 @@
 #   logs-router  — tail das-router logs
 #   logs-orch    — tail das-orchestrator logs
 #   all          — clone + build + secret + up in one step
+#   vectors      — start the corpus database (pgvector container das-vectors, port VECTORDB_PORT)
+#   seed         — load the synthetic corpus into it, from inside the running pod
 
 set -euo pipefail
 
@@ -169,6 +171,9 @@ case "$cmd" in
     GRADER_MODEL="$(envval GRADER_MODEL)"; GRADER_MODEL="${GRADER_MODEL:-deepseek-r1:32b}"
     OLLAMA_NUM_CTX="$(envval OLLAMA_NUM_CTX)"; OLLAMA_NUM_CTX="${OLLAMA_NUM_CTX:-32768}"
     OLLAMA_DISPLAY_NAME="$(envval OLLAMA_DISPLAY_NAME)"; OLLAMA_DISPLAY_NAME="${OLLAMA_DISPLAY_NAME:-powerAI-5090}"
+    VECTORDB_PORT="$(envval VECTORDB_PORT)"; VECTORDB_PORT="${VECTORDB_PORT:-5433}"
+    VECTORDB_PASSWORD="$(envval VECTORDB_PASSWORD)"
+    [ -n "$VECTORDB_PASSWORD" ] || echo "Note: VECTORDB_PASSWORD not set in .env -- run '$0 vectors' first, or retrieval is recorded as unavailable."
     # OLLAMA_HOST from .env (or the shell), used as written. Only when it is unset or points at
     # localhost/127.0.0.1 -- which inside a container is the container itself -- use this host's IP.
     OLLAMA_HOST_CFG="${OLLAMA_HOST:-$(envval OLLAMA_HOST)}"
@@ -184,6 +189,7 @@ case "$cmd" in
         -e "s|<DAS_INSTANCE>|${DAS_INSTANCE}|g" -e "s|<DAS_PUBLIC_URL>|${DAS_PUBLIC_URL}|g" \
         -e "s|<DAS_RESUME_MODE>|${DAS_RESUME_MODE}|g" -e "s|<DAS_ADMIN_USER>|${DAS_ADMIN_USER}|g" \
         -e "s|<DAS_ADMIN_PASSWORD>|${DAS_ADMIN_PASSWORD}|g" -e "s|<DAS_SESSION_SECRET>|${DAS_SESSION_SECRET}|g" -e "s|<GRADER_MODEL>|${GRADER_MODEL}|g" -e "s|<OLLAMA_NUM_CTX>|${OLLAMA_NUM_CTX}|g" -e "s|<OLLAMA_HOST>|${OLLAMA_HOST}|g" -e "s|<OLLAMA_DISPLAY_NAME>|${OLLAMA_DISPLAY_NAME}|g" \
+        -e "s|<VECTORDB_PORT>|${VECTORDB_PORT}|g" -e "s|<VECTORDB_PASSWORD>|${VECTORDB_PASSWORD}|g" \
       "$DAS_DIR/ubuntu/das-pod.yaml" > "$RENDERED_YAML"
     [ -n "$DAS_ADMIN_PASSWORD" ] || echo "Note: DAS_ADMIN_PASSWORD not set in .env -- no admin login (nobody can start the next stage in manual mode)."
     echo "Deploying pod: $POD_NAME (3 containers, port ${HOST_PORT}, data namespace '${DAS_INSTANCE:-none}', ${DAS_PUBLIC_URL}, host IP ${PODMAN_HOST_IP}, model ${OLLAMA_MODEL}, num_ctx ${OLLAMA_NUM_CTX}) ..."
@@ -261,6 +267,34 @@ case "$cmd" in
 
   logs-orch)
     sudo podman logs -f "${POD_NAME}-das-orchestrator"
+    ;;
+
+  vectors)
+    # The retriever's corpus lives in its own pgvector database, so the shared Postgres (routing
+    # state, K9X HIL) needs no extension. Data persists in the named volume das-vectors-data.
+    ENV_FILE="$DAS_DIR/.env"
+    envval() { { grep -E "^$1=" "$ENV_FILE" 2>/dev/null || true; } | tail -1 | cut -d= -f2-; }
+    VPORT="$(envval VECTORDB_PORT)"; VPORT="${VPORT:-5433}"
+    VPW="$(envval VECTORDB_PASSWORD)"
+    if [ -z "$VPW" ]; then
+      VPW="$(openssl rand -hex 16)"
+      printf '\nVECTORDB_PASSWORD=%s\n' "$VPW" >> "$ENV_FILE"
+      echo "Generated VECTORDB_PASSWORD and added it to $ENV_FILE."
+    fi
+    if sudo podman container exists das-vectors 2>/dev/null; then
+      sudo podman start das-vectors >/dev/null; echo "das-vectors already exists; started."
+    else
+      sudo podman run -d --name das-vectors --restart=always -p "${VPORT}:5432" \
+        -e POSTGRES_PASSWORD="$VPW" -e POSTGRES_DB=dow_corpus \
+        -v das-vectors-data:/var/lib/postgresql/data docker.io/pgvector/pgvector:0.8.0-pg16 >/dev/null
+      echo "Started das-vectors (pgvector 0.8.0, Postgres 16) on port ${VPORT}."
+    fi
+    echo "Next: '$0 up' (so the pod gets the password), then '$0 seed'."
+    ;;
+
+  seed)
+    # Embeds data/synthetic_corpus/ with nomic-embed-text through the pod's own settings.
+    sudo podman exec "${POD_NAME}-das-orchestrator" python experiments/seed_synthetic_corpus.py
     ;;
 
   all)

@@ -117,6 +117,13 @@ vectordb:
   embedding_endpoint: "${OLLAMA_HOST:-http://localhost:11434}"
   dimension: 768
   table: dow_knowledge_corpus
+  # The corpus has its own pgvector database (v1.3.7), so the shared Postgres (routing state, K9X HIL)
+  # needs no extension. Hosted: the das-vectors container (build-run.sh vectors / seed).
+  host: "${VECTORDB_HOST:-localhost}"
+  port: "${VECTORDB_PORT:-5432}"
+  dbname: "${VECTORDB_DB:-dow_corpus}"
+  user: "${VECTORDB_USER:-postgres}"
+  password: "${VECTORDB_PASSWORD:-postgres}"
 
 # Real Guardian-backed governance (orchestrator-level, not per-agent --
 # see project_k9aif_architecture_facts memory, 2026-09-03 decision, for

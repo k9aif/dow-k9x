@@ -266,6 +266,16 @@ spec:
         secretKeyRef:
           name: pg-password
           key: pg-password
+    - name: VECTORDB_HOST
+      value: "rhel-host"
+    - name: VECTORDB_PORT
+      value: "<VECTORDB_PORT>"
+    - name: VECTORDB_DB
+      value: "dow_corpus"
+    - name: VECTORDB_USER
+      value: "postgres"
+    - name: VECTORDB_PASSWORD
+      value: "<VECTORDB_PASSWORD>"
     - name: NEO4J_URI
       value: "bolt://rhel-host:7687"
     - name: NEO4J_USER
