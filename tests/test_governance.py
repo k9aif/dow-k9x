@@ -88,6 +88,9 @@ def _requirement_without_side_effects(monkeypatch):
     monkeypatch.setattr(orch, "_load_squad", lambda *a, **k: squads_run.append(a) or (_ for _ in ()).throw(AssertionError("squad ran")))
     # Screening (warn-only, live Guardian) has its own tests; keep this one offline.
     monkeypatch.setattr(orch, "_screen_document", lambda *a, **k: {"status": "clean", "flagged_sections": []})
+    # The squad failure above is recorded as the stage's error (v1.3.7); keep that record out of storage.
+    from k9_dow.gates import hil_gateway
+    monkeypatch.setattr(hil_gateway, "save_stage_result", lambda *a, **k: "stub://requirement")
     return orch, squads_run
 
 
