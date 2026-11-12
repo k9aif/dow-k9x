@@ -49,24 +49,20 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DAS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="${DAS_DEPLOY_DIR:-$(cd "$DAS_DIR/.." && pwd)}"
 DAS_DIRNAME="$(basename "$DAS_DIR")"
-# DAS_INSTANCE (from the shell or .env): empty = the live DAS, exactly as before. Set (e.g. "next")
-# for a second DAS beside it from another checkout: its own image, pod, port, Kafka topics and
-# groups, job queue and storage prefix (src/k9_dow/config/instance.py).
+# One DAS: pod k9-dow-pod, image k9-aif-das:latest, whatever .env says.
+# DAS_INSTANCE (from the shell or .env) is passed to the containers and only names DAS's DATA: Kafka
+# topics and groups, job queue, storage prefix (src/k9_dow/config/instance.py). The live DAS keeps
+# DAS_INSTANCE=next because its job history (MinIO next/by-job/..., cited job records) is stored under
+# that prefix; changing it is a data migration, not a rename. The pod/image used to carry the
+# instance name (k9-dow-pod-next, k9-aif-das:next); `up` removes that old pod.
 _envfile_val() { { grep -E "^$1=" "$DAS_DIR/.env" 2>/dev/null || true; } | tail -1 | cut -d= -f2- | sed -e 's/^["'"'"']//' -e 's/["'"'"']$//'; }
 DAS_INSTANCE="${DAS_INSTANCE:-$(_envfile_val DAS_INSTANCE)}"
-if [[ -n "$DAS_INSTANCE" ]]; then
-  VOLUMES_DIR="${HOME}/containers/volumes/dow-${DAS_INSTANCE}"
-  IMAGE="k9-aif-das:${DAS_INSTANCE}"
-  POD_NAME="k9-dow-pod-${DAS_INSTANCE}"
-  HOST_PORT="${DAS_PORT:-$(_envfile_val DAS_PORT)}"; HOST_PORT="${HOST_PORT:-8010}"
-  DAS_PUBLIC_URL="${DAS_PUBLIC_URL:-$(_envfile_val DAS_PUBLIC_URL)}"; DAS_PUBLIC_URL="${DAS_PUBLIC_URL:-https://das-${DAS_INSTANCE}.k9x.ai}"
-else
-  VOLUMES_DIR="${HOME}/containers/volumes/dow"
-  IMAGE="k9-aif-das:latest"
-  POD_NAME="k9-dow-pod"
-  HOST_PORT="${DAS_PORT:-$(_envfile_val DAS_PORT)}"; HOST_PORT="${HOST_PORT:-8000}"
-  DAS_PUBLIC_URL="${DAS_PUBLIC_URL:-$(_envfile_val DAS_PUBLIC_URL)}"; DAS_PUBLIC_URL="${DAS_PUBLIC_URL:-https://das.k9x.ai}"
-fi
+VOLUMES_DIR="${HOME}/containers/volumes/dow"
+IMAGE="k9-aif-das:latest"
+POD_NAME="k9-dow-pod"
+LEGACY_POD="${DAS_INSTANCE:+k9-dow-pod-${DAS_INSTANCE}}"
+HOST_PORT="${DAS_PORT:-$(_envfile_val DAS_PORT)}"; HOST_PORT="${HOST_PORT:-8000}"
+DAS_PUBLIC_URL="${DAS_PUBLIC_URL:-$(_envfile_val DAS_PUBLIC_URL)}"; DAS_PUBLIC_URL="${DAS_PUBLIC_URL:-https://das.k9x.ai}"
 
 cmd="${1:-help}"
 
@@ -190,9 +186,14 @@ case "$cmd" in
         -e "s|<DAS_ADMIN_PASSWORD>|${DAS_ADMIN_PASSWORD}|g" -e "s|<DAS_SESSION_SECRET>|${DAS_SESSION_SECRET}|g" -e "s|<GRADER_MODEL>|${GRADER_MODEL}|g" -e "s|<OLLAMA_NUM_CTX>|${OLLAMA_NUM_CTX}|g" -e "s|<OLLAMA_HOST>|${OLLAMA_HOST}|g" -e "s|<OLLAMA_DISPLAY_NAME>|${OLLAMA_DISPLAY_NAME}|g" \
       "$DAS_DIR/ubuntu/das-pod.yaml" > "$RENDERED_YAML"
     [ -n "$DAS_ADMIN_PASSWORD" ] || echo "Note: DAS_ADMIN_PASSWORD not set in .env -- no admin login (nobody can start the next stage in manual mode)."
-    echo "Deploying pod: $POD_NAME (3 containers, port ${HOST_PORT}, instance '${DAS_INSTANCE:-live}', ${DAS_PUBLIC_URL}, host IP ${PODMAN_HOST_IP}, model ${OLLAMA_MODEL}, num_ctx ${OLLAMA_NUM_CTX}) ..."
+    echo "Deploying pod: $POD_NAME (3 containers, port ${HOST_PORT}, data namespace '${DAS_INSTANCE:-none}', ${DAS_PUBLIC_URL}, host IP ${PODMAN_HOST_IP}, model ${OLLAMA_MODEL}, num_ctx ${OLLAMA_NUM_CTX}) ..."
     echo "Ollama: ${OLLAMA_HOST} (from ${OLLAMA_SRC})"
     echo "Model: ${OLLAMA_MODEL} (from ${MODEL_SRC})"
+    # The old instance-named pod holds the same port and consumer groups: remove it first.
+    if [[ -n "$LEGACY_POD" ]] && sudo podman pod exists "$LEGACY_POD" 2>/dev/null; then
+      echo "Removing old pod $LEGACY_POD (replaced by $POD_NAME; data unchanged) ..."
+      sudo podman pod rm -f "$LEGACY_POD"
+    fi
     sudo podman play kube "$RENDERED_YAML" --replace
     echo ""
     echo "Pod running. Containers:"
@@ -235,8 +236,9 @@ case "$cmd" in
 
   down)
     echo "Stopping pod: $POD_NAME ..."
-    [[ -z "$DAS_INSTANCE" ]] && { sudo podman stop das-demo 2>/dev/null || true; }
+    sudo podman stop das-demo 2>/dev/null || true
     sudo podman pod rm -f "$POD_NAME" 2>/dev/null || true
+    [[ -n "$LEGACY_POD" ]] && { sudo podman pod rm -f "$LEGACY_POD" 2>/dev/null || true; }
     echo "Pod stopped."
     ;;
 
